@@ -3,9 +3,9 @@ using BookOrganizer.Models;
 namespace BookOrganizer.Services.Deduplication;
 
 /// <summary>
-/// Represents an audiobook with its folder and consolidated metadata.
+/// Represents an audiobook with its folder and metadata.
 /// </summary>
-public record AudiobookWithMetadata(AudiobookFolder Folder, ConsolidatedMetadata Metadata);
+public record AudiobookWithMetadata(AudiobookFolder Folder, BookMetadata Metadata);
 
 /// <summary>
 /// Detects potential duplicate audiobooks using metadata and content analysis.

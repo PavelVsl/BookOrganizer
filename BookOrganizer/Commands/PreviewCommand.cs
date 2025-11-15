@@ -61,6 +61,15 @@ public class PreviewCommand : Command
             aliases: ["--verbose", "-v"],
             description: "Show detailed output");
 
+        var detectDuplicatesOption = new Option<bool>(
+            aliases: ["--detect-duplicates"],
+            description: "Detect potential duplicate audiobooks");
+
+        var duplicateThresholdOption = new Option<double>(
+            aliases: ["--duplicate-threshold"],
+            description: "Minimum confidence for duplicate detection (0.0-1.0)",
+            getDefaultValue: () => 0.7);
+
         AddOption(sourceOption);
         AddOption(destinationOption);
         AddOption(operationOption);
@@ -71,6 +80,8 @@ public class PreviewCommand : Command
         AddOption(compactOption);
         AddOption(noTreeOption);
         AddOption(verboseOption);
+        AddOption(detectDuplicatesOption);
+        AddOption(duplicateThresholdOption);
 
         this.SetHandler(async (context) =>
         {
@@ -84,11 +95,14 @@ public class PreviewCommand : Command
             var compactMode = context.ParseResult.GetValueForOption(compactOption);
             var noTreeMode = context.ParseResult.GetValueForOption(noTreeOption);
             var verboseMode = context.ParseResult.GetValueForOption(verboseOption);
+            var detectDuplicates = context.ParseResult.GetValueForOption(detectDuplicatesOption);
+            var duplicateThreshold = context.ParseResult.GetValueForOption(duplicateThresholdOption);
 
             var exitCode = await ExecuteAsync(
                 source, destination, operation, export,
                 authorFilter, seriesFilter, maxItemsFilter,
-                compactMode, noTreeMode, verboseMode);
+                compactMode, noTreeMode, verboseMode,
+                detectDuplicates, duplicateThreshold);
 
             context.ExitCode = exitCode;
         });
@@ -104,7 +118,9 @@ public class PreviewCommand : Command
         int? maxItems,
         bool compact,
         bool noTree,
-        bool verbose)
+        bool verbose,
+        bool detectDuplicates,
+        double duplicateThreshold)
     {
         try
         {
@@ -152,6 +168,8 @@ public class PreviewCommand : Command
                         destinationPath,
                         opType,
                         filter,
+                        detectDuplicates,
+                        duplicateThreshold,
                         CancellationToken.None);
                 });
 

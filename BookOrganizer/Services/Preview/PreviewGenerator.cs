@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using BookOrganizer.Models;
+using BookOrganizer.Services.Deduplication;
 using BookOrganizer.Services.Metadata;
 using BookOrganizer.Services.Operations;
 using BookOrganizer.Services.Scanning;
@@ -20,6 +21,7 @@ public class PreviewGenerator : IPreviewGenerator
     private readonly IMetadataExtractor _metadataExtractor;
     private readonly IPathGenerator _pathGenerator;
     private readonly IFileOperator _fileOperator;
+    private readonly IDeduplicationDetector _deduplicationDetector;
 
     // Platform-specific path length limits
     private const int WindowsMaxPathLength = 260;
@@ -33,13 +35,15 @@ public class PreviewGenerator : IPreviewGenerator
         IDirectoryScanner directoryScanner,
         IMetadataExtractor metadataExtractor,
         IPathGenerator pathGenerator,
-        IFileOperator fileOperator)
+        IFileOperator fileOperator,
+        IDeduplicationDetector deduplicationDetector)
     {
         _logger = logger;
         _directoryScanner = directoryScanner;
         _metadataExtractor = metadataExtractor;
         _pathGenerator = pathGenerator;
         _fileOperator = fileOperator;
+        _deduplicationDetector = deduplicationDetector;
     }
 
     public async Task<PreviewResult> GeneratePreviewAsync(
@@ -47,6 +51,8 @@ public class PreviewGenerator : IPreviewGenerator
         string destinationPath,
         FileOperationType operationType,
         PreviewFilter? filter = null,
+        bool detectDuplicates = false,
+        double duplicateThreshold = 0.7,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation(
@@ -66,6 +72,8 @@ public class PreviewGenerator : IPreviewGenerator
 
         // Create organization plans for each audiobook
         var plans = new List<OrganizationPlan>();
+        var audiobooksWithMetadata = new List<AudiobookWithMetadata>();
+
         foreach (var audiobook in audiobooks)
         {
             // Extract and consolidate metadata
@@ -85,13 +93,32 @@ public class PreviewGenerator : IPreviewGenerator
                 TargetPath = targetPath,
                 OperationType = operationType
             });
+
+            // Store for duplicate detection
+            if (detectDuplicates)
+            {
+                audiobooksWithMetadata.Add(new AudiobookWithMetadata(audiobook, metadata));
+            }
+        }
+
+        // Detect duplicates if requested
+        List<DuplicationCandidate> duplicates = new();
+        if (detectDuplicates && audiobooksWithMetadata.Count > 1)
+        {
+            _logger.LogInformation("Detecting duplicates with threshold {Threshold}", duplicateThreshold);
+            duplicates = await _deduplicationDetector.DetectDuplicatesAsync(
+                audiobooksWithMetadata,
+                duplicateThreshold,
+                cancellationToken).ConfigureAwait(false);
+
+            _logger.LogInformation("Found {Count} potential duplicates", duplicates.Count);
         }
 
         stopwatch.Stop();
         _logger.LogDebug("Preview generation took {Duration}ms", stopwatch.ElapsedMilliseconds);
 
-        // Generate preview from plans with filtering
-        return await GeneratePreviewFromPlansAsync(plans, filter, cancellationToken)
+        // Generate preview from plans with filtering and duplicates
+        return await GeneratePreviewFromPlansAsync(plans, duplicates, filter, cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -99,11 +126,12 @@ public class PreviewGenerator : IPreviewGenerator
         IEnumerable<OrganizationPlan> plans,
         CancellationToken cancellationToken = default)
     {
-        return GeneratePreviewFromPlansAsync(plans, null, cancellationToken);
+        return GeneratePreviewFromPlansAsync(plans, new List<DuplicationCandidate>(), null, cancellationToken);
     }
 
     private async Task<PreviewResult> GeneratePreviewFromPlansAsync(
         IEnumerable<OrganizationPlan> plans,
+        List<DuplicationCandidate> duplicates,
         PreviewFilter? filter,
         CancellationToken cancellationToken)
     {
@@ -167,6 +195,21 @@ public class PreviewGenerator : IPreviewGenerator
             }
         }
 
+        // Add duplicate detection issues
+        foreach (var duplicate in duplicates)
+        {
+            var issue = new PreviewIssue
+            {
+                Severity = IssueSeverity.Warning,
+                Type = IssueType.PotentialDuplicate,
+                Message = $"Potential duplicate: '{Path.GetFileName(duplicate.SourceFolder.Path)}' and '{Path.GetFileName(duplicate.TargetFolder.Path)}' (confidence: {duplicate.ConfidenceScore:P0})",
+                SourcePath = duplicate.SourceFolder.Path,
+                DestinationPath = duplicate.TargetFolder.Path,
+                Suggestion = $"Recommended action: {duplicate.RecommendedResolution}"
+            };
+            allIssues.Add(issue);
+        }
+
         // Calculate statistics
         var statistics = CalculateStatistics(operations, allIssues);
 
@@ -175,6 +218,7 @@ public class PreviewGenerator : IPreviewGenerator
             Operations = operations,
             Statistics = statistics,
             Issues = allIssues,
+            PotentialDuplicates = duplicates,
             GeneratedAt = DateTime.UtcNow
         });
     }

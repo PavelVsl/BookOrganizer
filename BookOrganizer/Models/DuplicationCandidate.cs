@@ -13,7 +13,7 @@ public record DuplicationCandidate
     /// <summary>
     /// Source audiobook metadata.
     /// </summary>
-    public required ConsolidatedMetadata SourceMetadata { get; init; }
+    public required BookMetadata SourceMetadata { get; init; }
 
     /// <summary>
     /// Target audiobook folder (the potential duplicate).
@@ -23,7 +23,7 @@ public record DuplicationCandidate
     /// <summary>
     /// Target audiobook metadata.
     /// </summary>
-    public required ConsolidatedMetadata TargetMetadata { get; init; }
+    public required BookMetadata TargetMetadata { get; init; }
 
     /// <summary>
     /// Confidence score that these are duplicates (0.0 = unlikely, 1.0 = very likely).
