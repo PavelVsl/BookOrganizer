@@ -16,4 +16,16 @@ public interface IDirectoryScanner
     Task<IReadOnlyList<AudiobookFolder>> ScanDirectoryAsync(
         string sourcePath,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Scans a directory recursively with progress reporting.
+    /// </summary>
+    /// <param name="sourcePath">Root directory to scan.</param>
+    /// <param name="progress">Progress reporter for scan updates.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of detected audiobook folders.</returns>
+    Task<IReadOnlyList<AudiobookFolder>> ScanDirectoryAsync(
+        string sourcePath,
+        IProgress<ScanProgress>? progress,
+        CancellationToken cancellationToken = default);
 }
