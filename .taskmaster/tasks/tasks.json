@@ -584,8 +584,73 @@
         "dependencies": [
           "7"
         ],
-        "status": "pending",
-        "subtasks": []
+        "status": "in-progress",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create IFileOperator interface and core operation types",
+            "description": "Define the main interface for file operations with integrity validation and progress tracking support",
+            "dependencies": [],
+            "details": "Create IFileOperator interface in Services/Operations/ directory with methods for copy/move operations with integrity validation. Define FileOperationResult record for operation outcomes, FileOperationProgress record for progress tracking, and ChecksumAlgorithm enum (MD5, SHA256). Include methods for checksum calculation, progress reporting, and cancellation support. Follow existing patterns from IFileOrganizer and integrate with FileOperationType enum.\n<info added on 2025-11-15T16:58:07.235Z>\nImplementation completed successfully - all required interfaces and models created in Services/Operations/ directory. IFileOperator interface defines ExecuteFileOperationAsync, CalculateChecksumAsync, and ValidateIntegrityAsync methods with proper async/await patterns, cancellation support, and progress reporting. ChecksumAlgorithm enum includes MD5 and SHA256 options. FileOperationResult record features factory methods CreateSuccess() and CreateFailure(), tracks source/destination checksums, integrity validation status, and operation duration. FileOperationProgress record includes BytesProcessed, TotalBytes, calculated PercentComplete property, and OperationStage enum with all phases: Preparing, CalculatingSourceChecksum, TransferringFile, CalculatingDestinationChecksum, ValidatingIntegrity, CleaningUp, Completed. Integration with existing FileOperationType enum confirmed. Project build verification completed successfully.\n</info added on 2025-11-15T16:58:07.235Z>",
+            "status": "done",
+            "testStrategy": "Unit tests for interface design validation and type safety checks",
+            "updatedAt": "2025-11-15T16:58:13.470Z",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Implement operation manifest system for rollback capability",
+            "description": "Create manifest tracking system that records all file operations for potential rollback",
+            "dependencies": [
+              1
+            ],
+            "details": "Create OperationManifest record and IOperationManifestManager interface. Implement manifest storage using JSON serialization with operation details: source paths, destination paths, checksums, timestamps, operation type. Support manifest persistence, loading, and validation. Create rollback logic to undo operations based on manifest data. Store manifests in .bookorganizer directory with unique identifiers and cleanup old manifests.\n<info added on 2025-11-15T16:59:12.998Z>\nLooking at the project structure and the user's request to defer the operation manifest system for the MVP, I need to analyze the current codebase to understand the file operations architecture.Let me look at the existing file operations interfaces to understand the current architecture:Now let me check if there are any enumeration for file operation types:Let me check the OrganizationPlan.cs to see the FileOperationType enum:Now let me check if there's an existing IFileOrganizer interface to understand the current pattern:Based on my analysis of the codebase, I can see that there's already a well-structured file operations system in place with IFileOperator, IFileOrganizer, FileOperationResult, and supporting models. The current architecture already includes checksum validation, progress tracking, and operation types. Given the user's request to defer the manifest system for MVP, here's the update:\n\nDECISION: Defer implementation for MVP release. Analysis of existing codebase shows robust file operations architecture already in place with IFileOperator interface providing checksum validation (MD5/SHA256), progress tracking via FileOperationProgress, and comprehensive FileOperationResult recording. Current FileOperationResult model already captures essential operation metadata (source/destination paths, checksums, timing, validation status) which provides basic audit trail without full manifest complexity. For MVP safety approach: utilize existing checksum validation to prevent corruption, leverage IFileOrganizer.ExecutePlanAsync dry-run mode for operation preview, keep file operations atomic through existing FileOperationType enum (Copy/Move/HardLink/SymbolicLink). Manifest rollback system can be implemented in post-MVP iteration when operational requirements demand full transaction log and rollback capabilities. Current approach maintains data integrity while keeping implementation simple and focused on core functionality.\n</info added on 2025-11-15T16:59:12.998Z>",
+            "status": "deferred",
+            "testStrategy": "Test manifest creation, persistence, and rollback scenarios with simulated failures",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-15T16:59:19.205Z"
+          },
+          {
+            "id": 3,
+            "title": "Implement checksum validation with MD5 and SHA256",
+            "description": "Create robust checksum calculation and validation system for file integrity verification",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement ChecksumCalculator class with async methods for MD5 and SHA256 calculation. Support streaming calculation for large files to avoid memory issues. Create FileIntegrityValidator class that calculates checksums before and after operations, compares them, and reports validation results. Handle edge cases like zero-byte files and permission issues. Integrate with IFileOperator interface for automatic validation.\n<info added on 2025-11-15T17:00:51.152Z>\nI'll analyze the codebase to understand the current implementation and then provide the appropriate update text.Based on my analysis of the codebase and the user's implementation report, here's the new text that should be appended to the subtask details:\n\nIMPLEMENTATION COMPLETED: ChecksumCalculator class successfully implemented in BookOrganizer/Services/Operations/ChecksumCalculator.cs. Includes CalculateChecksumAsync method with streaming support using 4MB buffer size for memory-efficient processing of large files. Supports both MD5 and SHA256 algorithms via ChecksumAlgorithm enum. Implements IProgress<long> for real-time progress reporting of bytes processed during checksum calculation. ValidateIntegrityAsync method compares source and destination file checksums with case-insensitive string comparison. CreateHashAlgorithm factory method provides clean algorithm selection. BytesToHexString helper method ensures consistent lowercase hexadecimal formatting. Comprehensive error handling with structured logging throughout. File access uses FileShare.Read and FileOptions.SequentialScan for optimal streaming performance. Integrates with existing IFileOperator interface and FileOperationResult models. Build verification completed successfully with no compilation errors.\n</info added on 2025-11-15T17:00:51.152Z>",
+            "status": "done",
+            "testStrategy": "Test checksum calculation with various file sizes, verify corruption detection, test performance with large files",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-15T17:00:57.359Z"
+          },
+          {
+            "id": 4,
+            "title": "Implement FileOperator with copy/move operations and progress tracking",
+            "description": "Create the main FileOperator implementation with safe file operations, progress reporting and cancellation support",
+            "dependencies": [
+              1,
+              2,
+              3
+            ],
+            "details": "Implement FileOperator class with async CopyAsync and MoveAsync methods. Include progress reporting using IProgress<FileOperationProgress> for long operations. Implement cancellation support with CancellationToken. Add retry logic for transient failures (file locks, network issues). Preserve file timestamps and attributes. Update ID3 tags with organized metadata paths. Handle Windows MAX_PATH limitations and cross-platform file system differences. Integrate with manifest system for operation tracking.",
+            "status": "pending",
+            "testStrategy": "Test copy/move operations with various file sizes, verify progress reporting accuracy, test cancellation and retry logic",
+            "parentId": "undefined"
+          },
+          {
+            "id": 5,
+            "title": "Add error handling, cleanup and service registration",
+            "description": "Implement comprehensive error handling, operation cleanup, and integrate with dependency injection system",
+            "dependencies": [
+              4
+            ],
+            "details": "Create FileOperationException hierarchy for specific error types (access denied, insufficient space, corruption detected). Implement automatic cleanup for failed operations using manifest data. Add graceful handling of file locking and permission errors with user-friendly messages. Support resuming interrupted operations by checking manifest state. Register IFileOperator and related services in ServiceCollectionExtensions. Add comprehensive logging using Microsoft.Extensions.Logging for all operations.",
+            "status": "pending",
+            "testStrategy": "Test error scenarios (permission denied, disk full, file locks), verify cleanup and resume functionality, test service registration",
+            "parentId": "undefined"
+          }
+        ],
+        "updatedAt": "2025-11-15T17:00:57.359Z"
       },
       {
         "id": "9",
@@ -616,7 +681,7 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-11-15T16:54:20.495Z",
+      "lastModified": "2025-11-15T17:00:57.360Z",
       "taskCount": 10,
       "completedCount": 7,
       "tags": [
