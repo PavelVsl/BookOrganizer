@@ -2,7 +2,7 @@
   "master": {
     "tasks": [
       {
-        "id": "1",
+        "id": 1,
         "title": "Project setup and foundation architecture",
         "description": "Establish the core project structure, dependencies, and foundational architecture for the AudioBook Organizer CLI application",
         "details": "Update the .csproj file to include required NuGet packages: TagLib-Sharp for MP3 metadata, System.CommandLine for CLI parsing, Microsoft.Extensions.DependencyInjection for DI container, Microsoft.Extensions.Logging for structured logging, and Spectre.Console for enhanced CLI UI. Create the basic folder structure with separate projects/folders for Core (domain models), Infrastructure (file operations, metadata extraction), and CLI (command-line interface). Set up dependency injection container and logging configuration. Create base interfaces for the main services (IMetadataExtractor, IFileScanner, IOrganizer). Implement proper error handling patterns and establish coding conventions following .NET standards with nullable reference types.",
@@ -79,7 +79,7 @@
         "updatedAt": "2025-11-15T15:45:12.349Z"
       },
       {
-        "id": "2",
+        "id": 2,
         "title": "Directory scanning and MP3 file detection",
         "description": "Implement the core directory scanning functionality to recursively find and identify audiobook folders containing MP3 files",
         "details": "Create IFileScanner interface and FileScanner implementation that recursively scans directories for folders containing MP3 files. Group related MP3 files by parent directory, calculate total size and file counts per audiobook folder. Implement caching mechanism using SQLite to store scan results for faster re-analysis. Handle file system exceptions gracefully (permission errors, locked files). Support scanning multiple source directories concurrently. Create AudiobookFolder model with properties: Path, MP3Files, TotalSize, FileCount, LastModified. Implement progress reporting for long scan operations.",
@@ -162,7 +162,7 @@
         "updatedAt": "2025-11-15T15:54:48.300Z"
       },
       {
-        "id": "3",
+        "id": 3,
         "title": "MP3 metadata extraction using TagLib-Sharp",
         "description": "Implement metadata extraction from MP3 files using ID3 tags and file system information",
         "details": "Create IMetadataExtractor interface and MetadataExtractor implementation using TagLib-Sharp library. Extract standard ID3 tags: Artist, Album, Title, Genre, Year, Track Number. Handle Czech characters and diacritics correctly using UTF-8 encoding. Create MetadataInfo model with confidence scoring for each field. Implement fallback to filename parsing when ID3 tags are missing or incomplete. Add validation for extracted metadata (reasonable year ranges, non-empty required fields). Handle corrupted or unreadable MP3 files gracefully. Support extracting duration and bitrate information for quality assessment.",
@@ -247,7 +247,7 @@
         "updatedAt": "2025-11-15T15:59:43.654Z"
       },
       {
-        "id": "4",
+        "id": 4,
         "title": "Intelligent filename pattern matching for Czech audiobooks",
         "description": "Implement sophisticated pattern matching to extract metadata from folder and file names, especially for Czech audiobook naming conventions",
         "details": "Create IFilenameParser interface and FilenameParser implementation with regex patterns for common naming conventions: 'Author - Book Title', 'Book Title - Author', 'Author - Series Name 01 - Book Title', '[Author] Series (01) - Book Title'. Handle Czech author name formats ('Firstname Lastname' vs 'Lastname, Firstname'). Extract series information and book numbers when present. Implement fuzzy matching for partial matches. Create confidence scoring system based on pattern complexity and completeness. Support configurable custom patterns via configuration. Normalize extracted text (trim whitespace, fix common typos, standardize punctuation).",
@@ -333,7 +333,7 @@
         "updatedAt": "2025-11-15T16:17:34.973Z"
       },
       {
-        "id": "5",
+        "id": 5,
         "title": "Command-line interface with System.CommandLine",
         "description": "Build the main CLI application with clear command structure and user-friendly interface using System.CommandLine and Spectre.Console",
         "details": "Implement main CLI commands: 'scan' (analyze directories), 'preview' (dry-run organization), 'organize' (execute organization), 'verify' (check organized library), 'config' (manage settings). Use System.CommandLine for argument parsing with proper validation and help text. Integrate Spectre.Console for enhanced UI with progress bars, tables, and colored output. Support common flags: --dry-run, --verbose, --help, --source, --destination. Implement interactive prompts for missing required information with validation. Create non-interactive mode for scripting with proper exit codes. Add comprehensive help system with examples and command descriptions.",
@@ -416,7 +416,7 @@
         "updatedAt": "2025-11-15T16:10:17.422Z"
       },
       {
-        "id": "6",
+        "id": 6,
         "title": "Metadata consolidation and confidence scoring system",
         "description": "Implement intelligent metadata consolidation that combines information from ID3 tags, filenames, and folder structures with confidence scoring",
         "details": "Create IMetadataConsolidator interface and MetadataConsolidator implementation that combines metadata from multiple sources (ID3 tags, filename parsing, folder structure). Implement confidence scoring algorithm based on source reliability, completeness, and consistency across files in the same audiobook. Create ConsolidatedMetadata model with per-field confidence scores. Implement conflict resolution rules (prefer ID3 over filename, prefer complete information, handle inconsistencies). Add validation rules for metadata quality (valid years, reasonable author/title lengths). Support user-defined metadata validation rules via configuration.",
@@ -496,7 +496,7 @@
         "updatedAt": "2025-11-15T16:39:33.313Z"
       },
       {
-        "id": "7",
+        "id": 7,
         "title": "Folder structure generation and path sanitization",
         "description": "Implement the target folder structure generation with proper path sanitization and collision handling",
         "details": "Create IPathGenerator interface and PathGenerator implementation that generates clean folder structures: '/library/author/[series/]book'. Implement path sanitization for invalid filesystem characters, handle Windows MAX_PATH limitations. Support configurable naming templates via configuration. Handle name collisions by appending numbers or year information. Create series folder logic with proper naming: '/library/Author/Series Name/01 - Book Title/'. Support standalone books: '/library/Author/Book Title/'. Implement path validation and length checking before operations. Handle special cases like books with same title by different authors.",
@@ -575,7 +575,7 @@
         "updatedAt": "2025-11-15T16:54:20.494Z"
       },
       {
-        "id": "8",
+        "id": 8,
         "title": "File operations engine with integrity validation",
         "description": "Implement safe file copy/move operations with integrity validation, progress tracking, and rollback capability",
         "details": "Create IFileOperator interface and FileOperator implementation supporting both copy and move operations. Implement checksum validation (MD5 or SHA256) before and after operations to ensure file integrity. Create operation manifest system for rollback capability in case of failures. Implement progress reporting for long operations with cancellation support. Preserve original file timestamps and update ID3 tags with organized metadata. Handle file locking and permission errors gracefully with retry logic. Support resuming interrupted operations from manifest. Create backup system for critical operations.",
@@ -655,7 +655,7 @@
         "updatedAt": "2025-11-15T17:12:23.569Z"
       },
       {
-        "id": "9",
+        "id": 9,
         "title": "Preview mode and dry-run functionality",
         "description": "Implement comprehensive preview mode that shows all planned changes without executing them",
         "details": "Create IPreviewGenerator interface and PreviewGenerator implementation that shows source → destination mappings, metadata changes, estimated disk space requirements, and potential errors. Display organized folder structure in tree format using Spectre.Console. Highlight potential issues (name collisions, missing metadata, path length problems). Support filtering preview by operation type, author, or error status. Export preview results to file formats (JSON, CSV, text). Calculate and display operation statistics (files to move/copy, total size, estimated time). Implement preview comparison between different organization strategies.",
@@ -734,7 +734,7 @@
         "updatedAt": "2025-11-15T17:35:02.949Z"
       },
       {
-        "id": "10",
+        "id": 10,
         "title": "Configuration management and logging system",
         "description": "Implement comprehensive configuration management and structured logging system for the application",
         "details": "Create IConfigurationManager interface and ConfigurationManager implementation using JSON configuration files. Support user preferences: default paths, naming templates, metadata provider settings. Implement per-library configuration profiles for different organization strategies. Set up structured logging using Microsoft.Extensions.Logging with configurable log levels (verbose, normal, quiet). Create detailed operation logs with timestamps, source/destination paths, operation types, and errors. Generate summary reports after completion with statistics and recommendations. Support log export in multiple formats (JSON, CSV, plain text). Implement log rotation and cleanup for long-running operations.",
@@ -745,6 +745,23 @@
         ],
         "status": "pending",
         "subtasks": []
+      },
+      {
+        "id": 11,
+        "title": "Implement FileOrganizer service and OrganizeCommand CLI with batch operations and progress tracking",
+        "description": "Create a comprehensive file organization service that orchestrates the audiobook organization workflow and a corresponding CLI command with progress tracking and batch operations.",
+        "details": "Enhance the IFileOrganizer interface to include batch operations for processing multiple audiobooks simultaneously with progress reporting using IProgress<T>. Implement FileOrganizer service that orchestrates the complete workflow: scanning directories using IDirectoryScanner, extracting metadata with IMetadataExtractor, consolidating metadata with IMetadataConsolidator, generating target paths with IPathGenerator, and executing file operations with IFileOperator. Add comprehensive error handling with detailed error messages, operation rollback capability in case of failures, and logging of all operations. Implement OrganizeCommand CLI command using System.CommandLine with options for --source, --destination, --operation-type (copy/move/hardlink/symlink), --dry-run, --verbose, and --force flags. Use Spectre.Console for progress bars showing current file being processed, percentage complete, files processed/total, estimated time remaining. Display operation summary including successful operations, failed operations, total files processed, total size processed, and operation duration. Handle cancellation gracefully with Ctrl+C support. Integrate with existing Result<T> pattern for error handling. Register both IFileOrganizer implementation and OrganizeCommand in Program.cs dependency injection container and command collection.",
+        "testStrategy": "Create integration tests with sample audiobook directories testing all operation types (copy, move, hardlink, symlink) with various folder structures. Test batch processing with multiple audiobooks simultaneously. Verify progress reporting accuracy and cancellation behavior. Test error scenarios including insufficient permissions, disk space, corrupted files, and network interruptions. Validate rollback functionality when operations fail partway through. Test CLI command with all option combinations and verify proper exit codes. Test with Czech characters in file paths and metadata. Verify operation summaries show correct counts and timing information.",
+        "status": "pending",
+        "dependencies": [
+          2,
+          3,
+          6,
+          7,
+          8
+        ],
+        "priority": "medium",
+        "subtasks": []
       }
     ],
     "metadata": {
@@ -754,7 +771,10 @@
       "completedCount": 9,
       "tags": [
         "master"
-      ]
+      ],
+      "created": "2025-11-15T17:37:13.481Z",
+      "description": "Tasks for master context",
+      "updated": "2025-11-15T17:37:51.878Z"
     }
   }
 }
