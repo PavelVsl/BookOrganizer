@@ -252,3 +252,4 @@ When uncertain about implementation details:
 - [TagLib-Sharp GitHub](https://github.com/mono/taglib-sharp)
 - [Spectre.Console Docs](https://spectreconsole.net/)
 - [.NET 9 What's New](https://learn.microsoft.com/dotnet/core/whats-new/dotnet-9)
+- source @/Users/pavel/Documents/audiobooks destination @/Users/pavel/Documents/library
