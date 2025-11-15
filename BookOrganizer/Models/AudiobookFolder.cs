@@ -16,6 +16,11 @@ public record AudiobookFolder
     public required IReadOnlyList<string> AudioFiles { get; init; }
 
     /// <summary>
+    /// List of other file paths (cover images, metadata files, etc.) within this folder.
+    /// </summary>
+    public IReadOnlyList<string> OtherFiles { get; init; } = Array.Empty<string>();
+
+    /// <summary>
     /// Total size of all audio files in bytes.
     /// </summary>
     public long TotalSizeBytes { get; init; }
@@ -24,4 +29,9 @@ public record AudiobookFolder
     /// Number of audio files detected.
     /// </summary>
     public int FileCount => AudioFiles.Count;
+
+    /// <summary>
+    /// All files (audio + other files) in this folder.
+    /// </summary>
+    public IEnumerable<string> AllFiles => AudioFiles.Concat(OtherFiles);
 }

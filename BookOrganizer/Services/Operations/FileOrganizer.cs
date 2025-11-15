@@ -242,7 +242,8 @@ public class FileOrganizer : IFileOrganizer
         var filesProcessed = 0;
         var filesFailed = 0;
 
-        foreach (var sourceFile in plan.SourceFolder.AudioFiles)
+        // Process all files (audio + cover images/metadata)
+        foreach (var sourceFile in plan.SourceFolder.AllFiles)
         {
             cancellationToken.ThrowIfCancellationRequested();
 

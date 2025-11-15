@@ -94,6 +94,14 @@ public class DeduplicationDetector : IDeduplicationDetector
             return Task.FromResult<DuplicationCandidate?>(null);
         }
 
+        // Check for multi-part book indicators in folder names or titles
+        var isMultiPart = IsMultiPartBook(folder1.Path, folder2.Path, meta1.Title, meta2.Title);
+        if (isMultiPart)
+        {
+            // Multi-part books (Part I/II, svazek I/II, etc.) are NOT duplicates
+            return Task.FromResult<DuplicationCandidate?>(null);
+        }
+
         // Author and title match - this is likely a duplicate
         matchReasons.Add($"Author match: '{meta1.Author}' = '{meta2.Author}'");
         matchReasons.Add($"Title match: '{meta1.Title}' = '{meta2.Title}'");
@@ -123,7 +131,7 @@ public class DeduplicationDetector : IDeduplicationDetector
             }
         }
 
-        // Compare narrator
+        // Compare narrator - different narrators mean different audiobook versions (keep both)
         if (!string.IsNullOrEmpty(meta1.Narrator) && !string.IsNullOrEmpty(meta2.Narrator))
         {
             if (CompareField(meta1.Narrator, meta2.Narrator))
@@ -133,8 +141,9 @@ public class DeduplicationDetector : IDeduplicationDetector
             }
             else
             {
+                // Different narrators = different audiobook versions, NOT duplicates
                 differences.Add($"Different narrators: '{meta1.Narrator}' vs '{meta2.Narrator}'");
-                confidenceScore -= 0.05; // Different narrators reduce confidence slightly
+                return Task.FromResult<DuplicationCandidate?>(null);
             }
         }
         else if (!string.IsNullOrEmpty(meta1.Narrator) || !string.IsNullOrEmpty(meta2.Narrator))
@@ -164,6 +173,26 @@ public class DeduplicationDetector : IDeduplicationDetector
         // Add content-based match reasons and differences
         matchReasons.AddRange(contentComparison.MatchReasons);
         differences.AddRange(contentComparison.Differences);
+
+        // Check if file counts are significantly different (likely different versions or multi-part)
+        var fileCountRatio = Math.Abs(content1.FileCount - content2.FileCount) /
+                            (double)Math.Max(content1.FileCount, content2.FileCount);
+        if (fileCountRatio > 0.3) // More than 30% difference in file count
+        {
+            differences.Add($"Significantly different file counts: {content1.FileCount} vs {content2.FileCount}");
+            // Don't flag as duplicates if file structure is very different
+            if (fileCountRatio > 0.5) // More than 50% difference
+            {
+                return Task.FromResult<DuplicationCandidate?>(null);
+            }
+        }
+
+        // Check if durations are significantly different (likely abridged vs full or multi-part)
+        if (contentComparison.DurationSimilarity < 0.5) // Less than 50% similar
+        {
+            // Very different durations suggest different versions, not duplicates
+            return Task.FromResult<DuplicationCandidate?>(null);
+        }
 
         // Adjust confidence based on content similarity
         var contentConfidence = (contentComparison.DurationSimilarity * 0.15) +
@@ -197,6 +226,96 @@ public class DeduplicationDetector : IDeduplicationDetector
     {
         // Use text normalizer for Czech-aware comparison
         return _textNormalizer.AreEquivalent(field1, field2);
+    }
+
+    /// <summary>
+    /// Detects if two audiobooks are parts of a multi-part book series.
+    /// Checks for indicators like "I/II", "Part 1/2", "svazek I/II", "díl 1/2", etc.
+    /// </summary>
+    private bool IsMultiPartBook(string path1, string path2, string? title1, string? title2)
+    {
+        // Common multi-part indicators (case-insensitive)
+        // Czech: svazek, díl, část
+        // English: part, volume, vol, book
+        // Roman numerals: I, II, III, IV, V, VI, VII, VIII, IX, X
+        // Numbers: 1, 2, 3, etc.
+
+        var text1 = $"{Path.GetFileName(path1)} {title1}".ToUpperInvariant();
+        var text2 = $"{Path.GetFileName(path2)} {title2}".ToUpperInvariant();
+
+        // Patterns for multi-part indicators
+        var patterns = new[]
+        {
+            // Roman numerals at end or with separators
+            @"\bI\b.*\bII\b", @"\bII\b.*\bI\b",
+            @"\bI\b.*\bIII\b", @"\bIII\b.*\bI\b",
+            @"\bII\b.*\bIII\b", @"\bIII\b.*\bII\b",
+            @"\bIV\b.*\bV\b", @"\bV\b.*\bIV\b",
+
+            // Czech indicators
+            @"SVAZEK\s*\d+.*SVAZEK\s*\d+",
+            @"DÍL\s*\d+.*DÍL\s*\d+",
+            @"ČÁST\s*\d+.*ČÁST\s*\d+",
+
+            // English indicators
+            @"PART\s*\d+.*PART\s*\d+",
+            @"VOLUME\s*\d+.*VOLUME\s*\d+",
+            @"VOL\.?\s*\d+.*VOL\.?\s*\d+",
+            @"BOOK\s*\d+.*BOOK\s*\d+",
+
+            // Number patterns (e.g., "lazar 1" vs "lazar 2")
+            @"\s+\d+\s*$", // Number at end of string
+        };
+
+        var combinedText = $"{text1}|{text2}";
+
+        foreach (var pattern in patterns)
+        {
+            if (System.Text.RegularExpressions.Regex.IsMatch(combinedText, pattern))
+            {
+                _logger.LogDebug(
+                    "Detected multi-part book pattern '{Pattern}' in: '{Path1}' vs '{Path2}'",
+                    pattern,
+                    path1,
+                    path2);
+                return true;
+            }
+        }
+
+        // Check if one path contains part indicator and they're different
+        var partIndicators = new[] { " I", " II", " III", " IV", " V", " 1", " 2", " 3", " 4", " 5",
+                                     "SVAZEK", "DÍL", "ČÁST", "PART", "VOLUME", "VOL" };
+
+        var hasIndicator1 = partIndicators.Any(ind => text1.Contains(ind));
+        var hasIndicator2 = partIndicators.Any(ind => text2.Contains(ind));
+
+        if (hasIndicator1 && hasIndicator2)
+        {
+            // Both have indicators - check if they're different
+            foreach (var indicator in partIndicators)
+            {
+                var pos1 = text1.IndexOf(indicator, StringComparison.Ordinal);
+                var pos2 = text2.IndexOf(indicator, StringComparison.Ordinal);
+
+                if (pos1 >= 0 && pos2 >= 0)
+                {
+                    // Get text after the indicator to compare
+                    var suffix1 = text1.Substring(pos1);
+                    var suffix2 = text2.Substring(pos2);
+
+                    if (suffix1 != suffix2)
+                    {
+                        _logger.LogDebug(
+                            "Detected different part indicators: '{Suffix1}' vs '{Suffix2}'",
+                            suffix1,
+                            suffix2);
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     private static DuplicationResolution DetermineRecommendedResolution(

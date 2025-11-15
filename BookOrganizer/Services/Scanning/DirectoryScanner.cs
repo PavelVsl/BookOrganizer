@@ -120,10 +120,12 @@ public class DirectoryScanner : IDirectoryScanner
 
         try
         {
-            // Get all audio files in current directory
-            var audioFiles = Directory.EnumerateFiles(currentPath)
-                .Where(file => IsAudioFile(file))
-                .ToList();
+            // Get all files in current directory
+            var allFiles = Directory.EnumerateFiles(currentPath).ToList();
+
+            // Separate audio files from other files
+            var audioFiles = allFiles.Where(file => IsAudioFile(file)).ToList();
+            var otherFiles = allFiles.Where(file => !IsAudioFile(file)).ToList();
 
             // If this directory contains audio files, treat it as an audiobook folder
             if (audioFiles.Count > 0)
@@ -145,6 +147,7 @@ public class DirectoryScanner : IDirectoryScanner
                 {
                     Path = currentPath,
                     AudioFiles = audioFiles,
+                    OtherFiles = otherFiles,
                     TotalSizeBytes = totalSize
                 };
 
