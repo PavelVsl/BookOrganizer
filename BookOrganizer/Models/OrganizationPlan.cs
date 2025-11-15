@@ -22,12 +22,13 @@ public record OrganizationPlan
     public required string TargetPath { get; init; }
 
     /// <summary>
-    /// Whether to copy or move files.
+    /// Type of file operation to perform (Copy, Move, HardLink, or SymbolicLink).
     /// </summary>
     public required FileOperationType OperationType { get; init; }
 
     /// <summary>
     /// Estimated total size to be copied/moved.
+    /// For link operations, this represents the size of source files (no actual disk usage increase).
     /// </summary>
     public long TotalSizeBytes => SourceFolder.TotalSizeBytes;
 }
@@ -39,11 +40,29 @@ public enum FileOperationType
 {
     /// <summary>
     /// Copy files to the new location, keeping originals.
+    /// Uses more disk space but provides full independence.
     /// </summary>
     Copy,
 
     /// <summary>
     /// Move files to the new location, removing originals.
+    /// Saves disk space but changes original location.
     /// </summary>
-    Move
+    Move,
+
+    /// <summary>
+    /// Create hard links to files in the new location.
+    /// Files remain in original location, no additional disk space used.
+    /// Both paths point to the same physical file on disk.
+    /// Note: Hard links only work within the same filesystem/volume.
+    /// </summary>
+    HardLink,
+
+    /// <summary>
+    /// Create symbolic links (symlinks) to files in the new location.
+    /// Files remain in original location, minimal disk space used.
+    /// Links can span different filesystems/volumes.
+    /// Note: Requires appropriate permissions (admin on Windows).
+    /// </summary>
+    SymbolicLink
 }
