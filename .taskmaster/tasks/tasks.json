@@ -827,13 +827,181 @@
           }
         ],
         "updatedAt": "2025-11-15T18:24:40.052Z"
+      },
+      {
+        "id": "12",
+        "title": "Implement culture-aware Czech text normalization for metadata comparison",
+        "description": "Add comprehensive text normalization that properly handles Czech diacritics, case variations, and encoding detection/conversion for author names, titles, and series names in both FilenameParser and MetadataConsolidator.",
+        "status": "done",
+        "dependencies": [
+          "3",
+          "6"
+        ],
+        "priority": "high",
+        "details": "Create a new service ITextNormalizer with implementation TextNormalizer that provides culture-aware string normalization for Czech text. The service must handle encoding detection and conversion issues common in Czech audiobooks created on Windows systems. Implement four normalization modes: 1) Display preservation (keeps original formatting), 2) Comparison normalization (removes diacritics, normalizes case using Czech culture settings), 3) Canonical form generation (creates standardized versions for deduplication), 4) Encoding correction (detects Windows-1250 mojibake patterns and converts to proper UTF-8). The service should detect common encoding corruption patterns like 'Franti ek Kotleta' (Windows-1250 read as UTF-8) and convert to 'František Kotleta'. Handle Czech diacritics (ě,š,č,ř,ž,ý,á,í,é,ú,ů,ď,ť,ň), use StringComparison.CurrentCultureIgnoreCase with Czech CultureInfo, and normalize whitespace patterns. Update FilenameParser.cs:164 NormalizeAuthorName method and CleanTitle method to use the new service. Modify MetadataConsolidator.cs:173-174 comparison logic to use normalized text comparison instead of simple OrdinalIgnoreCase. Implement helper methods: NormalizeForComparison(), GenerateCanonicalForm(), PreserveDisplayValue(), DetectAndCorrectEncoding(), and IsLikelyMojibake(). Register the service in ServiceCollectionExtensions.cs. The solution should recognize 'František Kotleta', 'Frantisek Kotleta', 'FRANTIŠEK KOTLETA', 'Franti ek Kotleta' (mojibake), and 'František Kotleta' as identical authors while preserving the display format from the most reliable source.",
+        "testStrategy": "Create comprehensive test suite with Czech author name variations including encoding corruption scenarios (František vs Frantisek vs FRANTIŠEK vs 'Franti ek Kotleta' mojibake patterns). Test title normalization with various diacritics, cases, and encoding issues. Verify series name matching with different capitalization and encoding problems. Test MetadataConsolidator properly merges metadata from sources with different Czech text formats and encoding corruption. Create test cases with common Windows-1250 to UTF-8 conversion issues found in Czech audiobooks. Verify that display values are preserved from highest confidence sources while comparison correctly identifies duplicates regardless of encoding issues. Test edge cases: mixed Czech/English text, multiple consecutive diacritics, unusual spacing patterns, partially corrupted encoding. Performance test with large datasets to ensure encoding detection and normalization doesn't significantly impact processing speed.",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create ITextNormalizer Interface with Encoding Detection Support",
+            "description": "Define the ITextNormalizer interface with methods for text normalization including encoding detection and correction for Czech text processing",
+            "dependencies": [],
+            "details": "Create an interface in Services/Normalization/ with methods: NormalizeForComparison(), GenerateCanonicalForm(), PreserveDisplayValue(), DetectAndCorrectEncoding(), and IsLikelyMojibake(). Define clear contracts for each normalization method with Czech culture-specific requirements and encoding detection capabilities. Use CultureInfo.CreateSpecificCulture('cs-CZ') for Czech-specific string handling. Include methods for detecting common Windows-1250 to UTF-8 conversion issues typical in Czech audiobook metadata",
+            "status": "done",
+            "testStrategy": "Unit test the interface contract and basic implementation methods with Czech diacritical characters, different casing scenarios, and encoding corruption patterns like 'Franti ek' instead of 'František'",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-15T18:56:46.374Z"
+          },
+          {
+            "id": 2,
+            "title": "Implement TextNormalizer Service with Encoding Auto-Detection",
+            "description": "Develop a comprehensive TextNormalizer service that handles Czech text normalization and automatic encoding detection/correction for Windows-1250 mojibake patterns",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement TextNormalizer class in Services/Normalization/ using Czech CultureInfo and encoding detection algorithms. Create methods to: detect Windows-1250 mojibake patterns (spaces where diacritics should be), convert corrupted text to proper UTF-8, remove diacritics, normalize whitespace, handle case variations. Implement logic to preserve original display value while providing normalized comparison and canonical forms. Use System.Text.Encoding for encoding detection and conversion, focusing on Windows-1250 (Central European) charset commonly used in Czech audiobook creation tools",
+            "status": "done",
+            "testStrategy": "Create unit tests covering normalization and encoding correction of author names, titles with Czech diacritics and mojibake patterns. Test cases: 'Franti ek Kotleta' → 'František Kotleta', verify preservation of original formatting, correct normalization, and encoding detection accuracy",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-15T18:56:47.501Z"
+          },
+          {
+            "id": 3,
+            "title": "Update FilenameParser with TextNormalizer and Encoding Correction",
+            "description": "Modify FilenameParser to use the new TextNormalizer for author name and title normalization with automatic encoding detection and correction",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Update NormalizeAuthorName method in FilenameParser.cs:164 to use TextNormalizer with encoding detection. Modify CleanTitle method to leverage new normalization service including mojibake detection and correction. Ensure consistent handling of author and title text across parsing and normalization processes, with special attention to detecting and correcting Windows-1250 encoding issues common in Czech audiobook metadata",
+            "status": "done",
+            "testStrategy": "Integration tests to verify that author names with encoding issues like 'Franti ek Kotleta', 'František Kotleta', 'Frantisek Kotleta', and 'František KOTLETA' are correctly normalized and compared. Test with both properly encoded and mojibake-corrupted Czech text",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-15T18:57:47.334Z"
+          },
+          {
+            "id": 4,
+            "title": "Enhance MetadataConsolidator with Encoding-Aware Text Comparison",
+            "description": "Update MetadataConsolidator to use TextNormalizer for metadata comparison and deduplication with automatic encoding correction",
+            "dependencies": [
+              1,
+              2,
+              3
+            ],
+            "details": "Modify comparison logic in MetadataConsolidator.cs:173-174 to use normalized text comparison instead of OrdinalIgnoreCase, incorporating encoding detection and correction. Implement advanced matching logic that uses canonical form generation for detecting duplicate or similar metadata entries even when one source has encoding corruption. Ensure proper handling of Windows-1250 mojibake patterns during metadata consolidation",
+            "status": "done",
+            "testStrategy": "Create comprehensive tests demonstrating metadata consolidation with various Czech text variations including encoding corruption, ensuring correct matching and merging between sources with different encoding states (proper UTF-8 vs Windows-1250 mojibake)",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-15T18:58:19.752Z"
+          },
+          {
+            "id": 5,
+            "title": "Dependency Injection and Service Registration with Encoding Support",
+            "description": "Configure dependency injection to register TextNormalizer and ensure encoding detection capabilities are available throughout the application",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "details": "Update ServiceCollectionExtensions.cs to register ITextNormalizer with TextNormalizer implementation. Configure scoping (likely Singleton for performance) and ensure the service is available in relevant dependency injection contexts. Verify that encoding detection and normalization services work correctly across different services and components in the application",
+            "status": "done",
+            "testStrategy": "Verify that TextNormalizer can be correctly resolved and used across different services and components in the application. Test that encoding detection and correction work seamlessly in the complete application workflow",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-15T18:59:30.409Z"
+          }
+        ],
+        "updatedAt": "2025-11-15T18:59:30.409Z"
+      },
+      {
+        "id": "13",
+        "title": "Implement book deduplication detection and handling system",
+        "description": "Create a comprehensive deduplication system that identifies duplicate audiobooks using normalized metadata comparison, content analysis, and user-guided resolution with caching.",
+        "details": "Create a new service `IDeduplicationService` with implementation `DeduplicationService` that identifies potential duplicate audiobooks through multiple detection strategies: 1) **Normalized metadata comparison** - Use TextNormalizer from task 12 to create canonical forms of author+title for fuzzy matching, handle encoding variations and case differences. 2) **Content-based analysis** - Compare total duration by summing MP3 file lengths using TagLib-Sharp, calculate aggregate file sizes, optionally generate audio fingerprints using acoustic analysis. 3) **Structural comparison** - Analyze file count differences, folder organization patterns, detect abridged vs unabridged versions by duration ratios. Create `DuplicationCandidate` model with source/target AudiobookFolder references, confidence score (0.0-1.0), detected differences (metadata, content, structure), and resolution recommendations. Implement `IDuplicationResolver` for user interaction presenting side-by-side comparisons via Spectre.Console tables showing metadata fields, file counts, total sizes, duration estimates. Provide resolution options: keep both with version suffixes (Author/Title/Version 1), keep higher quality version based on file size/duration, skip/ignore during organization. Create `IDeduplicationCache` using SQLite to store user decisions (source path hash + normalized metadata hash → resolution choice) to prevent repeated prompts. Integrate with PreviewCommand and OrganizeCommand by adding deduplication detection phase after metadata extraction but before path generation. Add CLI flags: `--detect-duplicates` (enable detection), `--auto-resolve` (apply cached decisions), `--duplicate-threshold` (confidence threshold 0.0-1.0). Extend PreviewResult model with `PotentialDuplicates` property containing DuplicationCandidate list. Update FileOrganizer workflow to call deduplication detection and resolution before executing organization plans.",
+        "testStrategy": "Create test audiobook collections with known duplicates: same content with different folder names, same book with different encodings (Windows-1250 vs UTF-8), abridged vs full versions with different narrators. Test TextNormalizer integration with Czech diacritics variations (František vs Frantisek). Test content comparison accuracy with files of similar but different durations. Test user interaction flows with Spectre.Console mockable interfaces. Verify cache persistence and retrieval across sessions. Test integration with preview and organize commands ensuring duplicate detection doesn't break existing workflows. Test CLI flag combinations and edge cases like no duplicates found, all duplicates resolved from cache, user cancellation during resolution.",
+        "status": "pending",
+        "dependencies": [
+          "12",
+          "9",
+          "11"
+        ],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Design DeduplicationCandidate Model and Interfaces",
+            "description": "Create core models and interfaces for deduplication detection system",
+            "dependencies": [
+              12
+            ],
+            "details": "Implement IDeduplicationService, IDuplicationResolver, and IDeduplicationCache interfaces. Define DuplicationCandidate model with properties for source/target AudiobookFolder references, confidence score (0.0-1.0), detected differences (metadata, content, structure), and resolution recommendations. Ensure model supports multiple comparison strategies and user-guided resolution.",
+            "status": "pending",
+            "testStrategy": "Unit tests for model creation, interface method signatures, and serialization/deserialization of DuplicationCandidate",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Implement Metadata-Based Duplicate Detection",
+            "description": "Develop metadata comparison strategy for identifying potential audiobook duplicates",
+            "dependencies": [
+              1,
+              12
+            ],
+            "details": "Use TextNormalizer from task 12 to create canonical forms of author and title for fuzzy matching. Implement normalized metadata comparison logic that handles encoding variations, case differences, and Czech diacritics. Calculate similarity scores using advanced string comparison techniques.",
+            "status": "pending",
+            "testStrategy": "Create test cases with Czech audiobook metadata variations, verify normalization and matching accuracy across different encoding and formatting scenarios",
+            "parentId": "undefined"
+          },
+          {
+            "id": 3,
+            "title": "Develop Content-Based Duplicate Analysis",
+            "description": "Implement content comparison strategies for audiobook duplicate detection",
+            "dependencies": [
+              1,
+              3
+            ],
+            "details": "Use TagLib-Sharp to compare total audio file durations, calculate aggregate file sizes, and potentially generate audio fingerprints. Implement structural comparison analyzing file count differences and folder organization patterns. Develop algorithm to detect abridged vs unabridged versions by duration ratios.",
+            "status": "pending",
+            "testStrategy": "Create test audiobook collections with known duplicates (same content, different encodings, abridged/full versions) and verify detection accuracy",
+            "parentId": "undefined"
+          },
+          {
+            "id": 4,
+            "title": "Implement User-Guided Duplicate Resolution",
+            "description": "Create interactive duplicate resolution system using Spectre.Console",
+            "dependencies": [
+              1,
+              2,
+              3
+            ],
+            "details": "Develop IDuplicationResolver with side-by-side comparison UI using Spectre.Console tables. Implement resolution options: keep both with version suffixes, keep higher quality version, skip/ignore. Add CLI flags for duplicate detection mode (--detect-duplicates, --auto-resolve, --duplicate-threshold).",
+            "status": "pending",
+            "testStrategy": "Integration tests for resolution workflow, verify correct handling of user interactions and CLI flag configurations",
+            "parentId": "undefined"
+          },
+          {
+            "id": 5,
+            "title": "Integrate Deduplication with Organize and Preview Commands",
+            "description": "Extend FileOrganizer and CLI commands to incorporate deduplication detection",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "details": "Modify PreviewResult model to include PotentialDuplicates property. Update FileOrganizer workflow to call deduplication detection and resolution before executing organization plans. Ensure seamless integration with existing scanning and metadata extraction processes.",
+            "status": "pending",
+            "testStrategy": "End-to-end tests covering full workflow from directory scanning to duplicate detection and resolution, with various audiobook collection scenarios",
+            "parentId": "undefined"
+          }
+        ]
       }
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-11-15T18:24:40.053Z",
-      "taskCount": 11,
-      "completedCount": 10,
+      "lastModified": "2025-11-15T18:59:30.410Z",
+      "taskCount": 13,
+      "completedCount": 11,
       "tags": [
         "master"
       ]

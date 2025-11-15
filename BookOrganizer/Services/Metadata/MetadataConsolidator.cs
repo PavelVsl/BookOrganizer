@@ -1,4 +1,5 @@
 using BookOrganizer.Models;
+using BookOrganizer.Services.Text;
 using Microsoft.Extensions.Logging;
 
 namespace BookOrganizer.Services.Metadata;
@@ -9,15 +10,17 @@ namespace BookOrganizer.Services.Metadata;
 public class MetadataConsolidator : IMetadataConsolidator
 {
     private readonly ILogger<MetadataConsolidator> _logger;
+    private readonly ITextNormalizer _textNormalizer;
 
     // Source reliability weights (higher = more reliable)
     private const double Id3TagsWeight = 1.0;
     private const double FilenameWeight = 0.6;
     private const double FolderStructureWeight = 0.4;
 
-    public MetadataConsolidator(ILogger<MetadataConsolidator> logger)
+    public MetadataConsolidator(ILogger<MetadataConsolidator> logger, ITextNormalizer textNormalizer)
     {
         _logger = logger;
+        _textNormalizer = textNormalizer;
     }
 
     /// <inheritdoc />
@@ -170,15 +173,17 @@ public class MetadataConsolidator : IMetadataConsolidator
             .First();
 
         // Calculate confidence based on agreement between sources
+        // Use text normalization for Czech-aware comparison
         var agreementCount = candidates.Count(c =>
-            string.Equals(c.Value, best.Value, StringComparison.OrdinalIgnoreCase));
+            _textNormalizer.AreEquivalent(c.Value, best.Value));
 
         var agreementBonus = agreementCount > 1 ? 0.1 * (agreementCount - 1) : 0.0;
 
         confidence = Math.Min(1.0, (best.BaseConfidence * best.Weight) + agreementBonus);
         source = best.Source;
 
-        return best.Value!;
+        // Normalize the best value for display (fix encoding but preserve case/diacritics)
+        return _textNormalizer.NormalizeForDisplay(best.Value!);
     }
 
     private int? ConsolidateYearField(

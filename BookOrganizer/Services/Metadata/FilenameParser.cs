@@ -1,4 +1,5 @@
 using BookOrganizer.Models;
+using BookOrganizer.Services.Text;
 using Microsoft.Extensions.Logging;
 using System.Text.RegularExpressions;
 
@@ -10,10 +11,12 @@ namespace BookOrganizer.Services.Metadata;
 public partial class FilenameParser : IFilenameParser
 {
     private readonly ILogger<FilenameParser> _logger;
+    private readonly ITextNormalizer _textNormalizer;
 
-    public FilenameParser(ILogger<FilenameParser> logger)
+    public FilenameParser(ILogger<FilenameParser> logger, ITextNormalizer textNormalizer)
     {
         _logger = logger;
+        _textNormalizer = textNormalizer;
     }
 
     /// <inheritdoc />
@@ -21,8 +24,11 @@ public partial class FilenameParser : IFilenameParser
     {
         _logger.LogDebug("Parsing folder path: {Path}", folderPath);
 
+        // Fix encoding issues in the path first
+        var normalizedPath = _textNormalizer.NormalizeForDisplay(folderPath);
+
         // Split path into components
-        var pathParts = folderPath
+        var pathParts = normalizedPath
             .Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
             .Where(p => !string.IsNullOrWhiteSpace(p))
             .ToList();
@@ -59,7 +65,7 @@ public partial class FilenameParser : IFilenameParser
             // Try author pattern (usually earlier in path)
             if (author == null && i < pathParts.Count - 1 && IsLikelyAuthorName(part))
             {
-                author = NormalizeAuthorName(part);
+                author = NormalizeAuthorName(part, _textNormalizer);
                 confidence += 0.25;
                 continue;
             }
@@ -161,9 +167,11 @@ public partial class FilenameParser : IFilenameParser
         return words.All(w => char.IsUpper(w[0]));
     }
 
-    private static string NormalizeAuthorName(string input)
+    private static string NormalizeAuthorName(string input, ITextNormalizer textNormalizer)
     {
-        var cleaned = CleanTitle(input);
+        // Fix encoding first, then clean
+        var fixedText = textNormalizer.NormalizeForDisplay(input);
+        var cleaned = CleanTitle(fixedText);
 
         // Handle "Lastname, Firstname" format
         if (cleaned.Contains(','))

@@ -3,6 +3,7 @@ using BookOrganizer.Services.Operations;
 using BookOrganizer.Services.Operations.FileOperators;
 using BookOrganizer.Services.Preview;
 using BookOrganizer.Services.Scanning;
+using BookOrganizer.Services.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -18,6 +19,9 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddBookOrganizerServices(this IServiceCollection services)
     {
+        // Text normalization services
+        services.AddSingleton<ITextNormalizer, TextNormalizer>();
+
         // Scanning services
         services.AddSingleton<IDirectoryScanner, DirectoryScanner>();
 

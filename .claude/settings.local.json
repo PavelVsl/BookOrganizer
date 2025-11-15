@@ -8,7 +8,10 @@
       "Bash(task-master show:*)",
       "WebSearch",
       "Bash(task-master expand:*)",
-      "Bash(task-master set-status:*)"
+      "Bash(task-master set-status:*)",
+      "Bash(task-master next:*)",
+      "Bash(task-master add-task:*)",
+      "Bash(task-master update-task:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
