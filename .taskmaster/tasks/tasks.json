@@ -1028,6 +1028,20 @@
         ],
         "priority": "medium",
         "subtasks": []
+      },
+      {
+        "id": 15,
+        "title": "Implement in-memory library tree structure for accurate preview and path normalization",
+        "description": "Create LibraryTree class that builds in-memory representation of final library structure using normalized author/title grouping to eliminate preview duplicates and path inconsistencies.",
+        "details": "Create ILibraryTree interface and LibraryTree implementation that builds an in-memory representation of the final organized library structure. The tree will use TextNormalizer (task 12) to group audiobooks by normalized author+title+series combinations before generating paths, eliminating duplicate folders caused by encoding/case variations. Key components: 1) **LibraryTree class** - Main tree builder with methods: BuildFromAudiobooks(), GetNormalizedStructure(), DetectDuplicates(). Use Dictionary<string, AuthorNode> where keys are normalized author names. 2) **AuthorNode/BookNode classes** - Tree nodes containing both normalized keys (for grouping) and original metadata (for display/operations). 3) **Author name normalization** - Convert 'Last, First' to 'First Last' format using regex patterns. Apply title case normalization while preserving acronyms (FBI, BBC). 4) **Integration points** - Inject ITextNormalizer into PathGenerator and update GenerateTargetPath() to use normalized grouping. Modify PreviewGenerator to use LibraryTree.GetNormalizedStructure() instead of direct path generation. 5) **Duplicate detection** - Distinguish between name variations (František vs FRANTIŠEK) and actual content duplicates. Generate warnings for true duplicates found after normalization. 6) **Path consistency** - Ensure preview shows exactly what will be created by using same normalization logic in both preview and actual organization. The tree structure should handle edge cases: unknown authors ('Unknown Artist'), missing titles, empty series, and preserve original metadata for operations while using normalized forms for grouping decisions.",
+        "testStrategy": "Create comprehensive test scenarios with Czech author name variations: 'František Kotleta' vs 'FRANTIŠEK KOTLETA' vs 'Kotleta, František' should group under single author. Test encoding variations: 'Černá smečka' vs 'ÈERNÁ SMEÈKA' (Windows-1250) should normalize to same title. Verify preview output matches actual organization structure by comparing LibraryTree.GetNormalizedStructure() results with PathGenerator.GenerateTargetPath() outputs for same audiobooks. Test edge cases: books with missing author/title metadata, series vs standalone book classification, very long author/title names. Create test fixtures with known duplicate content (same book, different folder names) and verify duplicate detection vs normalization differentiation. Test tree building performance with large audiobook collections (1000+ books). Verify that original metadata is preserved for actual operations while normalized forms are used only for grouping decisions.",
+        "status": "pending",
+        "dependencies": [
+          12,
+          9
+        ],
+        "priority": "medium",
+        "subtasks": []
       }
     ],
     "metadata": {
@@ -1040,7 +1054,7 @@
       ],
       "created": "2025-11-15T19:35:37.306Z",
       "description": "Tasks for master context",
-      "updated": "2025-11-15T19:36:04.196Z"
+      "updated": "2025-11-15T19:55:32.675Z"
     }
   }
 }
