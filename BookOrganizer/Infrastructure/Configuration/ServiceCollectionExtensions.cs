@@ -1,6 +1,7 @@
 using BookOrganizer.Services.Metadata;
 using BookOrganizer.Services.Operations;
 using BookOrganizer.Services.Operations.FileOperators;
+using BookOrganizer.Services.Preview;
 using BookOrganizer.Services.Scanning;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -44,6 +45,9 @@ public static class ServiceCollectionExtensions
 
         // Main file operator orchestrator
         services.AddSingleton<IFileOperator, FileOperator>();
+
+        // Preview services
+        services.AddSingleton<IPreviewGenerator, PreviewGenerator>();
 
         // Additional services will be registered here as they are implemented
         // services.AddSingleton<IFileOrganizer, FileOrganizer>();
