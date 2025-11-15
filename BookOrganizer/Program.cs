@@ -22,6 +22,7 @@ try
     rootCommand.AddCommand(new ScanCommand());
     rootCommand.AddCommand(new PreviewCommand());
     rootCommand.AddCommand(new OrganizeCommand());
+    rootCommand.AddCommand(new ExportMetadataCommand());
 
     // Execute
     return await rootCommand.InvokeAsync(args);

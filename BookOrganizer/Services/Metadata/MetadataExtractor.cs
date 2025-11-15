@@ -1,3 +1,4 @@
+using System.Text.Json;
 using BookOrganizer.Infrastructure.Exceptions;
 using BookOrganizer.Models;
 using Microsoft.Extensions.Logging;
@@ -42,6 +43,10 @@ public class MetadataExtractor : IMetadataExtractor
             audiobookFolder.AudioFiles.Count,
             audiobookFolder.Path);
 
+        // Check for metadata.json override file first
+        var metadataJsonPath = Path.Combine(audiobookFolder.Path, "metadata.json");
+        var overrideMetadata = await LoadMetadataOverrideAsync(metadataJsonPath, cancellationToken);
+
         // Extract metadata from all files
         var fileMetadataList = new List<FileMetadata>();
 
@@ -74,12 +79,19 @@ public class MetadataExtractor : IMetadataExtractor
         var consolidatedResult = await _consolidator.ConsolidateAsync(metadataSources, cancellationToken);
         var consolidated = consolidatedResult.ToBookMetadata();
 
+        // Apply metadata.json overrides if present
+        if (overrideMetadata != null)
+        {
+            _logger.LogInformation("Applying metadata.json overrides from {Path}", metadataJsonPath);
+            consolidated = ApplyOverrides(consolidated, overrideMetadata);
+        }
+
         _logger.LogInformation(
             "Extracted metadata: Title='{Title}' (from {TitleSource}), Author='{Author}' (from {AuthorSource}), Overall Confidence={Confidence:F2}",
-            consolidatedResult.Title,
-            consolidatedResult.TitleSource,
-            consolidatedResult.Author,
-            consolidatedResult.AuthorSource,
+            consolidated.Title,
+            overrideMetadata != null && overrideMetadata.Title != null ? "metadata.json" : consolidatedResult.TitleSource,
+            consolidated.Author,
+            overrideMetadata != null && overrideMetadata.Author != null ? "metadata.json" : consolidatedResult.AuthorSource,
             consolidated.Confidence);
 
         return consolidated;
@@ -131,6 +143,59 @@ public class MetadataExtractor : IMetadataExtractor
     private static string? GetStringValue(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    /// <summary>
+    /// Loads metadata override from metadata.json file if it exists.
+    /// </summary>
+    private async Task<MetadataOverride?> LoadMetadataOverrideAsync(
+        string metadataJsonPath,
+        CancellationToken cancellationToken)
+    {
+        if (!System.IO.File.Exists(metadataJsonPath))
+        {
+            return null;
+        }
+
+        try
+        {
+            var json = await System.IO.File.ReadAllTextAsync(metadataJsonPath, cancellationToken);
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                AllowTrailingCommas = true,
+                ReadCommentHandling = JsonCommentHandling.Skip
+            };
+
+            return JsonSerializer.Deserialize<MetadataOverride>(json, options);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to load metadata.json from {Path}", metadataJsonPath);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Applies metadata overrides to consolidated metadata.
+    /// Only non-null fields in the override will replace existing values.
+    /// </summary>
+    private static BookMetadata ApplyOverrides(BookMetadata metadata, MetadataOverride overrides)
+    {
+        return metadata with
+        {
+            Title = overrides.Title ?? metadata.Title,
+            Author = overrides.Author ?? metadata.Author,
+            Narrator = overrides.Narrator ?? metadata.Narrator,
+            Series = overrides.Series ?? metadata.Series,
+            SeriesNumber = overrides.SeriesNumber ?? metadata.SeriesNumber,
+            Year = overrides.Year ?? metadata.Year,
+            Genre = overrides.Genre ?? metadata.Genre,
+            Description = overrides.Description ?? metadata.Description,
+            // Set confidence to 1.0 for manual overrides
+            Confidence = 1.0,
+            Source = "metadata.json"
+        };
     }
 
     private BookMetadata ConsolidateMetadata(List<FileMetadata> fileMetadataList)
