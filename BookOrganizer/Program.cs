@@ -20,6 +20,7 @@ try
 
     // Add commands
     rootCommand.AddCommand(new ScanCommand());
+    rootCommand.AddCommand(new PreviewCommand());
 
     // Execute
     return await rootCommand.InvokeAsync(args);
