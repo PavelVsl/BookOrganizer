@@ -16,19 +16,22 @@ public class FileOrganizer : IFileOrganizer
     private readonly IMetadataExtractor _metadataExtractor;
     private readonly IPathGenerator _pathGenerator;
     private readonly IFileOperator _fileOperator;
+    private readonly IFilenameNormalizer _filenameNormalizer;
 
     public FileOrganizer(
         ILogger<FileOrganizer> logger,
         IDirectoryScanner directoryScanner,
         IMetadataExtractor metadataExtractor,
         IPathGenerator pathGenerator,
-        IFileOperator fileOperator)
+        IFileOperator fileOperator,
+        IFilenameNormalizer filenameNormalizer)
     {
         _logger = logger;
         _directoryScanner = directoryScanner;
         _metadataExtractor = metadataExtractor;
         _pathGenerator = pathGenerator;
         _fileOperator = fileOperator;
+        _filenameNormalizer = filenameNormalizer;
     }
 
     public async Task<OrganizationResult> OrganizeAsync(
@@ -250,7 +253,10 @@ public class FileOrganizer : IFileOrganizer
             try
             {
                 var fileName = Path.GetFileName(sourceFile);
-                var destinationFile = Path.Combine(plan.TargetPath, fileName);
+
+                // Normalize filename for multi-disk audiobooks
+                var normalizedFileName = _filenameNormalizer.NormalizeFilename(fileName);
+                var destinationFile = Path.Combine(plan.TargetPath, normalizedFileName);
 
                 _logger.LogDebug(
                     "Processing file: {Source} -> {Destination}",

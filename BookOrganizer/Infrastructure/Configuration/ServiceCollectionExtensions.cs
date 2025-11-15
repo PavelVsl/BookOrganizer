@@ -34,6 +34,7 @@ public static class ServiceCollectionExtensions
 
         // Operation services
         services.AddSingleton<IPathGenerator, PathGenerator>();
+        services.AddSingleton<IFilenameNormalizer, FilenameNormalizer>();
         services.AddSingleton<ChecksumCalculator>();
 
         // File operator services
