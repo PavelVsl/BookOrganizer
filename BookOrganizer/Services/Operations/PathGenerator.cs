@@ -1,4 +1,5 @@
 using BookOrganizer.Models;
+using BookOrganizer.Services.Text;
 using Microsoft.Extensions.Logging;
 
 namespace BookOrganizer.Services.Operations;
@@ -9,6 +10,7 @@ namespace BookOrganizer.Services.Operations;
 public class PathGenerator : IPathGenerator
 {
     private readonly ILogger<PathGenerator> _logger;
+    private readonly ITextNormalizer _textNormalizer;
 
     // Path component separators and formatters
     private const string SeriesBookFormat = "{0:D2} - {1}"; // "01 - Book Title"
@@ -22,9 +24,10 @@ public class PathGenerator : IPathGenerator
     // Minimum length to preserve readability
     private const int MinComponentLength = 10;
 
-    public PathGenerator(ILogger<PathGenerator> logger)
+    public PathGenerator(ILogger<PathGenerator> logger, ITextNormalizer textNormalizer)
     {
         _logger = logger;
+        _textNormalizer = textNormalizer;
     }
 
     /// <inheritdoc />
@@ -43,8 +46,10 @@ public class PathGenerator : IPathGenerator
         // Start with destination root
         var pathComponents = new List<string> { destinationRoot };
 
-        // Add author folder (or "Unknown Author" if missing)
-        var authorFolder = SanitizePathComponent(metadata.Author ?? "Unknown Author");
+        // Normalize and format author name
+        var rawAuthor = metadata.Author ?? "Unknown Author";
+        var normalizedAuthor = NormalizeAuthorName(rawAuthor);
+        var authorFolder = SanitizePathComponent(normalizedAuthor);
         pathComponents.Add(authorFolder);
 
         // Determine if this is part of a series
@@ -315,5 +320,67 @@ public class PathGenerator : IPathGenerator
         }
 
         return uniquePath;
+    }
+
+    /// <summary>
+    /// Normalizes author name for consistent folder naming.
+    /// - Fixes encoding issues (Czech diacritics)
+    /// - Converts "Last, First" to "First Last"
+    /// - Normalizes capitalization (title case)
+    /// - Handles multiple authors (uses first author)
+    /// </summary>
+    private string NormalizeAuthorName(string author)
+    {
+        if (string.IsNullOrWhiteSpace(author))
+        {
+            return "Unknown Author";
+        }
+
+        // Fix encoding issues first
+        var normalized = _textNormalizer.FixEncoding(author);
+
+        // Handle multiple authors - use first one
+        if (normalized.Contains(';'))
+        {
+            normalized = normalized.Split(';')[0].Trim();
+        }
+
+        // Convert "Last, First" to "First Last" format
+        if (normalized.Contains(','))
+        {
+            var parts = normalized.Split(',', 2);
+            if (parts.Length == 2)
+            {
+                var lastName = parts[0].Trim();
+                var firstName = parts[1].Trim();
+                normalized = $"{firstName} {lastName}";
+            }
+        }
+
+        // Normalize capitalization to title case (but preserve all-caps acronyms)
+        normalized = NormalizeCapitalization(normalized);
+
+        return normalized;
+    }
+
+    /// <summary>
+    /// Normalizes capitalization to title case, preserving all-caps words.
+    /// </summary>
+    private static string NormalizeCapitalization(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return text;
+        }
+
+        // If entirely uppercase or lowercase, convert to title case
+        if (text == text.ToUpperInvariant() || text == text.ToLowerInvariant())
+        {
+            var textInfo = System.Globalization.CultureInfo.CurrentCulture.TextInfo;
+            return textInfo.ToTitleCase(text.ToLowerInvariant());
+        }
+
+        // Mixed case - preserve as is
+        return text;
     }
 }
