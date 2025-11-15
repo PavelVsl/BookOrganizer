@@ -21,6 +21,7 @@ try
     // Add commands
     rootCommand.AddCommand(new ScanCommand());
     rootCommand.AddCommand(new PreviewCommand());
+    rootCommand.AddCommand(new OrganizeCommand());
 
     // Execute
     return await rootCommand.InvokeAsync(args);

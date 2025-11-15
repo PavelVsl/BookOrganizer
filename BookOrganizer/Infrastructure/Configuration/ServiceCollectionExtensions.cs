@@ -50,8 +50,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IPreviewGenerator, PreviewGenerator>();
         services.AddSingleton<IPreviewRenderer, PreviewRenderer>();
 
-        // Additional services will be registered here as they are implemented
-        // services.AddSingleton<IFileOrganizer, FileOrganizer>();
+        // File organization services
+        services.AddSingleton<IFileOrganizer, FileOrganizer>();
 
         return services;
     }
