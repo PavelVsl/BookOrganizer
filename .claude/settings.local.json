@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl:*)",
+      "mcp__task-master-ai__parse_prd",
+      "Bash(npx:*)",
+      "Bash(task-master list:*)",
+      "Bash(task-master show:*)",
+      "WebSearch",
+      "Bash(task-master expand:*)",
+      "Bash(task-master set-status:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "task-master-ai"
+  ]
+}

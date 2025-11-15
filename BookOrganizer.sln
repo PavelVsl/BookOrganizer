@@ -1,0 +1,16 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BookOrganizer", "BookOrganizer\BookOrganizer.csproj", "{456F4CAA-E8C9-49FE-8AC7-4C04A0BE4231}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{456F4CAA-E8C9-49FE-8AC7-4C04A0BE4231}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{456F4CAA-E8C9-49FE-8AC7-4C04A0BE4231}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{456F4CAA-E8C9-49FE-8AC7-4C04A0BE4231}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{456F4CAA-E8C9-49FE-8AC7-4C04A0BE4231}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

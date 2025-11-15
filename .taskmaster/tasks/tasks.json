@@ -1,0 +1,207 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": "1",
+        "title": "Project setup and foundation architecture",
+        "description": "Establish the core project structure, dependencies, and foundational architecture for the AudioBook Organizer CLI application",
+        "details": "Update the .csproj file to include required NuGet packages: TagLib-Sharp for MP3 metadata, System.CommandLine for CLI parsing, Microsoft.Extensions.DependencyInjection for DI container, Microsoft.Extensions.Logging for structured logging, and Spectre.Console for enhanced CLI UI. Create the basic folder structure with separate projects/folders for Core (domain models), Infrastructure (file operations, metadata extraction), and CLI (command-line interface). Set up dependency injection container and logging configuration. Create base interfaces for the main services (IMetadataExtractor, IFileScanner, IOrganizer). Implement proper error handling patterns and establish coding conventions following .NET standards with nullable reference types.",
+        "testStrategy": "Create unit tests for dependency injection setup, verify all packages load correctly, test basic CLI startup and help command display. Create integration test project with sample MP3 files for testing metadata extraction.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "in-progress",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Configure Project Dependencies and NuGet Packages",
+            "description": "Update project file with required NuGet packages and set up initial project structure",
+            "dependencies": [],
+            "details": "Modify BookOrganizer.csproj to include the following NuGet packages: TagLib-Sharp, System.CommandLine, Microsoft.Extensions.DependencyInjection, Microsoft.Extensions.Logging, and Spectre.Console. Create core project folders: Core (domain models), Infrastructure (file operations, metadata extraction), and CLI (command-line interface). Enable nullable reference types in project settings.\n<info added on 2025-11-15T15:38:07.996Z>\nI'll analyze the codebase to understand the current implementation and then generate the appropriate update for the subtask.Based on my analysis of the codebase, I can confirm the user's reported updates are accurate. The project file shows all required NuGet packages are correctly configured, the target framework has been properly set to net9.0, and the complete folder structure has been created according to the project architecture guidelines.\n\nImplementation completed successfully. All required NuGet packages added to BookOrganizer.csproj with correct versions: TagLibSharp 2.3.0, System.CommandLine 2.0.0-beta4, Microsoft.Extensions.DependencyInjection 9.0.0, Microsoft.Extensions.Logging 9.0.0, Microsoft.Extensions.Logging.Console 9.0.0, Spectre.Console 0.49.1, System.Text.Json 9.0.0, and Microsoft.Data.Sqlite 9.0.0. Target framework corrected from net10.0 to net9.0. Project architecture folder structure created: Models/, Services/{Scanning/,Metadata/,Operations/,Providers/}, Infrastructure/{Logging/,Configuration/,Caching/}, Commands/. Nullable reference types and C# 13 language features enabled. Project builds successfully without errors.\n</info added on 2025-11-15T15:38:07.996Z>",
+            "status": "done",
+            "testStrategy": "Create unit tests to verify all packages are correctly referenced. Test dependency injection container setup. Verify project builds without errors.",
+            "updatedAt": "2025-11-15T15:38:19.957Z",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Implement Dependency Injection Container Configuration",
+            "description": "Set up the core dependency injection container with service registrations",
+            "dependencies": [
+              1
+            ],
+            "details": "Create a centralized DI configuration class using Microsoft.Extensions.DependencyInjection. Register core interfaces and their implementations: IMetadataExtractor, IFileScanner, IOrganizer. Configure logging using Microsoft.Extensions.Logging with console and file logging providers. Create extension methods for service collection to improve readability and maintainability.",
+            "status": "pending",
+            "testStrategy": "Write unit tests to verify correct service registration. Test that all core interfaces can be resolved from the DI container. Validate logging configuration works as expected.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 3,
+            "title": "Implement Core Interface Definitions",
+            "description": "Define foundational interfaces for key application services",
+            "dependencies": [
+              1
+            ],
+            "details": "Create interface definitions in the Core project: IMetadataExtractor (for MP3 metadata extraction), IFileScanner (for directory scanning), IOrganizer (for file organization), IPathGenerator (for target path generation). Ensure interfaces follow SOLID principles and provide clear, focused contracts for each service.",
+            "status": "pending",
+            "testStrategy": "Create interface contract tests to ensure all method signatures are correctly defined. Verify that interfaces are sufficiently abstract to allow multiple implementations.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 4,
+            "title": "Establish Error Handling and Logging Strategy",
+            "description": "Implement comprehensive error handling and logging mechanisms",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Create custom exception classes for specific application errors (MetadataExtractionException, FileScanningException). Implement global error handling middleware for CLI application. Configure structured logging with detailed context capture. Create a custom error reporting mechanism that provides actionable information for users.",
+            "status": "pending",
+            "testStrategy": "Write tests to verify custom exceptions are thrown correctly. Test logging configuration captures appropriate error details. Validate error messages provide clear, actionable information.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 5,
+            "title": "Set Up Project Coding Conventions and Analyzers",
+            "description": "Configure coding standards and static analysis tools",
+            "dependencies": [
+              1
+            ],
+            "details": "Add EditorConfig file to enforce consistent code styling. Configure .NET analyzers and StyleCop for code quality. Set up nullable reference type annotations across the project. Create a global suppressions file for any necessary null-forgiving scenarios. Implement initial solution-wide code formatting.",
+            "status": "pending",
+            "testStrategy": "Run static code analysis tools. Verify no high-priority warnings are present. Test that coding conventions are consistently applied across the project.",
+            "parentId": "undefined"
+          }
+        ],
+        "updatedAt": "2025-11-15T15:38:19.957Z"
+      },
+      {
+        "id": "2",
+        "title": "Directory scanning and MP3 file detection",
+        "description": "Implement the core directory scanning functionality to recursively find and identify audiobook folders containing MP3 files",
+        "details": "Create IFileScanner interface and FileScanner implementation that recursively scans directories for folders containing MP3 files. Group related MP3 files by parent directory, calculate total size and file counts per audiobook folder. Implement caching mechanism using SQLite to store scan results for faster re-analysis. Handle file system exceptions gracefully (permission errors, locked files). Support scanning multiple source directories concurrently. Create AudiobookFolder model with properties: Path, MP3Files, TotalSize, FileCount, LastModified. Implement progress reporting for long scan operations.",
+        "testStrategy": "Create test directory structures with various MP3 file arrangements. Test scanning performance with large directory trees. Verify proper handling of nested folders, empty directories, and mixed file types. Test caching functionality and concurrent directory scanning.",
+        "priority": "high",
+        "dependencies": [
+          "1"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "3",
+        "title": "MP3 metadata extraction using TagLib-Sharp",
+        "description": "Implement metadata extraction from MP3 files using ID3 tags and file system information",
+        "details": "Create IMetadataExtractor interface and MetadataExtractor implementation using TagLib-Sharp library. Extract standard ID3 tags: Artist, Album, Title, Genre, Year, Track Number. Handle Czech characters and diacritics correctly using UTF-8 encoding. Create MetadataInfo model with confidence scoring for each field. Implement fallback to filename parsing when ID3 tags are missing or incomplete. Add validation for extracted metadata (reasonable year ranges, non-empty required fields). Handle corrupted or unreadable MP3 files gracefully. Support extracting duration and bitrate information for quality assessment.",
+        "testStrategy": "Test with various MP3 files: with complete tags, missing tags, Czech characters in tags, corrupted files. Verify correct UTF-8 handling for Czech diacritics (ě, š, č, ř, ž, ý, á, í, é, ú, ů, ď, ť, ň). Test confidence scoring algorithm with edge cases.",
+        "priority": "high",
+        "dependencies": [
+          "1"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "4",
+        "title": "Intelligent filename pattern matching for Czech audiobooks",
+        "description": "Implement sophisticated pattern matching to extract metadata from folder and file names, especially for Czech audiobook naming conventions",
+        "details": "Create IFilenameParser interface and FilenameParser implementation with regex patterns for common naming conventions: 'Author - Book Title', 'Book Title - Author', 'Author - Series Name 01 - Book Title', '[Author] Series (01) - Book Title'. Handle Czech author name formats ('Firstname Lastname' vs 'Lastname, Firstname'). Extract series information and book numbers when present. Implement fuzzy matching for partial matches. Create confidence scoring system based on pattern complexity and completeness. Support configurable custom patterns via configuration. Normalize extracted text (trim whitespace, fix common typos, standardize punctuation).",
+        "testStrategy": "Create comprehensive test cases with real Czech audiobook naming patterns. Test series detection accuracy, author name normalization, and confidence scoring. Verify handling of edge cases like books with subtitles, multiple authors, and special characters.",
+        "priority": "medium",
+        "dependencies": [
+          "3"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "5",
+        "title": "Command-line interface with System.CommandLine",
+        "description": "Build the main CLI application with clear command structure and user-friendly interface using System.CommandLine and Spectre.Console",
+        "details": "Implement main CLI commands: 'scan' (analyze directories), 'preview' (dry-run organization), 'organize' (execute organization), 'verify' (check organized library), 'config' (manage settings). Use System.CommandLine for argument parsing with proper validation and help text. Integrate Spectre.Console for enhanced UI with progress bars, tables, and colored output. Support common flags: --dry-run, --verbose, --help, --source, --destination. Implement interactive prompts for missing required information with validation. Create non-interactive mode for scripting with proper exit codes. Add comprehensive help system with examples and command descriptions.",
+        "testStrategy": "Test all command combinations with various argument scenarios. Verify help text accuracy and clarity. Test interactive prompts with valid and invalid inputs. Verify non-interactive mode functionality and proper exit codes.",
+        "priority": "medium",
+        "dependencies": [
+          "1",
+          "2"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "6",
+        "title": "Metadata consolidation and confidence scoring system",
+        "description": "Implement intelligent metadata consolidation that combines information from ID3 tags, filenames, and folder structures with confidence scoring",
+        "details": "Create IMetadataConsolidator interface and MetadataConsolidator implementation that combines metadata from multiple sources (ID3 tags, filename parsing, folder structure). Implement confidence scoring algorithm based on source reliability, completeness, and consistency across files in the same audiobook. Create ConsolidatedMetadata model with per-field confidence scores. Implement conflict resolution rules (prefer ID3 over filename, prefer complete information, handle inconsistencies). Add validation rules for metadata quality (valid years, reasonable author/title lengths). Support user-defined metadata validation rules via configuration.",
+        "testStrategy": "Test consolidation with conflicting metadata sources. Verify confidence scoring accuracy with various data quality scenarios. Test validation rules with edge cases and malformed data.",
+        "priority": "medium",
+        "dependencies": [
+          "3",
+          "4"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "7",
+        "title": "Folder structure generation and path sanitization",
+        "description": "Implement the target folder structure generation with proper path sanitization and collision handling",
+        "details": "Create IPathGenerator interface and PathGenerator implementation that generates clean folder structures: '/library/author/[series/]book'. Implement path sanitization for invalid filesystem characters, handle Windows MAX_PATH limitations. Support configurable naming templates via configuration. Handle name collisions by appending numbers or year information. Create series folder logic with proper naming: '/library/Author/Series Name/01 - Book Title/'. Support standalone books: '/library/Author/Book Title/'. Implement path validation and length checking before operations. Handle special cases like books with same title by different authors.",
+        "testStrategy": "Test path generation with various metadata combinations. Verify sanitization removes all invalid characters while preserving readability. Test collision handling and path length limitations on different operating systems.",
+        "priority": "medium",
+        "dependencies": [
+          "6"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "8",
+        "title": "File operations engine with integrity validation",
+        "description": "Implement safe file copy/move operations with integrity validation, progress tracking, and rollback capability",
+        "details": "Create IFileOperator interface and FileOperator implementation supporting both copy and move operations. Implement checksum validation (MD5 or SHA256) before and after operations to ensure file integrity. Create operation manifest system for rollback capability in case of failures. Implement progress reporting for long operations with cancellation support. Preserve original file timestamps and update ID3 tags with organized metadata. Handle file locking and permission errors gracefully with retry logic. Support resuming interrupted operations from manifest. Create backup system for critical operations.",
+        "testStrategy": "Test copy and move operations with large files and many small files. Verify checksum validation catches corruption. Test rollback functionality after simulated failures. Test progress reporting and cancellation.",
+        "priority": "high",
+        "dependencies": [
+          "7"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "9",
+        "title": "Preview mode and dry-run functionality",
+        "description": "Implement comprehensive preview mode that shows all planned changes without executing them",
+        "details": "Create IPreviewGenerator interface and PreviewGenerator implementation that shows source → destination mappings, metadata changes, estimated disk space requirements, and potential errors. Display organized folder structure in tree format using Spectre.Console. Highlight potential issues (name collisions, missing metadata, path length problems). Support filtering preview by operation type, author, or error status. Export preview results to file formats (JSON, CSV, text). Calculate and display operation statistics (files to move/copy, total size, estimated time). Implement preview comparison between different organization strategies.",
+        "testStrategy": "Test preview generation with various library sizes and organization scenarios. Verify accuracy of disk space calculations and time estimates. Test preview filtering and export functionality.",
+        "priority": "medium",
+        "dependencies": [
+          "8"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "10",
+        "title": "Configuration management and logging system",
+        "description": "Implement comprehensive configuration management and structured logging system for the application",
+        "details": "Create IConfigurationManager interface and ConfigurationManager implementation using JSON configuration files. Support user preferences: default paths, naming templates, metadata provider settings. Implement per-library configuration profiles for different organization strategies. Set up structured logging using Microsoft.Extensions.Logging with configurable log levels (verbose, normal, quiet). Create detailed operation logs with timestamps, source/destination paths, operation types, and errors. Generate summary reports after completion with statistics and recommendations. Support log export in multiple formats (JSON, CSV, plain text). Implement log rotation and cleanup for long-running operations.",
+        "testStrategy": "Test configuration loading/saving with various scenarios. Verify logging captures all important events and errors. Test log formatting and export functionality. Verify configuration validation and error handling.",
+        "priority": "medium",
+        "dependencies": [
+          "9"
+        ],
+        "status": "pending",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "version": "1.0.0",
+      "lastModified": "2025-11-15T15:38:19.958Z",
+      "taskCount": 10,
+      "completedCount": 0,
+      "tags": [
+        "master"
+      ]
+    }
+  }
+}

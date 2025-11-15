@@ -1,0 +1,325 @@
+AudioBook Organizer - Product Requirements Document
+======================================================
+
+Project Overview
+----------------
+A command-line tool to organize and structure a personal audiobook library. The tool will analyze hundreds of unorganized audiobook folders stored locally (with future support for NAS over SMB/SSH), extract metadata, and reorganize them into a clean, consistent folder structure.
+
+Target audience: Personal use for managing a Czech audiobook library with hundreds of books in various states of organization.
+
+Background and Problem Statement
+---------------------------------
+Current Situation:
+- Hundreds of audiobooks stored in unorganized, misnamed folders
+- Books primarily in Czech language (translated works)
+- Files stored on NAS, accessible via SMB or SSH
+- No consistent naming or folder structure
+- Difficult to find specific books or authors
+- MP3 collections (folders with multiple MP3 files per book)
+
+Desired State:
+- Clean folder structure: /library/author/[series/]book
+- Easy to browse and find audiobooks
+- Proper metadata stored in file tags
+- Ability to add new books to the organized library
+- Support for both series and standalone books
+
+Goals and Objectives
+--------------------
+1. Create a reliable, safe tool for organizing audiobooks
+2. Support multiple metadata extraction strategies
+3. Provide clear preview/dry-run before making changes
+4. Handle Czech language filenames and metadata correctly
+5. Support both copy and move operations
+6. Build extensible architecture for future network support
+7. Minimal manual intervention, but allow corrections when needed
+
+User Stories
+------------
+As a user, I want to:
+- Scan my messy audiobook folders and see what the tool detects
+- Preview the proposed organization before committing changes
+- Choose between copying or moving files for each operation
+- Manually correct metadata when auto-detection fails
+- See progress during long operations
+- Have a log of all changes made
+- Detect and handle duplicate books
+- Organize books by series when applicable
+- Trust that my files won't be lost or corrupted
+
+Functional Requirements
+-----------------------
+
+FR1: Directory Scanning and Analysis
+FR1.1: Recursively scan source directory for audiobook folders
+FR1.2: Identify folders containing MP3 files as potential audiobooks
+FR1.3: Group related MP3 files belonging to the same audiobook
+FR1.4: Calculate total size and file counts for each book
+FR1.5: Generate hash/fingerprint for duplicate detection
+FR1.6: Support scanning multiple source directories
+FR1.7: Cache scan results for faster re-analysis
+
+FR2: Metadata Extraction
+FR2.1: Read ID3 tags from MP3 files (artist, album, title, genre, year)
+FR2.2: Parse folder and file names using intelligent pattern matching
+FR2.3: Handle Czech characters and diacritics correctly (ě, š, č, ř, ž, ý, á, í, é, ú, ů, ď, ť, ň)
+FR2.4: Detect common naming patterns:
+  - "Author - Book Title"
+  - "Book Title - Author"
+  - "Author - Series Name 01 - Book Title"
+  - "[Author] Series (01) - Book Title"
+FR2.5: Extract series information from filenames/tags
+FR2.6: Extract book number in series when present
+FR2.7: Normalize author names (handle "Firstname Lastname" vs "Lastname, Firstname")
+FR2.8: Consolidate metadata from multiple sources into a confidence-scored result
+
+FR3: Online Metadata Lookup
+FR3.1: Design plugin architecture for metadata providers
+FR3.2: Implement basic search interface for online databases
+FR3.3: Support fuzzy matching for Czech book titles
+FR3.4: Allow user to select correct match from multiple results
+FR3.5: Cache online lookup results to avoid repeated queries
+FR3.6: Handle rate limiting and API errors gracefully
+FR3.7: Research and document available Czech audiobook metadata sources
+
+FR4: Interactive Metadata Verification
+FR4.1: Display extracted metadata for user review
+FR4.2: Highlight low-confidence metadata fields
+FR4.3: Allow user to edit any metadata field (author, title, series, year)
+FR4.4: Provide suggestions based on all available data sources
+FR4.5: Remember user corrections for similar patterns
+FR4.6: Support batch operations (apply same correction to multiple books)
+FR4.7: Allow skipping books for later review
+
+FR5: Duplicate Detection
+FR5.1: Identify potential duplicates based on metadata similarity
+FR5.2: Compare file sizes and content hashes
+FR5.3: Present duplicates side-by-side for user decision
+FR5.4: Support keeping best quality version
+FR5.5: Allow marking duplicates for deletion or archival
+FR5.6: Handle partial duplicates (same book, different editions)
+
+FR6: Folder Structure Generation
+FR6.1: Create target folder structure: /library/author/[series/]book
+FR6.2: Sanitize folder names (remove invalid characters)
+FR6.3: Handle series folders with proper naming:
+  - /library/Author/Series Name/01 - Book Title/
+FR6.4: Handle standalone books:
+  - /library/Author/Book Title/
+FR6.5: Support configurable folder naming templates
+FR6.6: Prevent path length issues (Windows MAX_PATH)
+FR6.7: Handle name collisions (multiple books with same title)
+
+FR7: File Operations
+FR7.1: Support both copy and move operations
+FR7.2: Preserve original file timestamps
+FR7.3: Copy/update ID3 tags with organized metadata
+FR7.4: Verify file integrity after copy/move (checksum validation)
+FR7.5: Support rollback if operation fails midway
+FR7.6: Create backup/manifest before making changes
+FR7.7: Show progress bar for long operations
+FR7.8: Resume interrupted operations
+FR7.9: Handle file locking and permission errors gracefully
+
+FR8: Preview/Dry-Run Mode
+FR8.1: Show all planned changes without executing them
+FR8.2: Display source → destination mappings
+FR8.3: Show metadata changes that will be applied
+FR8.4: Estimate disk space required
+FR8.5: Identify potential errors before execution
+FR8.6: Allow filtering preview (show only moves, only errors, etc.)
+FR8.7: Export preview to file for review
+
+FR9: Reporting and Logging
+FR9.1: Create detailed log of all operations
+FR9.2: Include timestamps, source, destination, operation type
+FR9.3: Log errors and warnings separately
+FR9.4: Generate summary report after completion
+FR9.5: Support different log levels (verbose, normal, quiet)
+FR9.6: Export logs in structured format (JSON, CSV)
+
+FR10: Command-Line Interface
+FR10.1: Implement clear command structure with subcommands
+FR10.2: Commands: scan, preview, organize, verify, config
+FR10.3: Support common flags: --dry-run, --verbose, --help
+FR10.4: Provide interactive prompts for missing required information
+FR10.5: Support non-interactive mode for scripting
+FR10.6: Display helpful error messages
+FR10.7: Show progress indicators for long operations
+FR10.8: Support configuration file for default settings
+
+FR11: Configuration Management
+FR11.1: Store user preferences (default paths, naming templates)
+FR11.2: Save metadata provider settings and API keys
+FR11.3: Remember previous source/destination directories
+FR11.4: Support per-library configuration profiles
+FR11.5: Allow configuration via file and command-line arguments
+
+Technical Requirements
+----------------------
+
+TR1: Platform and Technology
+TR1.1: Build with .NET 9 (C# 13)
+TR1.2: Console application project type
+TR1.3: Cross-platform compatible (Windows, macOS, Linux)
+TR1.4: No external dependencies beyond NuGet packages
+
+TR2: Libraries and Frameworks
+TR2.1: Use TagLib-Sharp for MP3 metadata reading/writing
+TR2.2: Use System.CommandLine for CLI parsing
+TR2.3: Use modern C# features (records, pattern matching, file-scoped namespaces)
+TR2.4: Consider Spectre.Console for enhanced CLI UI
+TR2.5: Use dependency injection for extensibility
+
+TR3: Architecture
+TR3.1: Implement clean separation of concerns (scanning, analysis, operations)
+TR3.2: Design plugin architecture for metadata providers
+TR3.3: Use strategy pattern for file operations (copy vs move)
+TR3.4: Implement repository pattern for metadata caching
+TR3.5: Use CQRS pattern where appropriate for clarity
+
+TR4: Data Management
+TR4.1: Store metadata cache in SQLite database
+TR4.2: Store configuration in JSON file
+TR4.3: Create operation manifests for rollback support
+TR4.4: Use structured logging (Microsoft.Extensions.Logging)
+
+TR5: Testing
+TR5.1: Build real service stack in tests (no mocking)
+TR5.2: Use integration tests with real file operations
+TR5.3: Create test fixtures with sample audiobook folders
+TR5.4: Test Czech character handling thoroughly
+TR5.5: Test edge cases (very long paths, special characters)
+TR5.6: Performance test with hundreds of books
+
+TR6: Code Quality
+TR6.1: Follow .NET coding conventions
+TR6.2: Use nullable reference types
+TR6.3: Implement proper error handling and logging
+TR6.4: Keep classes simple, avoid over-engineering
+TR6.5: Prefer composition over inheritance
+TR6.6: Document public APIs with XML comments
+
+Non-Functional Requirements
+----------------------------
+
+NFR1: Performance
+- Scan 1000 audiobook folders in under 30 seconds
+- Metadata extraction should feel instant (<1s per book)
+- File operations should show progress every 2 seconds
+
+NFR2: Reliability
+- Never lose data during operations
+- Gracefully handle interrupted operations
+- Verify file integrity after all operations
+
+NFR3: Usability
+- Clear, understandable output messages
+- Helpful error messages with suggested fixes
+- Progressive disclosure (don't overwhelm with options)
+- Sensible defaults requiring minimal configuration
+
+NFR4: Maintainability
+- Simple, readable code
+- Clear separation of concerns
+- Easy to add new metadata providers
+- Easy to add new naming templates
+
+NFR5: Extensibility
+- Plugin architecture for metadata sources
+- Configurable naming templates
+- Prepared for future network support (SMB/SSH)
+- Prepared for future GUI or web interface
+
+Success Criteria
+----------------
+1. Successfully organize 100+ existing audiobooks without data loss
+2. Correctly parse Czech book titles and author names
+3. Handle series and standalone books appropriately
+4. Provide preview mode that prevents accidental changes
+5. Complete organization of entire library in under 1 hour
+6. Detect and present duplicates for user decision
+7. Generate useful logs for troubleshooting
+
+Future Enhancements (Out of Scope for Initial Version)
+-------------------------------------------------------
+- SMB/CIFS network share support
+- SSH/SFTP support for remote NAS
+- Web-based interface for remote management
+- Automatic new book detection and organization
+- Integration with Plex or other media servers
+- Support for other audiobook formats (M4B, M4A, FLAC)
+- Audio quality analysis
+- Chapter information extraction and verification
+- Cover art download and management
+- Playlist generation
+- Library statistics and visualization
+- Mobile app for library browsing
+- Sync support for multiple devices
+- Export library catalog
+
+Development Phases
+------------------
+Phase 1: Core Foundation
+- Project setup and structure
+- Basic CLI framework
+- Directory scanning
+- MP3 file detection and grouping
+
+Phase 2: Metadata Extraction
+- ID3 tag reading
+- Filename pattern matching
+- Czech character handling
+- Basic metadata consolidation
+
+Phase 3: Organization Engine
+- Folder structure generation
+- File copy/move operations
+- Preview/dry-run mode
+- Basic logging
+
+Phase 4: Enhancement & Polish
+- Interactive metadata correction
+- Duplicate detection
+- Online metadata lookup architecture
+- Configuration management
+- Comprehensive error handling
+
+Phase 5: Testing & Documentation
+- Integration test suite
+- User documentation
+- Sample data for testing
+- Performance optimization
+
+Constraints and Assumptions
+----------------------------
+- Initial version works with local files only
+- User has sufficient disk space for copy operations
+- MP3 format is primary focus (other formats later)
+- User is comfortable with command-line tools
+- Books are primarily Czech language (but tool should handle any UTF-8)
+- No DRM-protected content
+- User has read/write permissions on source and destination
+
+Risk Assessment
+---------------
+Risk: Data loss during file operations
+Mitigation: Implement dry-run mode, checksums, rollback capability
+
+Risk: Incorrect metadata detection
+Mitigation: Always show preview, allow manual correction
+
+Risk: Long operation interruption
+Mitigation: Implement resume capability, save state frequently
+
+Risk: Czech character encoding issues
+Mitigation: Thorough testing, use UTF-8 throughout
+
+Risk: Path length limitations on Windows
+Mitigation: Detect and warn, suggest shorter naming templates
+
+Risk: Duplicate book handling complexity
+Mitigation: Present clear side-by-side comparison, let user decide
+
+Risk: Performance with large libraries
+Mitigation: Implement caching, show progress, optimize hotspots
