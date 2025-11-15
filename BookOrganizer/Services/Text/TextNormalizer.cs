@@ -156,6 +156,73 @@ public class TextNormalizer : ITextNormalizer
         return string.Equals(normalized1, normalized2, StringComparison.Ordinal);
     }
 
+    /// <inheritdoc />
+    public double CalculateSimilarity(string? text1, string? text2)
+    {
+        if (string.IsNullOrWhiteSpace(text1) && string.IsNullOrWhiteSpace(text2))
+            return 1.0;
+
+        if (string.IsNullOrWhiteSpace(text1) || string.IsNullOrWhiteSpace(text2))
+            return 0.0;
+
+        // Normalize both strings for comparison
+        var normalized1 = NormalizeForComparison(text1);
+        var normalized2 = NormalizeForComparison(text2);
+
+        // Exact match after normalization
+        if (normalized1 == normalized2)
+            return 1.0;
+
+        // Calculate Levenshtein distance
+        var distance = CalculateLevenshteinDistance(normalized1, normalized2);
+        var maxLength = Math.Max(normalized1.Length, normalized2.Length);
+
+        // Convert distance to similarity score (0.0 to 1.0)
+        return 1.0 - ((double)distance / maxLength);
+    }
+
+    /// <summary>
+    /// Calculates the Levenshtein distance (edit distance) between two strings.
+    /// </summary>
+    private static int CalculateLevenshteinDistance(string source, string target)
+    {
+        if (string.IsNullOrEmpty(source))
+            return target?.Length ?? 0;
+
+        if (string.IsNullOrEmpty(target))
+            return source.Length;
+
+        var sourceLength = source.Length;
+        var targetLength = target.Length;
+
+        // Create distance matrix
+        var distance = new int[sourceLength + 1, targetLength + 1];
+
+        // Initialize first column and row
+        for (var i = 0; i <= sourceLength; i++)
+            distance[i, 0] = i;
+
+        for (var j = 0; j <= targetLength; j++)
+            distance[0, j] = j;
+
+        // Calculate distances
+        for (var i = 1; i <= sourceLength; i++)
+        {
+            for (var j = 1; j <= targetLength; j++)
+            {
+                var cost = (target[j - 1] == source[i - 1]) ? 0 : 1;
+
+                distance[i, j] = Math.Min(
+                    Math.Min(
+                        distance[i - 1, j] + 1,      // Deletion
+                        distance[i, j - 1] + 1),     // Insertion
+                    distance[i - 1, j - 1] + cost);  // Substitution
+            }
+        }
+
+        return distance[sourceLength, targetLength];
+    }
+
     private static string RemoveDiacritics(string text)
     {
         var sb = new StringBuilder(text.Length);

@@ -1,5 +1,6 @@
 using BookOrganizer.Infrastructure.Database;
 using BookOrganizer.Models;
+using BookOrganizer.Services.Text;
 using Spectre.Console;
 
 namespace BookOrganizer.Services.Preview;
@@ -10,9 +11,14 @@ namespace BookOrganizer.Services.Preview;
 public class PreviewRenderer : IPreviewRenderer
 {
     private readonly ILibraryDatabase? _libraryDatabase;
+    private readonly ITextNormalizer _textNormalizer;
 
-    public PreviewRenderer(ILibraryDatabase? libraryDatabase = null)
+    // Similarity threshold for grouping authors (0.9 = 90% similar)
+    private const double AuthorSimilarityThreshold = 0.9;
+
+    public PreviewRenderer(ITextNormalizer textNormalizer, ILibraryDatabase? libraryDatabase = null)
     {
+        _textNormalizer = textNormalizer;
         _libraryDatabase = libraryDatabase;
     }
     public void RenderPreview(PreviewResult preview, PreviewRenderOptions? options = null)
@@ -217,21 +223,19 @@ public class PreviewRenderer : IPreviewRenderer
         var maxToShow = options.MaxOperationsToShow ?? operations.Count;
         var operationsToShow = operations.Take(maxToShow).ToList();
 
-        // Group by normalized author for tree structure (so "FRANTIŠEK KOTLETA" and "František Kotleta" group together)
-        var groupedByAuthor = operationsToShow
-            .GroupBy(op => op.NormalizedAuthor ?? "Unknown Author")
-            .OrderBy(g => g.Key);
+        // Group by author using fuzzy matching to handle encoding variations and typos
+        var fuzzyAuthorGroups = GroupAuthorsByFuzzySimilarity(operationsToShow);
 
         var tree = new Tree("[bold cyan]Audiobook Library Structure[/]")
             .Style("cyan");
 
-        foreach (var authorGroup in groupedByAuthor)
+        foreach (var (canonicalAuthor, books) in fuzzyAuthorGroups.OrderBy(g => g.Key))
         {
-            // Use the normalized author as the display name (it's already properly formatted)
-            var authorNode = tree.AddNode($"[bold]{Markup.Escape(authorGroup.Key)}[/] [dim]({authorGroup.Count()} books)[/]");
+            // Use the canonical (best) author name as the display name
+            var authorNode = tree.AddNode($"[bold]{Markup.Escape(canonicalAuthor)}[/] [dim]({books.Count} books)[/]");
 
             // Group by normalized series under each author
-            var seriesGroups = authorGroup
+            var seriesGroups = books
                 .GroupBy(op => op.NormalizedSeries ?? "Standalone")
                 .OrderBy(g => g.Key);
 
@@ -419,5 +423,46 @@ public class PreviewRenderer : IPreviewRenderer
             len /= 1024;
         }
         return $"{len:0.##} {sizes[order]}";
+    }
+
+    /// <summary>
+    /// Groups operations by author using fuzzy similarity matching.
+    /// Handles encoding variations, typos, and capitalization differences.
+    /// Returns dictionary with canonical author name as key.
+    /// </summary>
+    private Dictionary<string, List<FileOperationPreview>> GroupAuthorsByFuzzySimilarity(
+        List<FileOperationPreview> operations)
+    {
+        var result = new Dictionary<string, List<FileOperationPreview>>();
+        var authorClusters = new List<(string CanonicalName, List<string> Variants)>();
+
+        foreach (var operation in operations)
+        {
+            var author = operation.NormalizedAuthor ?? "Unknown Author";
+
+            // Find if this author is similar to any existing cluster
+            var matchingCluster = authorClusters.FirstOrDefault(cluster =>
+                cluster.Variants.Any(variant =>
+                    _textNormalizer.CalculateSimilarity(variant, author) >= AuthorSimilarityThreshold));
+
+            if (matchingCluster.CanonicalName != null)
+            {
+                // Add to existing cluster
+                matchingCluster.Variants.Add(author);
+                if (!result.ContainsKey(matchingCluster.CanonicalName))
+                {
+                    result[matchingCluster.CanonicalName] = new List<FileOperationPreview>();
+                }
+                result[matchingCluster.CanonicalName].Add(operation);
+            }
+            else
+            {
+                // Create new cluster with this author as canonical name
+                authorClusters.Add((author, new List<string> { author }));
+                result[author] = new List<FileOperationPreview> { operation };
+            }
+        }
+
+        return result;
     }
 }

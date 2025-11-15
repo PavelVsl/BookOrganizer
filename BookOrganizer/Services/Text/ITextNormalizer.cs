@@ -34,4 +34,13 @@ public interface ITextNormalizer
     /// <param name="text2">Second text</param>
     /// <returns>True if texts are equivalent after normalization</returns>
     bool AreEquivalent(string? text1, string? text2);
+
+    /// <summary>
+    /// Calculates fuzzy similarity between two strings (0.0 = completely different, 1.0 = identical).
+    /// Handles encoding variations, case differences, and minor typos.
+    /// </summary>
+    /// <param name="text1">First text</param>
+    /// <param name="text2">Second text</param>
+    /// <returns>Similarity score from 0.0 to 1.0</returns>
+    double CalculateSimilarity(string? text1, string? text2);
 }
