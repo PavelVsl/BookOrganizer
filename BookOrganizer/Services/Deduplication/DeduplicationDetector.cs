@@ -10,13 +10,16 @@ namespace BookOrganizer.Services.Deduplication;
 public class DeduplicationDetector : IDeduplicationDetector
 {
     private readonly ITextNormalizer _textNormalizer;
+    private readonly ContentAnalyzer _contentAnalyzer;
     private readonly ILogger<DeduplicationDetector> _logger;
 
     public DeduplicationDetector(
         ITextNormalizer textNormalizer,
+        ContentAnalyzer contentAnalyzer,
         ILogger<DeduplicationDetector> logger)
     {
         _textNormalizer = textNormalizer;
+        _contentAnalyzer = contentAnalyzer;
         _logger = logger;
     }
 
@@ -153,36 +156,27 @@ public class DeduplicationDetector : IDeduplicationDetector
             }
         }
 
-        // Compare file counts
-        if (folder1.AudioFiles.Count != folder2.AudioFiles.Count)
-        {
-            differences.Add($"Different file counts: {folder1.AudioFiles.Count} vs {folder2.AudioFiles.Count} files");
-        }
+        // Perform content analysis (duration, quality, etc.)
+        var content1 = _contentAnalyzer.AnalyzeContent(folder1);
+        var content2 = _contentAnalyzer.AnalyzeContent(folder2);
+        var contentComparison = _contentAnalyzer.CompareContent(content1, content2);
 
-        // Compare total file sizes
-        var size1 = folder1.AudioFiles.Sum(f => new FileInfo(f).Length);
-        var size2 = folder2.AudioFiles.Sum(f => new FileInfo(f).Length);
-        var sizeDiff = Math.Abs(size1 - size2);
-        var sizeRatio = sizeDiff / (double)Math.Max(size1, size2);
+        // Add content-based match reasons and differences
+        matchReasons.AddRange(contentComparison.MatchReasons);
+        differences.AddRange(contentComparison.Differences);
 
-        if (sizeRatio < 0.05) // Less than 5% difference
-        {
-            matchReasons.Add($"Similar sizes: {FormatBytes(size1)} vs {FormatBytes(size2)}");
-            confidenceScore += 0.1;
-        }
-        else if (sizeRatio < 0.5) // 5-50% difference
-        {
-            differences.Add($"Different sizes: {FormatBytes(size1)} vs {FormatBytes(size2)} ({sizeRatio:P0} difference)");
-        }
-        else
-        {
-            // More than 50% size difference - likely abridged vs full version
-            differences.Add($"Significant size difference: {FormatBytes(size1)} vs {FormatBytes(size2)} ({sizeRatio:P0} difference) - possibly abridged vs full");
-            confidenceScore -= 0.1;
-        }
+        // Adjust confidence based on content similarity
+        var contentConfidence = (contentComparison.DurationSimilarity * 0.15) +
+                               (contentComparison.SizeSimilarity * 0.05);
+        confidenceScore += contentConfidence;
 
         // Determine recommended resolution based on differences
-        var recommendedResolution = DetermineRecommendedResolution(differences, size1, size2);
+        var recommendedResolution = DetermineRecommendedResolution(
+            differences,
+            content1.TotalSizeBytes,
+            content2.TotalSizeBytes,
+            content1.TotalDuration,
+            content2.TotalDuration);
 
         var candidate = new DuplicationCandidate
         {
@@ -205,12 +199,25 @@ public class DeduplicationDetector : IDeduplicationDetector
         return _textNormalizer.AreEquivalent(field1, field2);
     }
 
-    private static DuplicationResolution DetermineRecommendedResolution(List<string> differences, long size1, long size2)
+    private static DuplicationResolution DetermineRecommendedResolution(
+        List<string> differences,
+        long size1,
+        long size2,
+        TimeSpan duration1,
+        TimeSpan duration2)
     {
         // If no meaningful differences, recommend keeping source
         if (differences.Count == 0)
         {
             return DuplicationResolution.KeepSource;
+        }
+
+        // If significantly different durations (>50%), likely abridged vs full
+        var durationRatio = Math.Abs((duration1 - duration2).TotalMinutes) /
+                           Math.Max(duration1.TotalMinutes, duration2.TotalMinutes);
+        if (durationRatio > 0.5)
+        {
+            return DuplicationResolution.KeepBoth; // Different versions
         }
 
         // If significant size difference, recommend keeping both
@@ -226,8 +233,11 @@ public class DeduplicationDetector : IDeduplicationDetector
             return DuplicationResolution.KeepBoth;
         }
 
-        // Otherwise, keep the larger version (higher quality)
-        return size1 >= size2 ? DuplicationResolution.KeepSource : DuplicationResolution.KeepTarget;
+        // Otherwise, keep the larger/longer version (higher quality)
+        if (duration1 > duration2 || size1 > size2)
+            return DuplicationResolution.KeepSource;
+
+        return DuplicationResolution.KeepTarget;
     }
 
     private static string FormatBytes(long bytes)

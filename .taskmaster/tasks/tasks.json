@@ -963,9 +963,10 @@
               3
             ],
             "details": "Use TagLib-Sharp to compare total audio file durations, calculate aggregate file sizes, and potentially generate audio fingerprints. Implement structural comparison analyzing file count differences and folder organization patterns. Develop algorithm to detect abridged vs unabridged versions by duration ratios.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Create test audiobook collections with known duplicates (same content, different encodings, abridged/full versions) and verify detection accuracy",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-11-15T19:12:03.489Z"
           },
           {
             "id": 4,
@@ -977,9 +978,10 @@
               3
             ],
             "details": "Develop IDuplicationResolver with side-by-side comparison UI using Spectre.Console tables. Implement resolution options: keep both with version suffixes, keep higher quality version, skip/ignore. Add CLI flags for duplicate detection mode (--detect-duplicates, --auto-resolve, --duplicate-threshold).",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Integration tests for resolution workflow, verify correct handling of user interactions and CLI flag configurations",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-11-15T19:12:58.717Z"
           },
           {
             "id": 5,
@@ -995,14 +997,26 @@
             "status": "pending",
             "testStrategy": "End-to-end tests covering full workflow from directory scanning to duplicate detection and resolution, with various audiobook collection scenarios",
             "parentId": "undefined"
+          },
+          {
+            "id": 6,
+            "title": "Implement metadata.json override support",
+            "description": "Create JsonMetadataProvider to read metadata.json from audiobook folders for manual metadata corrections",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              "13.1"
+            ],
+            "parentTaskId": 13,
+            "parentId": "undefined"
           }
         ],
-        "updatedAt": "2025-11-15T19:07:18.769Z"
+        "updatedAt": "2025-11-15T19:12:58.717Z"
       }
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-11-15T19:07:18.771Z",
+      "lastModified": "2025-11-15T19:12:58.718Z",
       "taskCount": 13,
       "completedCount": 11,
       "tags": [

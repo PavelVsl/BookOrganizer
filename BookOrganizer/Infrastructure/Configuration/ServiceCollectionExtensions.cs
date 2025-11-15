@@ -1,3 +1,4 @@
+using BookOrganizer.Services.Deduplication;
 using BookOrganizer.Services.Metadata;
 using BookOrganizer.Services.Operations;
 using BookOrganizer.Services.Operations.FileOperators;
@@ -56,6 +57,12 @@ public static class ServiceCollectionExtensions
 
         // File organization services
         services.AddSingleton<IFileOrganizer, FileOrganizer>();
+
+        // Deduplication services
+        services.AddSingleton<ContentAnalyzer>();
+        services.AddSingleton<IDeduplicationDetector, DeduplicationDetector>();
+        services.AddSingleton<IDeduplicationResolver, DeduplicationResolver>();
+        services.AddSingleton<IDeduplicationCache, InMemoryDeduplicationCache>();
 
         return services;
     }
