@@ -21,6 +21,8 @@ public static class ServiceCollectionExtensions
         // Metadata services
         services.AddSingleton<IMetadataExtractor, MetadataExtractor>();
         services.AddSingleton<IFilenameParser, FilenameParser>();
+        services.AddSingleton<IMetadataConsolidator, MetadataConsolidator>();
+        services.AddSingleton<IMetadataValidator, MetadataValidator>();
 
         // Additional services will be registered here as they are implemented
         // services.AddSingleton<IFileOrganizer, FileOrganizer>();

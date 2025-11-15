@@ -12,10 +12,17 @@ namespace BookOrganizer.Services.Metadata;
 public class MetadataExtractor : IMetadataExtractor
 {
     private readonly ILogger<MetadataExtractor> _logger;
+    private readonly IFilenameParser _filenameParser;
+    private readonly IMetadataConsolidator _consolidator;
 
-    public MetadataExtractor(ILogger<MetadataExtractor> logger)
+    public MetadataExtractor(
+        ILogger<MetadataExtractor> logger,
+        IFilenameParser filenameParser,
+        IMetadataConsolidator consolidator)
     {
         _logger = logger;
+        _filenameParser = filenameParser;
+        _consolidator = consolidator;
     }
 
     /// <inheritdoc />
@@ -56,13 +63,23 @@ public class MetadataExtractor : IMetadataExtractor
                 audiobookFolder.Path);
         }
 
-        // Consolidate metadata from all files
-        var consolidated = ConsolidateMetadata(fileMetadataList);
+        // Get metadata from ID3 tags
+        var id3Metadata = ConsolidateMetadata(fileMetadataList);
+
+        // Get metadata from filename/folder structure
+        var filenameMetadata = _filenameParser.ParseFolderPath(audiobookFolder.Path);
+
+        // Consolidate metadata from multiple sources
+        var metadataSources = new[] { id3Metadata, filenameMetadata };
+        var consolidatedResult = await _consolidator.ConsolidateAsync(metadataSources, cancellationToken);
+        var consolidated = consolidatedResult.ToBookMetadata();
 
         _logger.LogInformation(
-            "Extracted metadata: Title='{Title}', Author='{Author}', Confidence={Confidence:F2}",
-            consolidated.Title,
-            consolidated.Author,
+            "Extracted metadata: Title='{Title}' (from {TitleSource}), Author='{Author}' (from {AuthorSource}), Overall Confidence={Confidence:F2}",
+            consolidatedResult.Title,
+            consolidatedResult.TitleSource,
+            consolidatedResult.Author,
+            consolidatedResult.AuthorSource,
             consolidated.Confidence);
 
         return consolidated;

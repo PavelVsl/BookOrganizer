@@ -426,8 +426,74 @@
           "3",
           "4"
         ],
-        "status": "pending",
-        "subtasks": []
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create IMetadataConsolidator interface",
+            "description": "Design and implement the IMetadataConsolidator interface that will orchestrate metadata consolidation from multiple sources",
+            "dependencies": [],
+            "details": "Create the IMetadataConsolidator interface in Services/Metadata/ directory. Define method signatures for ConsolidateAsync that accepts multiple metadata sources (ID3, filename, folder structure) and returns ConsolidatedMetadata. Include methods for adding confidence scores to individual metadata fields. Follow existing project patterns and use async/await properly with CancellationToken support.\n<info added on 2025-11-15T16:31:50.729Z>\nI'll analyze the project structure to understand the current implementation and provide specific details about the created interface.Interface successfully created at BookOrganizer/Services/Metadata/IMetadataConsolidator.cs with ConsolidateAsync method accepting IEnumerable<BookMetadata> parameter and returning Task<ConsolidatedMetadata>. Includes proper XML documentation and follows established project conventions with async/await pattern and CancellationToken support. Note: ConsolidatedMetadata model still needs to be created as it's referenced but not yet defined in the Models directory.\n</info added on 2025-11-15T16:31:50.729Z>",
+            "status": "done",
+            "testStrategy": "Unit tests for interface contract validation and method signature verification",
+            "updatedAt": "2025-11-15T16:31:56.888Z",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Create ConsolidatedMetadata model with field-level confidence",
+            "description": "Implement a new model that extends BookMetadata with per-field confidence scoring capabilities",
+            "dependencies": [
+              1
+            ],
+            "details": "Create ConsolidatedMetadata record in Models/ directory that contains all fields from BookMetadata plus individual confidence scores for each metadata field (TitleConfidence, AuthorConfidence, etc.). Include overall confidence calculation method. Add source tracking for each field to identify which provider contributed the final value. Use record pattern for immutability following project conventions.\n<info added on 2025-11-15T16:33:08.700Z>\nI'll analyze the project structure to better understand the implementation and provide specific context for the subtask update.Successfully implemented ConsolidatedMetadata record at BookOrganizer/Models/ConsolidatedMetadata.cs:210. The implementation includes individual confidence scores and source tracking for all 8 metadata fields (Title, Author, Series, SeriesNumber, Narrator, Year, Genre, Description) with corresponding TitleConfidence/TitleSource pattern. OverallConfidence calculation uses the metadata confidence value, ContributingSources maintains list of contributing metadata sources. ToBookMetadata() method converts to existing BookMetadata format using primary source and overall confidence. FromBookMetadata() static factory method creates ConsolidatedMetadata from existing BookMetadata with uniform confidence scores across all fields. Implementation follows project conventions with file-scoped namespace, XML documentation, required properties, and record immutability pattern.\n</info added on 2025-11-15T16:33:08.700Z>",
+            "status": "done",
+            "testStrategy": "Unit tests for model validation, confidence score calculations, and serialization/deserialization",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-15T16:33:14.882Z"
+          },
+          {
+            "id": 3,
+            "title": "Implement MetadataConsolidator with confidence scoring algorithm",
+            "description": "Create the core consolidation service that combines metadata from ID3 tags, filename parsing, and folder structure analysis",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Implement MetadataConsolidator class in Services/Metadata/ with dependency injection for IMetadataExtractor and IFilenameParser. Create confidence scoring algorithm that rates ID3 tags highest (0.8-1.0), filename patterns medium (0.4-0.7), and folder structure lowest (0.2-0.5). Handle consistency checks across multiple MP3 files in same audiobook. Use existing CalculateConfidence logic from MetadataExtractor as baseline and extend it for multi-source scenarios.\n<info added on 2025-11-15T16:34:38.391Z>\nLet me analyze the codebase to understand the current implementation state and provide an accurate subtask update.Implementation completed successfully. The MetadataConsolidator class has been fully implemented with all required features: confidence scoring algorithm with source reliability weights (ID3Tags=1.0, FilenameParser=0.6, FolderStructure=0.4), ConsolidateField method that selects best values based on weighted confidence scores and includes agreement bonuses for consistent values across sources, CalculateOverallConfidence method using weighted averages with field importance weights (Title=30%, Author=25%, Series=15%, SeriesNumber=10%, Narrator=10%, Year=5%, Genre=3%, Description=2%), proper year validation rejecting years outside 1900-current+1 range, comprehensive logging with structured output including field-level and overall confidence scores, and proper dependency injection integration with ILogger<MetadataConsolidator>. The implementation follows project conventions with file-scoped namespaces, XML documentation, and async/await patterns.\n</info added on 2025-11-15T16:34:38.391Z>",
+            "status": "done",
+            "testStrategy": "Integration tests with various metadata quality scenarios, unit tests for confidence scoring accuracy, tests with conflicting metadata sources",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-15T16:34:44.615Z"
+          },
+          {
+            "id": 4,
+            "title": "Implement conflict resolution and validation rules",
+            "description": "Add intelligent conflict resolution when metadata sources disagree and implement validation rules for metadata quality",
+            "dependencies": [
+              3
+            ],
+            "details": "Extend MetadataConsolidator with conflict resolution logic: prefer complete over incomplete data, prefer ID3 over filename over folder structure, handle inconsistencies by choosing most common value across files. Implement validation rules: year between 1900-current+1, reasonable author/title lengths (3-200 chars), valid Czech characters handling. Add support for user-defined validation rules via configuration. Follow existing exception handling patterns using BookOrganizerException hierarchy.\n<info added on 2025-11-15T16:36:40.150Z>\nImplementation complete. Created IMetadataValidator interface (BookOrganizer/Services/Metadata/IMetadataValidator.cs) with Validate() and ValidateField() methods. Implemented MetadataValidator class (BookOrganizer/Services/Metadata/MetadataValidator.cs) with comprehensive validation rules: title required (1-200 chars), author optional (2-100 chars), year range (1900-current+1), valid Czech character handling using regex pattern @\"^[\\p{L}\\p{N}\\s\\-.,!?'\"\"():;/&]+$\" for proper Unicode support including Czech diacritics, series consistency checks (series name vs number), series number format validation using pattern @\"^\\d+(\\.\\d+)?[a-z]?$\", overall confidence threshold validation (0.3 minimum). Created ValidationResult and ValidationIssue models (BookOrganizer/Models/ValidationResult.cs) supporting Error/Warning/Info severity levels with required FieldName, Message properties and optional CurrentValue for context. MetadataConsolidator already implements comprehensive conflict resolution via source weights (ID3Tags=1.0, FilenameParser=0.6, FolderStructure=0.4) and agreement bonuses (0.1 per additional agreeing source), preferring complete over incomplete data and most reliable sources.\n</info added on 2025-11-15T16:36:40.150Z>",
+            "status": "done",
+            "testStrategy": "Test conflict resolution with deliberately conflicting metadata sources, validate edge cases with malformed data, test Czech character handling and diacritics validation",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-15T16:36:46.351Z"
+          },
+          {
+            "id": 5,
+            "title": "Integrate consolidation into existing MetadataExtractor workflow",
+            "description": "Update the existing MetadataExtractor to use the new consolidation system while maintaining backward compatibility",
+            "dependencies": [
+              4
+            ],
+            "details": "Modify MetadataExtractor.ExtractMetadataAsync to use IMetadataConsolidator instead of the current ConsolidateMetadata method. Inject IMetadataConsolidator via dependency injection. Update ServiceCollectionExtensions to register the new consolidation services. Ensure the current simple consolidation logic in MetadataExtractor is preserved as fallback. Update logging to show consolidation details and confidence sources. Maintain existing method signatures for backward compatibility.\n<info added on 2025-11-15T16:39:27.116Z>\nLooking at the user request and the project structure, I need to analyze the current codebase to understand what was actually implemented.Based on my analysis of the code and the user's request, I can see that the integration has been successfully completed. The user implemented:\n\n1. **Dependency injection integration**: `MetadataExtractor` now takes `IFilenameParser` and `IMetadataConsolidator` as constructor dependencies (lines 15-16, 18-25)\n\n2. **Updated workflow**: The `ExtractMetadataAsync` method now:\n   - Extracts ID3 metadata using the existing `ConsolidateMetadata` method (line 67)\n   - Extracts filename/folder metadata using `_filenameParser.ParseFolderPath` (line 70)\n   - Consolidates both sources using `_consolidator.ConsolidateAsync` (lines 73-75)\n\n3. **Enhanced logging**: The logging now shows source attribution including `TitleSource` and `AuthorSource` (lines 77-83)\n\n4. **Service registration**: `ServiceCollectionExtensions` now registers `IMetadataConsolidator` and `IMetadataValidator` (lines 24-25)\n\n5. **Backward compatibility**: The original `ConsolidateMetadata` method for ID3 tags is preserved (lines 136-166)\n\nImplementation completed successfully. MetadataExtractor now uses the new consolidation system while maintaining backward compatibility. The workflow extracts metadata from both ID3 tags and filename/folder patterns, consolidates them using confidence scoring, and provides enhanced logging with source attribution. Build verification confirms successful integration without compilation errors.\n</info added on 2025-11-15T16:39:27.116Z>",
+            "status": "done",
+            "testStrategy": "Integration tests ensuring existing functionality works unchanged, regression tests with current test cases, performance tests to ensure no significant slowdown",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-15T16:39:33.313Z"
+          }
+        ],
+        "updatedAt": "2025-11-15T16:39:33.313Z"
       },
       {
         "id": "7",
@@ -484,9 +550,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-11-15T16:17:34.973Z",
+      "lastModified": "2025-11-15T16:39:33.314Z",
       "taskCount": 10,
-      "completedCount": 5,
+      "completedCount": 6,
       "tags": [
         "master"
       ]
