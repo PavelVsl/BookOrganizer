@@ -1,27 +1,28 @@
-﻿using BookOrganizer.Infrastructure.Configuration;
+﻿using BookOrganizer.Commands;
+using BookOrganizer.Infrastructure.Configuration;
 using BookOrganizer.Infrastructure.Exceptions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.CommandLine;
+
+// Build DI container
+var services = new ServiceCollection();
+services.AddBookOrganizerServices();
+services.AddBookOrganizerLogging();
+
+// Make service provider accessible to commands
+Program.ServiceProvider = services.BuildServiceProvider();
 
 try
 {
-    // Build DI container
-    var services = new ServiceCollection();
+    // Create root command
+    var rootCommand = new RootCommand("BookOrganizer - Organize your audiobook library for Jellyfin");
 
-    // Register services
-    services.AddBookOrganizerServices();
-    services.AddBookOrganizerLogging();
+    // Add commands
+    rootCommand.AddCommand(new ScanCommand());
 
-    // Build service provider
-    var serviceProvider = services.BuildServiceProvider();
-
-    // Get logger
-    var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
-
-    logger.LogInformation("BookOrganizer started");
-    logger.LogInformation("Application initialized successfully");
-
-    return 0;
+    // Execute
+    return await rootCommand.InvokeAsync(args);
 }
 catch (BookOrganizerException ex)
 {
@@ -37,4 +38,10 @@ catch (Exception ex)
     Console.Error.WriteLine($"Unexpected error: {ex.Message}");
     Console.Error.WriteLine($"Stack trace: {ex.StackTrace}");
     return 1;
+}
+
+// Make Program partial to allow access to ServiceProvider
+public partial class Program
+{
+    public static IServiceProvider ServiceProvider { get; set; } = null!;
 }
