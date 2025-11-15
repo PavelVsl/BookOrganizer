@@ -664,8 +664,70 @@
         "dependencies": [
           "8"
         ],
-        "status": "pending",
-        "subtasks": []
+        "status": "in-progress",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create IPreviewGenerator interface and preview models",
+            "description": "Define the interface for preview generation and create supporting models for preview data structure",
+            "dependencies": [],
+            "details": "Create IPreviewGenerator interface in Services/Operations/ with methods for generating previews from organization plans. Define PreviewItem, PreviewSummary, and PreviewIssue models to represent preview data structure. Include properties for source/destination mappings, operation types, file sizes, estimated times, and potential issues. Design models to support filtering and export functionality.\n<info added on 2025-11-15T17:15:40.095Z>\nImplementation completed successfully with comprehensive preview system models and interface design. All required models created in PreviewResult.cs with proper encapsulation using records and immutable collections. IPreviewGenerator interface provides full functionality for preview generation, filtering, and export with async operations. Models include comprehensive statistics tracking, detailed issue categorization with 9 issue types, and built-in formatting utilities. The design supports the complete workflow from generating previews to exporting results in multiple formats while maintaining type safety with required properties and readonly collections.\n</info added on 2025-11-15T17:15:40.095Z>",
+            "status": "done",
+            "testStrategy": "Unit tests for model validation and interface contract verification",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-15T17:15:54.399Z"
+          },
+          {
+            "id": 2,
+            "title": "Implement core PreviewGenerator service",
+            "description": "Create the main PreviewGenerator implementation that analyzes organization plans and generates preview data",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement PreviewGenerator class in Services/Operations/ that takes OrganizationPlan collections and generates comprehensive preview data. Calculate disk space requirements, estimate operation times based on file sizes and operation types. Detect potential issues like name collisions, missing metadata, path length problems, and filesystem limitations. Support different operation types (copy, move, hard link, symbolic link) with accurate calculations.",
+            "status": "pending",
+            "testStrategy": "Integration tests with real audiobook folder samples, test disk space calculations accuracy, verify issue detection logic",
+            "parentId": "undefined"
+          },
+          {
+            "id": 3,
+            "title": "Create tree-view display with Spectre.Console",
+            "description": "Implement preview display functionality using Spectre.Console tree format with issue highlighting",
+            "dependencies": [
+              2
+            ],
+            "details": "Create PreviewDisplayService that renders preview data in tree format showing organized folder structure. Use Spectre.Console Tree component to display author/series/book hierarchy. Implement color coding for different states (success=green, warnings=yellow, errors=red). Show file counts, sizes, and operation types for each node. Highlight potential issues with special icons and colors. Support collapsible tree sections for large libraries.",
+            "status": "pending",
+            "testStrategy": "Test tree rendering with various library structures, verify color coding and issue highlighting, test with large datasets",
+            "parentId": "undefined"
+          },
+          {
+            "id": 4,
+            "title": "Implement preview filtering and statistics",
+            "description": "Add filtering capabilities by operation type, author, or error status, plus comprehensive statistics calculation",
+            "dependencies": [
+              2
+            ],
+            "details": "Extend PreviewGenerator with filtering methods to show subsets of preview data. Implement filters by operation type (copy/move/link), author names, series, and issue severity levels. Calculate comprehensive statistics: total files, total size, estimated operation time, disk space changes, issue counts by type. Create PreviewStatistics model with breakdown by operation types and issue categories. Support combining multiple filters.",
+            "status": "pending",
+            "testStrategy": "Test filtering accuracy with various criteria combinations, verify statistics calculations, test with edge cases like empty results",
+            "parentId": "undefined"
+          },
+          {
+            "id": 5,
+            "title": "Add export functionality and preview command integration",
+            "description": "Implement preview export to multiple formats and integrate with CLI preview command",
+            "dependencies": [
+              3,
+              4
+            ],
+            "details": "Create PreviewExportService supporting JSON, CSV, and text export formats. JSON should include full preview data structure, CSV for tabular analysis, text for human-readable reports. Add PreviewCommand to Program.cs following ScanCommand pattern, using System.CommandLine with options for filtering, export format, and output file. Integrate with existing service registration in ServiceCollectionExtensions. Support both console display and file export in single command execution.",
+            "status": "pending",
+            "testStrategy": "Test export format accuracy and completeness, verify CLI command integration, test file output permissions and error handling",
+            "parentId": "undefined"
+          }
+        ],
+        "updatedAt": "2025-11-15T17:15:54.399Z"
       },
       {
         "id": "10",
@@ -683,7 +745,7 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-11-15T17:12:23.570Z",
+      "lastModified": "2025-11-15T17:15:54.400Z",
       "taskCount": 10,
       "completedCount": 8,
       "tags": [
