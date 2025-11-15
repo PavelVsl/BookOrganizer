@@ -1,5 +1,6 @@
 using BookOrganizer.Services.Metadata;
 using BookOrganizer.Services.Operations;
+using BookOrganizer.Services.Operations.FileOperators;
 using BookOrganizer.Services.Scanning;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -27,6 +28,22 @@ public static class ServiceCollectionExtensions
 
         // Operation services
         services.AddSingleton<IPathGenerator, PathGenerator>();
+        services.AddSingleton<ChecksumCalculator>();
+
+        // File operator services
+        services.AddSingleton<CopyFileOperator>();
+        services.AddSingleton<MoveFileOperator>();
+        services.AddSingleton<HardLinkFileOperator>();
+        services.AddSingleton<SymbolicLinkFileOperator>();
+
+        // Register all specific file operators as ISpecificFileOperator
+        services.AddSingleton<ISpecificFileOperator>(sp => sp.GetRequiredService<CopyFileOperator>());
+        services.AddSingleton<ISpecificFileOperator>(sp => sp.GetRequiredService<MoveFileOperator>());
+        services.AddSingleton<ISpecificFileOperator>(sp => sp.GetRequiredService<HardLinkFileOperator>());
+        services.AddSingleton<ISpecificFileOperator>(sp => sp.GetRequiredService<SymbolicLinkFileOperator>());
+
+        // Main file operator orchestrator
+        services.AddSingleton<IFileOperator, FileOperator>();
 
         // Additional services will be registered here as they are implemented
         // services.AddSingleton<IFileOrganizer, FileOrganizer>();

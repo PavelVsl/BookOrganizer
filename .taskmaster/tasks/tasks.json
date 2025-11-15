@@ -632,10 +632,11 @@
               2,
               3
             ],
-            "details": "Implement FileOperator class with async CopyAsync and MoveAsync methods. Include progress reporting using IProgress<FileOperationProgress> for long operations. Implement cancellation support with CancellationToken. Add retry logic for transient failures (file locks, network issues). Preserve file timestamps and attributes. Update ID3 tags with organized metadata paths. Handle Windows MAX_PATH limitations and cross-platform file system differences. Integrate with manifest system for operation tracking.",
-            "status": "pending",
+            "details": "Implement FileOperator class with async CopyAsync and MoveAsync methods. Include progress reporting using IProgress<FileOperationProgress> for long operations. Implement cancellation support with CancellationToken. Add retry logic for transient failures (file locks, network issues). Preserve file timestamps and attributes. Update ID3 tags with organized metadata paths. Handle Windows MAX_PATH limitations and cross-platform file system differences. Integrate with manifest system for operation tracking.\n<info added on 2025-11-15T17:08:22.877Z>\nI'll analyze the codebase first to understand the current implementation and then provide the subtask update based on your request.Implementation completed successfully. Created complete file operation engine with four distinct file operators (Copy, Move, HardLink, SymbolicLink) implementing ISpecificFileOperator interface. FileOperator orchestrator now dynamically selects appropriate operator based on FileOperationType, integrates ChecksumCalculator for integrity validation on Copy/Move operations (correctly skipping validation for links as they don't create new file data), and provides comprehensive error handling with automatic cleanup on failure. All operators support progress reporting through FileOperationProgress stages and cancellation tokens. Service registration properly configured in ServiceCollectionExtensions.cs with all operators registered both as concrete types and ISpecificFileOperator interface for dependency injection. Cross-platform implementations handle Windows P/Invoke for hard links and Unix ln command fallback, plus .NET 6+ SymbolicLink API for symbolic links. Build verification confirms zero compilation warnings or errors.\n</info added on 2025-11-15T17:08:22.877Z>",
+            "status": "done",
             "testStrategy": "Test copy/move operations with various file sizes, verify progress reporting accuracy, test cancellation and retry logic",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-11-15T17:08:37.628Z"
           },
           {
             "id": 5,
@@ -650,7 +651,7 @@
             "parentId": "undefined"
           }
         ],
-        "updatedAt": "2025-11-15T17:00:57.359Z"
+        "updatedAt": "2025-11-15T17:08:37.628Z"
       },
       {
         "id": "9",
@@ -681,7 +682,7 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-11-15T17:00:57.360Z",
+      "lastModified": "2025-11-15T17:08:37.629Z",
       "taskCount": 10,
       "completedCount": 7,
       "tags": [
