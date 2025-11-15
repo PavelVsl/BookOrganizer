@@ -505,8 +505,74 @@
         "dependencies": [
           "6"
         ],
-        "status": "pending",
-        "subtasks": []
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create PathGenerator service implementation",
+            "description": "Implement the PathGenerator class that implements IPathGenerator interface for generating target folder paths",
+            "dependencies": [],
+            "details": "Create PathGenerator.cs in Services/Operations folder implementing IPathGenerator interface. Implement GenerateTargetPath method to create folder structure: '/library/author/[series/]book'. Handle series vs standalone books logic. Use ConsolidatedMetadata properties (Author, Series, SeriesNumber, Title) to build path components. Register service in ServiceCollectionExtensions.cs DI container.\n<info added on 2025-11-15T16:48:08.792Z>\nLet me analyze the codebase to understand the current PathGenerator implementation and provide an accurate update.Based on my analysis of the actual PathGenerator implementation, here is the update text:\n\n✅ IMPLEMENTATION COMPLETED: PathGenerator.cs successfully implemented in Services/Operations/ following IPathGenerator interface. Key features implemented: Jellyfin-compatible folder structure generation with author/series/book hierarchy for series books ('/Author/Series Name/01 - Book Title/') and author/book for standalone titles ('/Author/Book Title/'). GenerateBookFolderName method handles series number formatting with zero-padding for integers (01, 02, 03) and preserves original format for non-integers (2.5, 3a). Comprehensive SanitizePathComponent method removes filesystem invalid characters, handles problematic characters with safe replacements (: to -, quotes to single quotes), trims leading/trailing dots and spaces for Windows compatibility, and collapses multiple consecutive spaces/underscores. Service registered as singleton in ServiceCollectionExtensions.cs DI container. Build verification successful - ready for integration testing.\n</info added on 2025-11-15T16:48:08.792Z>",
+            "status": "done",
+            "testStrategy": "Unit tests for path generation with various metadata combinations including series books, standalone books, and books with missing metadata fields",
+            "updatedAt": "2025-11-15T16:48:14.970Z",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Implement path sanitization for filesystem compatibility",
+            "description": "Create SanitizePathComponent method to handle invalid filesystem characters and Czech diacritics",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement SanitizePathComponent method in PathGenerator class. Remove or replace invalid filesystem characters: < > : \" | ? * \\ /. Handle Czech diacritics properly - preserve readability while ensuring filesystem compatibility. Replace invalid characters with safe alternatives (e.g., colon with dash). Trim whitespace and handle multiple consecutive separators.\n<info added on 2025-11-15T16:48:57.122Z>\nLet me analyze the codebase to understand the current implementation of path sanitization.Path sanitization implementation is complete and operational in PathGenerator.cs:74-119. The SanitizePathComponent method correctly implements all specified requirements including OS-specific invalid character handling via Path.GetInvalidFileNameChars(), Czech diacritics preservation, safe character replacement patterns (colon to dash, quotes to single quotes, brackets to parentheses), Windows-compatible leading/trailing dot and space trimming, whitespace/underscore consolidation, and fallback to 'Unknown' for empty inputs.\n</info added on 2025-11-15T16:48:57.122Z>",
+            "status": "done",
+            "testStrategy": "Test with Czech characters (ě, š, č, ř, ž, ý, á, í, é, ú, ů, ď, ť, ň), special characters, and edge cases like very long names",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-15T16:49:03.284Z"
+          },
+          {
+            "id": 3,
+            "title": "Add Windows MAX_PATH limitation handling",
+            "description": "Implement path length validation and truncation for Windows compatibility",
+            "dependencies": [
+              2
+            ],
+            "details": "Add path length checking in PathGenerator. Handle Windows MAX_PATH limitation (260 characters). Implement intelligent truncation that preserves important information (author, series, book number). Add logic to shorten path components while maintaining readability. Provide warning when paths are truncated. Consider long path support for Windows 10+ systems.\n<info added on 2025-11-15T16:51:15.160Z>\nLet me first analyze the codebase to understand the PathGenerator implementation and provide an accurate update.Now let me check the interface to ensure I understand the complete implementation:Now let me check if there are any tests to verify the implementation:Based on my analysis of the code and the user's request, I can see that the implementation is complete and comprehensive. Here's the update text:\n\nSuccessfully completed implementation with comprehensive MAX_PATH handling. Added MaxPathLength constant (260) and SafePathLength constant (256) to account for Windows drive letter and reserved characters. GenerateTargetPath method now validates path length and triggers TruncatePathToLimit when SafePathLength is exceeded. Implemented intelligent space distribution in TruncatePathToLimit that prioritizes book folder name over series name over author name. TruncateString helper method preserves both beginning and end of strings with ellipsis in middle for optimal readability. Added detailed logging that warns when truncation occurs and reports original vs final path lengths. MinComponentLength constant (10) ensures truncated components remain readable. Build verification confirmed all components compile successfully without errors or warnings.\n</info added on 2025-11-15T16:51:15.160Z>",
+            "status": "done",
+            "testStrategy": "Test with very long author names, series names, and titles. Verify paths stay under MAX_PATH limit on Windows while remaining functional on other platforms",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-15T16:51:22.622Z"
+          },
+          {
+            "id": 4,
+            "title": "Implement configurable naming templates",
+            "description": "Create configuration system for customizable folder structure templates",
+            "dependencies": [
+              1
+            ],
+            "details": "Create configuration models for path templates. Support template placeholders: {author}, {series}, {seriesNumber}, {title}, {year}. Implement template parsing and substitution logic. Add default templates for different scenarios: series books vs standalone books. Create configuration loading from appsettings.json or environment variables. Allow runtime template switching.\n<info added on 2025-11-15T16:52:17.513Z>\nI need to analyze the current codebase to understand the current folder structure generation implementation and provide an appropriate update to the subtask.DECISION: Configurable template feature postponed to focus on MVP delivery. Current PathGenerator service at /Services/Operations/PathGenerator.cs already implements hardcoded Jellyfin-compatible folder structure (/Author/Series/01 - Book Title/ or /Author/Book Title/) which serves all current requirements. Implementation provides excellent defaults for both series books (with number prefix) and standalone books. Template configuration system (appsettings.json parsing, IConfiguration integration, template parser with {author}, {series}, {title} placeholders) will be added in future iteration when broader configuration infrastructure is established. This approach aligns with MVP principles and allows focus on core organizing functionality.\n</info added on 2025-11-15T16:52:17.513Z>",
+            "status": "deferred",
+            "testStrategy": "Test template parsing with various placeholder combinations. Verify template substitution works correctly with real metadata. Test configuration loading and template validation",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-15T16:52:23.730Z"
+          },
+          {
+            "id": 5,
+            "title": "Create collision handling and path uniqueness system",
+            "description": "Implement logic to handle naming conflicts and ensure unique target paths",
+            "dependencies": [
+              3,
+              4
+            ],
+            "details": "Add collision detection in PathGenerator when multiple books would generate same path. Implement collision resolution strategies: append incrementing numbers (Book Title (2)), append year information when available, use series number for disambiguation. Create path uniqueness tracking during batch operations. Handle edge cases like books with same title by different authors. Provide clear conflict resolution reporting.\n<info added on 2025-11-15T16:54:05.919Z>\nI'll analyze the codebase to understand the current implementation and provide an accurate update based on the user's report of their implementation.Based on my analysis of the codebase, I can see that the user has successfully implemented the collision handling system as described. The `EnsureUniquePath` method has been added to both the `IPathGenerator` interface (lines 28-35) and the `PathGenerator` implementation (lines 264-318). The implementation matches exactly what the user described in their request.\n\nHere's the new text content that should be appended to the subtask's details:\n\nIMPLEMENTATION COMPLETED: Successfully added EnsureUniquePath method to IPathGenerator interface (lines 28-35) and PathGenerator implementation (lines 264-318). The collision resolution strategy works as planned: first attempts to append year from metadata if available (e.g., 'Book Title (2023)'), then falls back to incrementing numbers (e.g., 'Book Title (2)', 'Book Title (3)'). Implementation includes proper error handling, null checking for existingPaths parameter, comprehensive logging showing original vs resolved paths, and safety limit of 100 attempts to prevent infinite loops. Method requires caller to maintain HashSet of existing paths for efficient collision detection during batch operations. Build verification confirmed successful compilation with no errors.\n</info added on 2025-11-15T16:54:05.919Z>",
+            "status": "done",
+            "testStrategy": "Test collision handling with duplicate book titles, same author multiple books, and books with missing distinguishing metadata. Verify uniqueness is maintained in batch processing scenarios",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-15T16:54:12.106Z"
+          }
+        ],
+        "updatedAt": "2025-11-15T16:54:20.494Z"
       },
       {
         "id": "8",
@@ -550,9 +616,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-11-15T16:39:33.314Z",
+      "lastModified": "2025-11-15T16:54:20.495Z",
       "taskCount": 10,
-      "completedCount": 6,
+      "completedCount": 7,
       "tags": [
         "master"
       ]

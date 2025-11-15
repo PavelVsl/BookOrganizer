@@ -1,4 +1,5 @@
 using BookOrganizer.Services.Metadata;
+using BookOrganizer.Services.Operations;
 using BookOrganizer.Services.Scanning;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -24,9 +25,11 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IMetadataConsolidator, MetadataConsolidator>();
         services.AddSingleton<IMetadataValidator, MetadataValidator>();
 
+        // Operation services
+        services.AddSingleton<IPathGenerator, PathGenerator>();
+
         // Additional services will be registered here as they are implemented
         // services.AddSingleton<IFileOrganizer, FileOrganizer>();
-        // services.AddSingleton<IPathGenerator, PathGenerator>();
 
         return services;
     }
