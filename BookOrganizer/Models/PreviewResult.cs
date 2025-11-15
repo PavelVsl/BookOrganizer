@@ -75,6 +75,21 @@ public record FileOperationPreview
     /// List of potential issues specific to this operation.
     /// </summary>
     public IReadOnlyList<PreviewIssue> Issues { get; init; } = Array.Empty<PreviewIssue>();
+
+    /// <summary>
+    /// Normalized author name for grouping (all variants map to the same name).
+    /// </summary>
+    public string? NormalizedAuthor { get; init; }
+
+    /// <summary>
+    /// Normalized title for duplicate detection.
+    /// </summary>
+    public string? NormalizedTitle { get; init; }
+
+    /// <summary>
+    /// Normalized series name for grouping.
+    /// </summary>
+    public string? NormalizedSeries { get; init; }
 }
 
 /// <summary>

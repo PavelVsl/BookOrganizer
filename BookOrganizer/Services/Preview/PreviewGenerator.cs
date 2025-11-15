@@ -174,6 +174,13 @@ public class PreviewGenerator : IPreviewGenerator
                 }
             }
 
+            // Generate normalized names for tree grouping
+            var normalizedAuthor = _pathGenerator.NormalizeAuthorName(plan.Metadata.Author ?? "");
+            var normalizedTitle = _pathGenerator.SanitizePathComponent(plan.Metadata.Title ?? "");
+            var normalizedSeries = string.IsNullOrWhiteSpace(plan.Metadata.Series)
+                ? null
+                : _pathGenerator.SanitizePathComponent(plan.Metadata.Series);
+
             operations.Add(new FileOperationPreview
             {
                 SourceFolder = plan.SourceFolder,
@@ -183,7 +190,10 @@ public class PreviewGenerator : IPreviewGenerator
                 OperationType = plan.OperationType,
                 TotalSizeBytes = plan.TotalSizeBytes,
                 FileCount = plan.SourceFolder.AudioFiles.Count,
-                Issues = issues
+                Issues = issues,
+                NormalizedAuthor = normalizedAuthor,
+                NormalizedTitle = normalizedTitle,
+                NormalizedSeries = normalizedSeries
             });
 
             allIssues.AddRange(issues);

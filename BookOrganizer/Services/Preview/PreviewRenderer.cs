@@ -1,3 +1,4 @@
+using BookOrganizer.Infrastructure.Database;
 using BookOrganizer.Models;
 using Spectre.Console;
 
@@ -8,6 +9,12 @@ namespace BookOrganizer.Services.Preview;
 /// </summary>
 public class PreviewRenderer : IPreviewRenderer
 {
+    private readonly ILibraryDatabase? _libraryDatabase;
+
+    public PreviewRenderer(ILibraryDatabase? libraryDatabase = null)
+    {
+        _libraryDatabase = libraryDatabase;
+    }
     public void RenderPreview(PreviewResult preview, PreviewRenderOptions? options = null)
     {
         options ??= new PreviewRenderOptions();
@@ -210,9 +217,9 @@ public class PreviewRenderer : IPreviewRenderer
         var maxToShow = options.MaxOperationsToShow ?? operations.Count;
         var operationsToShow = operations.Take(maxToShow).ToList();
 
-        // Group by author for tree structure
+        // Group by normalized author for tree structure (so "FRANTIŠEK KOTLETA" and "František Kotleta" group together)
         var groupedByAuthor = operationsToShow
-            .GroupBy(op => op.Metadata.Author ?? "Unknown Author")
+            .GroupBy(op => op.NormalizedAuthor ?? "Unknown Author")
             .OrderBy(g => g.Key);
 
         var tree = new Tree("[bold cyan]Audiobook Library Structure[/]")
@@ -220,11 +227,12 @@ public class PreviewRenderer : IPreviewRenderer
 
         foreach (var authorGroup in groupedByAuthor)
         {
+            // Use the normalized author as the display name (it's already properly formatted)
             var authorNode = tree.AddNode($"[bold]{Markup.Escape(authorGroup.Key)}[/] [dim]({authorGroup.Count()} books)[/]");
 
-            // Group by series under each author
+            // Group by normalized series under each author
             var seriesGroups = authorGroup
-                .GroupBy(op => op.Metadata.Series ?? "Standalone")
+                .GroupBy(op => op.NormalizedSeries ?? "Standalone")
                 .OrderBy(g => g.Key);
 
             foreach (var seriesGroup in seriesGroups)

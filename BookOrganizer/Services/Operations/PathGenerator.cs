@@ -329,7 +329,7 @@ public class PathGenerator : IPathGenerator
     /// - Normalizes capitalization (title case)
     /// - Handles multiple authors (uses first author)
     /// </summary>
-    private string NormalizeAuthorName(string author)
+    public string NormalizeAuthorName(string author)
     {
         if (string.IsNullOrWhiteSpace(author))
         {

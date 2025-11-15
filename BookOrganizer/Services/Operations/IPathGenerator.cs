@@ -33,4 +33,15 @@ public interface IPathGenerator
     /// <param name="existingPaths">Set of paths that already exist or are planned.</param>
     /// <returns>Unique path that doesn't collide with existing paths.</returns>
     string EnsureUniquePath(BookMetadata metadata, string basePath, ISet<string> existingPaths);
+
+    /// <summary>
+    /// Normalizes author name for consistent folder naming.
+    /// - Fixes encoding issues (Czech diacritics)
+    /// - Converts "Last, First" to "First Last"
+    /// - Normalizes capitalization (title case)
+    /// - Handles multiple authors (uses first author)
+    /// </summary>
+    /// <param name="author">Raw author name.</param>
+    /// <returns>Normalized author name.</returns>
+    string NormalizeAuthorName(string author);
 }
