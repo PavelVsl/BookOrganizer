@@ -919,7 +919,7 @@
         "description": "Create a comprehensive deduplication system that identifies duplicate audiobooks using normalized metadata comparison, content analysis, and user-guided resolution with caching.",
         "details": "Create a new service `IDeduplicationService` with implementation `DeduplicationService` that identifies potential duplicate audiobooks through multiple detection strategies: 1) **Normalized metadata comparison** - Use TextNormalizer from task 12 to create canonical forms of author+title for fuzzy matching, handle encoding variations and case differences. 2) **Content-based analysis** - Compare total duration by summing MP3 file lengths using TagLib-Sharp, calculate aggregate file sizes, optionally generate audio fingerprints using acoustic analysis. 3) **Structural comparison** - Analyze file count differences, folder organization patterns, detect abridged vs unabridged versions by duration ratios. Create `DuplicationCandidate` model with source/target AudiobookFolder references, confidence score (0.0-1.0), detected differences (metadata, content, structure), and resolution recommendations. Implement `IDuplicationResolver` for user interaction presenting side-by-side comparisons via Spectre.Console tables showing metadata fields, file counts, total sizes, duration estimates. Provide resolution options: keep both with version suffixes (Author/Title/Version 1), keep higher quality version based on file size/duration, skip/ignore during organization. Create `IDeduplicationCache` using SQLite to store user decisions (source path hash + normalized metadata hash → resolution choice) to prevent repeated prompts. Integrate with PreviewCommand and OrganizeCommand by adding deduplication detection phase after metadata extraction but before path generation. Add CLI flags: `--detect-duplicates` (enable detection), `--auto-resolve` (apply cached decisions), `--duplicate-threshold` (confidence threshold 0.0-1.0). Extend PreviewResult model with `PotentialDuplicates` property containing DuplicationCandidate list. Update FileOrganizer workflow to call deduplication detection and resolution before executing organization plans.",
         "testStrategy": "Create test audiobook collections with known duplicates: same content with different folder names, same book with different encodings (Windows-1250 vs UTF-8), abridged vs full versions with different narrators. Test TextNormalizer integration with Czech diacritics variations (František vs Frantisek). Test content comparison accuracy with files of similar but different durations. Test user interaction flows with Spectre.Console mockable interfaces. Verify cache persistence and retrieval across sessions. Test integration with preview and organize commands ensuring duplicate detection doesn't break existing workflows. Test CLI flag combinations and edge cases like no duplicates found, all duplicates resolved from cache, user cancellation during resolution.",
-        "status": "pending",
+        "status": "in-progress",
         "dependencies": [
           "12",
           "9",
@@ -935,9 +935,10 @@
               12
             ],
             "details": "Implement IDeduplicationService, IDuplicationResolver, and IDeduplicationCache interfaces. Define DuplicationCandidate model with properties for source/target AudiobookFolder references, confidence score (0.0-1.0), detected differences (metadata, content, structure), and resolution recommendations. Ensure model supports multiple comparison strategies and user-guided resolution.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Unit tests for model creation, interface method signatures, and serialization/deserialization of DuplicationCandidate",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-11-15T19:00:56.194Z"
           },
           {
             "id": 2,
@@ -948,9 +949,10 @@
               12
             ],
             "details": "Use TextNormalizer from task 12 to create canonical forms of author and title for fuzzy matching. Implement normalized metadata comparison logic that handles encoding variations, case differences, and Czech diacritics. Calculate similarity scores using advanced string comparison techniques.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Create test cases with Czech audiobook metadata variations, verify normalization and matching accuracy across different encoding and formatting scenarios",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-11-15T19:07:18.769Z"
           },
           {
             "id": 3,
@@ -994,12 +996,13 @@
             "testStrategy": "End-to-end tests covering full workflow from directory scanning to duplicate detection and resolution, with various audiobook collection scenarios",
             "parentId": "undefined"
           }
-        ]
+        ],
+        "updatedAt": "2025-11-15T19:07:18.769Z"
       }
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-11-15T18:59:30.410Z",
+      "lastModified": "2025-11-15T19:07:18.771Z",
       "taskCount": 13,
       "completedCount": 11,
       "tags": [

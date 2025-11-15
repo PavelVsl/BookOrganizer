@@ -21,6 +21,11 @@ public record PreviewResult
     public required IReadOnlyList<PreviewIssue> Issues { get; init; }
 
     /// <summary>
+    /// List of potential duplicate audiobooks detected.
+    /// </summary>
+    public IReadOnlyList<DuplicationCandidate> PotentialDuplicates { get; init; } = Array.Empty<DuplicationCandidate>();
+
+    /// <summary>
     /// Time when the preview was generated.
     /// </summary>
     public DateTime GeneratedAt { get; init; } = DateTime.UtcNow;
@@ -242,6 +247,11 @@ public enum IssueType
     /// Low confidence in metadata extraction.
     /// </summary>
     LowConfidence,
+
+    /// <summary>
+    /// Potential duplicate audiobook detected.
+    /// </summary>
+    PotentialDuplicate,
 
     /// <summary>
     /// General information message.
