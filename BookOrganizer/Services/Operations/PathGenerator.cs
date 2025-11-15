@@ -336,8 +336,8 @@ public class PathGenerator : IPathGenerator
             return "Unknown Author";
         }
 
-        // Fix encoding issues first
-        var normalized = _textNormalizer.FixEncoding(author);
+        // Fix encoding issues and normalize for display
+        var normalized = _textNormalizer.NormalizeForDisplay(author);
 
         // Handle multiple authors - use first one
         if (normalized.Contains(';'))
@@ -357,14 +357,15 @@ public class PathGenerator : IPathGenerator
             }
         }
 
-        // Normalize capitalization to title case (but preserve all-caps acronyms)
+        // Always normalize capitalization to title case
         normalized = NormalizeCapitalization(normalized);
 
         return normalized;
     }
 
     /// <summary>
-    /// Normalizes capitalization to title case, preserving all-caps words.
+    /// Normalizes capitalization to title case.
+    /// Always converts to title case for consistency, regardless of source capitalization.
     /// </summary>
     private static string NormalizeCapitalization(string text)
     {
@@ -373,14 +374,8 @@ public class PathGenerator : IPathGenerator
             return text;
         }
 
-        // If entirely uppercase or lowercase, convert to title case
-        if (text == text.ToUpperInvariant() || text == text.ToLowerInvariant())
-        {
-            var textInfo = System.Globalization.CultureInfo.CurrentCulture.TextInfo;
-            return textInfo.ToTitleCase(text.ToLowerInvariant());
-        }
-
-        // Mixed case - preserve as is
-        return text;
+        // Always convert to title case for consistent folder names
+        var textInfo = System.Globalization.CultureInfo.CurrentCulture.TextInfo;
+        return textInfo.ToTitleCase(text.ToLowerInvariant());
     }
 }
