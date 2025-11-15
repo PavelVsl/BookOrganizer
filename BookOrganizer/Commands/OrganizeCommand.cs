@@ -41,11 +41,16 @@ public class OrganizeCommand : Command
             aliases: ["--verbose", "-v"],
             description: "Show detailed output");
 
+        var yesOption = new Option<bool>(
+            aliases: ["--yes", "-y"],
+            description: "Skip confirmation prompt (auto-confirm)");
+
         AddOption(sourceOption);
         AddOption(destinationOption);
         AddOption(operationOption);
         AddOption(noValidateOption);
         AddOption(verboseOption);
+        AddOption(yesOption);
 
         this.SetHandler(async (context) =>
         {
@@ -54,9 +59,10 @@ public class OrganizeCommand : Command
             var operation = context.ParseResult.GetValueForOption(operationOption)!;
             var noValidate = context.ParseResult.GetValueForOption(noValidateOption);
             var verbose = context.ParseResult.GetValueForOption(verboseOption);
+            var yes = context.ParseResult.GetValueForOption(yesOption);
 
             var exitCode = await ExecuteAsync(
-                source, destination, operation, !noValidate, verbose);
+                source, destination, operation, !noValidate, verbose, yes);
 
             context.ExitCode = exitCode;
         });
@@ -67,7 +73,8 @@ public class OrganizeCommand : Command
         string destinationPath,
         string operationType,
         bool validateIntegrity,
-        bool verbose)
+        bool verbose,
+        bool autoConfirm)
     {
         try
         {
@@ -110,10 +117,17 @@ public class OrganizeCommand : Command
             AnsiConsole.Write(table);
             AnsiConsole.WriteLine();
 
-            if (!AnsiConsole.Confirm("Proceed with organization?", defaultValue: false))
+            if (!autoConfirm)
             {
-                AnsiConsole.MarkupLine("[yellow]Organization cancelled.[/]");
-                return 0;
+                if (!AnsiConsole.Confirm("Proceed with organization?", defaultValue: false))
+                {
+                    AnsiConsole.MarkupLine("[yellow]Organization cancelled.[/]");
+                    return 0;
+                }
+            }
+            else
+            {
+                AnsiConsole.MarkupLine("[green]Auto-confirming (--yes flag)[/]");
             }
 
             AnsiConsole.WriteLine();
