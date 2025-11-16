@@ -18,6 +18,11 @@ public interface ILibraryDatabase : IDisposable
     Task ClearSourceBooksAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Clears all library books from the database, forcing a rebuild.
+    /// </summary>
+    Task ClearLibraryBooksAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Adds or updates a library book in the cache.
     /// </summary>
     Task UpsertLibraryBookAsync(

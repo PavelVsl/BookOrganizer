@@ -67,6 +67,17 @@ public class LibraryDatabase : ILibraryDatabase
         _logger.LogDebug("Cleared {Count} source books", deleted);
     }
 
+    public async Task ClearLibraryBooksAsync(CancellationToken cancellationToken = default)
+    {
+        EnsureInitialized();
+
+        using var command = _connection!.CreateCommand();
+        command.CommandText = "DELETE FROM library_books";
+        var deleted = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+
+        _logger.LogInformation("Cleared {Count} library books from cache", deleted);
+    }
+
     public async Task UpsertLibraryBookAsync(
         AudiobookFolder folder,
         BookMetadata metadata,

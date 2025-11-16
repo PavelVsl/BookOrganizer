@@ -70,6 +70,10 @@ public class PreviewCommand : Command
             description: "Minimum confidence for duplicate detection (0.0-1.0)",
             getDefaultValue: () => 0.7);
 
+        var rebuildCacheOption = new Option<bool>(
+            aliases: ["--rebuild-cache"],
+            description: "Force rebuild of library metadata cache");
+
         AddOption(sourceOption);
         AddOption(destinationOption);
         AddOption(operationOption);
@@ -82,6 +86,7 @@ public class PreviewCommand : Command
         AddOption(verboseOption);
         AddOption(detectDuplicatesOption);
         AddOption(duplicateThresholdOption);
+        AddOption(rebuildCacheOption);
 
         this.SetHandler(async (context) =>
         {
@@ -97,12 +102,13 @@ public class PreviewCommand : Command
             var verboseMode = context.ParseResult.GetValueForOption(verboseOption);
             var detectDuplicates = context.ParseResult.GetValueForOption(detectDuplicatesOption);
             var duplicateThreshold = context.ParseResult.GetValueForOption(duplicateThresholdOption);
+            var rebuildCache = context.ParseResult.GetValueForOption(rebuildCacheOption);
 
             var exitCode = await ExecuteAsync(
                 source, destination, operation, export,
                 authorFilter, seriesFilter, maxItemsFilter,
                 compactMode, noTreeMode, verboseMode,
-                detectDuplicates, duplicateThreshold);
+                detectDuplicates, duplicateThreshold, rebuildCache);
 
             context.ExitCode = exitCode;
         });
@@ -120,7 +126,8 @@ public class PreviewCommand : Command
         bool noTree,
         bool verbose,
         bool detectDuplicates,
-        double duplicateThreshold)
+        double duplicateThreshold,
+        bool rebuildCache)
     {
         try
         {
@@ -170,6 +177,7 @@ public class PreviewCommand : Command
                         filter,
                         detectDuplicates,
                         duplicateThreshold,
+                        rebuildCache,
                         CancellationToken.None);
                 });
 

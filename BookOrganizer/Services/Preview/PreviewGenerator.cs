@@ -53,6 +53,7 @@ public class PreviewGenerator : IPreviewGenerator
         PreviewFilter? filter = null,
         bool detectDuplicates = false,
         double duplicateThreshold = 0.7,
+        bool rebuildCache = false,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation(
@@ -103,15 +104,37 @@ public class PreviewGenerator : IPreviewGenerator
 
         // Detect duplicates if requested
         List<DuplicationCandidate> duplicates = new();
-        if (detectDuplicates && audiobooksWithMetadata.Count > 1)
+        if (detectDuplicates && audiobooksWithMetadata.Count > 0)
         {
             _logger.LogInformation("Detecting duplicates with threshold {Threshold}", duplicateThreshold);
-            duplicates = await _deduplicationDetector.DetectDuplicatesAsync(
-                audiobooksWithMetadata,
-                duplicateThreshold,
-                cancellationToken).ConfigureAwait(false);
 
-            _logger.LogInformation("Found {Count} potential duplicates", duplicates.Count);
+            // Detect duplicates within source audiobooks
+            if (audiobooksWithMetadata.Count > 1)
+            {
+                var sourceDuplicates = await _deduplicationDetector.DetectDuplicatesAsync(
+                    audiobooksWithMetadata,
+                    duplicateThreshold,
+                    cancellationToken).ConfigureAwait(false);
+
+                duplicates.AddRange(sourceDuplicates);
+                _logger.LogInformation("Found {Count} potential duplicates within source", sourceDuplicates.Count);
+            }
+
+            // Detect duplicates against existing library
+            if (Directory.Exists(destinationPath))
+            {
+                var libraryDuplicates = await _deduplicationDetector.DetectDuplicatesAgainstLibraryAsync(
+                    audiobooksWithMetadata,
+                    destinationPath,
+                    duplicateThreshold,
+                    rebuildCache,
+                    cancellationToken).ConfigureAwait(false);
+
+                duplicates.AddRange(libraryDuplicates);
+                _logger.LogInformation("Found {Count} potential duplicates against existing library", libraryDuplicates.Count);
+            }
+
+            _logger.LogInformation("Found {Count} total potential duplicates", duplicates.Count);
         }
 
         stopwatch.Stop();

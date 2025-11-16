@@ -16,6 +16,7 @@ public interface IPreviewGenerator
     /// <param name="filter">Optional filter to limit which audiobooks are included.</param>
     /// <param name="detectDuplicates">Whether to detect duplicate audiobooks.</param>
     /// <param name="duplicateThreshold">Minimum confidence threshold for duplicate detection (0.0-1.0).</param>
+    /// <param name="rebuildCache">Force rebuild of library cache by rescanning existing library books.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Preview result with operations, statistics, and issues.</returns>
     Task<PreviewResult> GeneratePreviewAsync(
@@ -25,6 +26,7 @@ public interface IPreviewGenerator
         PreviewFilter? filter = null,
         bool detectDuplicates = false,
         double duplicateThreshold = 0.7,
+        bool rebuildCache = false,
         CancellationToken cancellationToken = default);
 
     /// <summary>

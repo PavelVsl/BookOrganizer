@@ -42,11 +42,13 @@ public interface IDeduplicationDetector
     /// <param name="sourceAudiobooks">Source audiobooks with metadata to check</param>
     /// <param name="libraryPath">Path to the existing library</param>
     /// <param name="confidenceThreshold">Minimum confidence score to report (0.0-1.0)</param>
+    /// <param name="rebuildCache">Force rebuild of library cache by rescanning all books</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>List of duplication candidates found against existing library</returns>
     Task<List<DuplicationCandidate>> DetectDuplicatesAgainstLibraryAsync(
         IEnumerable<AudiobookWithMetadata> sourceAudiobooks,
         string libraryPath,
         double confidenceThreshold = 0.7,
+        bool rebuildCache = false,
         CancellationToken cancellationToken = default);
 }

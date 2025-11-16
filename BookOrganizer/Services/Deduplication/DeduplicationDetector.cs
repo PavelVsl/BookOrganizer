@@ -237,6 +237,7 @@ public class DeduplicationDetector : IDeduplicationDetector
         IEnumerable<AudiobookWithMetadata> sourceAudiobooks,
         string libraryPath,
         double confidenceThreshold = 0.7,
+        bool rebuildCache = false,
         CancellationToken cancellationToken = default)
     {
         var sourceList = sourceAudiobooks.ToList();
@@ -249,15 +250,23 @@ public class DeduplicationDetector : IDeduplicationDetector
         }
 
         _logger.LogInformation(
-            "Detecting duplicates between {SourceCount} source audiobooks and existing library at {LibraryPath}",
+            "Detecting duplicates between {SourceCount} source audiobooks and existing library at {LibraryPath} (rebuild: {Rebuild})",
             sourceList.Count,
-            libraryPath);
+            libraryPath,
+            rebuildCache);
 
         // Create and initialize library database
         var loggerFactory = Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance;
         var dbLogger = loggerFactory.CreateLogger<LibraryDatabase>();
         using var database = new LibraryDatabase(libraryPath, dbLogger);
         await database.InitializeAsync(cancellationToken).ConfigureAwait(false);
+
+        // Clear library cache if rebuild requested
+        if (rebuildCache)
+        {
+            _logger.LogInformation("Rebuilding library cache (forced rescan)");
+            await database.ClearLibraryBooksAsync(cancellationToken).ConfigureAwait(false);
+        }
 
         // Load existing library books from database
         var libraryBooks = await database.GetLibraryBooksAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
