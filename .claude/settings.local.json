@@ -11,7 +11,10 @@
       "Bash(task-master set-status:*)",
       "Bash(task-master next:*)",
       "Bash(task-master add-task:*)",
-      "Bash(task-master update-task:*)"
+      "Bash(task-master update-task:*)",
+      "WebFetch(domain:developers.google.com)",
+      "WebFetch(domain:xinyustudio.wordpress.com)",
+      "WebFetch(domain:www.googleapis.com)"
     ]
   },
   "enableAllProjectMcpServers": true,
