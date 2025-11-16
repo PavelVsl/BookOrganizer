@@ -14,6 +14,8 @@ public interface IFileOrganizer
     /// <param name="destinationPath">Destination directory for organized library.</param>
     /// <param name="operationType">Type of file operation to perform.</param>
     /// <param name="validateIntegrity">Whether to validate file integrity with checksums.</param>
+    /// <param name="detectDuplicates">Whether to detect and merge duplicate audiobooks.</param>
+    /// <param name="duplicateThreshold">Minimum confidence for duplicate detection (0.0-1.0).</param>
     /// <param name="progress">Optional progress reporter.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Result of the organization operation.</returns>
@@ -22,6 +24,8 @@ public interface IFileOrganizer
         string destinationPath,
         FileOperationType operationType,
         bool validateIntegrity = true,
+        bool detectDuplicates = false,
+        double duplicateThreshold = 0.7,
         IProgress<OrganizationProgress>? progress = null,
         CancellationToken cancellationToken = default);
 

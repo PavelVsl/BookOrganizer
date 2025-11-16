@@ -45,12 +45,23 @@ public class OrganizeCommand : Command
             aliases: ["--yes", "-y"],
             description: "Skip confirmation prompt (auto-confirm)");
 
+        var detectDuplicatesOption = new Option<bool>(
+            aliases: ["--detect-duplicates"],
+            description: "Detect and merge potential duplicate audiobooks");
+
+        var duplicateThresholdOption = new Option<double>(
+            aliases: ["--duplicate-threshold"],
+            description: "Minimum confidence for duplicate detection (0.0-1.0)",
+            getDefaultValue: () => 0.7);
+
         AddOption(sourceOption);
         AddOption(destinationOption);
         AddOption(operationOption);
         AddOption(noValidateOption);
         AddOption(verboseOption);
         AddOption(yesOption);
+        AddOption(detectDuplicatesOption);
+        AddOption(duplicateThresholdOption);
 
         this.SetHandler(async (context) =>
         {
@@ -60,9 +71,12 @@ public class OrganizeCommand : Command
             var noValidate = context.ParseResult.GetValueForOption(noValidateOption);
             var verbose = context.ParseResult.GetValueForOption(verboseOption);
             var yes = context.ParseResult.GetValueForOption(yesOption);
+            var detectDuplicates = context.ParseResult.GetValueForOption(detectDuplicatesOption);
+            var duplicateThreshold = context.ParseResult.GetValueForOption(duplicateThresholdOption);
 
             var exitCode = await ExecuteAsync(
-                source, destination, operation, !noValidate, verbose, yes);
+                source, destination, operation, !noValidate, verbose, yes,
+                detectDuplicates, duplicateThreshold);
 
             context.ExitCode = exitCode;
         });
@@ -74,7 +88,9 @@ public class OrganizeCommand : Command
         string operationType,
         bool validateIntegrity,
         bool verbose,
-        bool autoConfirm)
+        bool autoConfirm,
+        bool detectDuplicates,
+        double duplicateThreshold)
     {
         try
         {
@@ -181,6 +197,8 @@ public class OrganizeCommand : Command
                         destinationPath,
                         opType,
                         validateIntegrity,
+                        detectDuplicates,
+                        duplicateThreshold,
                         progress,
                         CancellationToken.None);
 
