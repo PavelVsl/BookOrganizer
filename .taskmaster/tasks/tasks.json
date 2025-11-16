@@ -919,7 +919,7 @@
         "description": "Create a comprehensive deduplication system that identifies duplicate audiobooks using normalized metadata comparison, content analysis, and user-guided resolution with caching.",
         "details": "Create a new service `IDeduplicationService` with implementation `DeduplicationService` that identifies potential duplicate audiobooks through multiple detection strategies: 1) **Normalized metadata comparison** - Use TextNormalizer from task 12 to create canonical forms of author+title for fuzzy matching, handle encoding variations and case differences. 2) **Content-based analysis** - Compare total duration by summing MP3 file lengths using TagLib-Sharp, calculate aggregate file sizes, optionally generate audio fingerprints using acoustic analysis. 3) **Structural comparison** - Analyze file count differences, folder organization patterns, detect abridged vs unabridged versions by duration ratios. Create `DuplicationCandidate` model with source/target AudiobookFolder references, confidence score (0.0-1.0), detected differences (metadata, content, structure), and resolution recommendations. Implement `IDuplicationResolver` for user interaction presenting side-by-side comparisons via Spectre.Console tables showing metadata fields, file counts, total sizes, duration estimates. Provide resolution options: keep both with version suffixes (Author/Title/Version 1), keep higher quality version based on file size/duration, skip/ignore during organization. Create `IDeduplicationCache` using SQLite to store user decisions (source path hash + normalized metadata hash → resolution choice) to prevent repeated prompts. Integrate with PreviewCommand and OrganizeCommand by adding deduplication detection phase after metadata extraction but before path generation. Add CLI flags: `--detect-duplicates` (enable detection), `--auto-resolve` (apply cached decisions), `--duplicate-threshold` (confidence threshold 0.0-1.0). Extend PreviewResult model with `PotentialDuplicates` property containing DuplicationCandidate list. Update FileOrganizer workflow to call deduplication detection and resolution before executing organization plans.",
         "testStrategy": "Create test audiobook collections with known duplicates: same content with different folder names, same book with different encodings (Windows-1250 vs UTF-8), abridged vs full versions with different narrators. Test TextNormalizer integration with Czech diacritics variations (František vs Frantisek). Test content comparison accuracy with files of similar but different durations. Test user interaction flows with Spectre.Console mockable interfaces. Verify cache persistence and retrieval across sessions. Test integration with preview and organize commands ensuring duplicate detection doesn't break existing workflows. Test CLI flag combinations and edge cases like no duplicates found, all duplicates resolved from cache, user cancellation during resolution.",
-        "status": "in-progress",
+        "status": "done",
         "dependencies": [
           "12",
           "9",
@@ -994,10 +994,10 @@
               4
             ],
             "details": "Modify PreviewResult model to include PotentialDuplicates property. Update FileOrganizer workflow to call deduplication detection and resolution before executing organization plans. Ensure seamless integration with existing scanning and metadata extraction processes.",
-            "status": "in-progress",
+            "status": "done",
             "testStrategy": "End-to-end tests covering full workflow from directory scanning to duplicate detection and resolution, with various audiobook collection scenarios",
             "parentId": "undefined",
-            "updatedAt": "2025-11-15T19:15:53.138Z"
+            "updatedAt": "2025-11-16T08:14:17.783Z"
           },
           {
             "id": 6,
@@ -1013,7 +1013,7 @@
             "updatedAt": "2025-11-16T07:58:55.345Z"
           }
         ],
-        "updatedAt": "2025-11-16T07:58:55.345Z"
+        "updatedAt": "2025-11-16T08:14:17.783Z"
       },
       {
         "id": "14",
@@ -1047,9 +1047,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-11-16T07:58:55.347Z",
+      "lastModified": "2025-11-16T08:14:17.784Z",
       "taskCount": 15,
-      "completedCount": 11,
+      "completedCount": 12,
       "tags": [
         "master"
       ]
