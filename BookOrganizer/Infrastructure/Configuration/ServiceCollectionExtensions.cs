@@ -1,4 +1,6 @@
+using BookOrganizer.Infrastructure.Database;
 using BookOrganizer.Services.Deduplication;
+using BookOrganizer.Services.Library;
 using BookOrganizer.Services.Metadata;
 using BookOrganizer.Services.Operations;
 using BookOrganizer.Services.Operations.FileOperators;
@@ -64,6 +66,11 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IDeduplicationDetector, DeduplicationDetector>();
         services.AddSingleton<IDeduplicationResolver, DeduplicationResolver>();
         services.AddSingleton<IDeduplicationCache, InMemoryDeduplicationCache>();
+
+        // Library tree services
+        // Note: ILibraryDatabase and ILibraryTree are created per-operation in commands
+        // They require libraryRoot path which is only known at runtime
+        services.AddTransient<ILibraryTree, LibraryTree>();
 
         return services;
     }
