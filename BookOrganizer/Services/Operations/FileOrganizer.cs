@@ -111,8 +111,9 @@ public class FileOrganizer : IFileOrganizer
 
             // Apply merge map and ensure unique paths
             var existingPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var plan in plans)
+            for (int i = 0; i < plans.Count; i++)
             {
+                var plan = plans[i];
                 var targetPath = plan.TargetPath;
 
                 // Check if this plan should be merged with another
@@ -134,7 +135,7 @@ public class FileOrganizer : IFileOrganizer
                 existingPaths.Add(targetPath);
 
                 // Update plan with potentially modified target path
-                plans[plans.IndexOf(plan)] = plan with { TargetPath = targetPath };
+                plans[i] = plan with { TargetPath = targetPath };
             }
 
             // Execute plans
