@@ -139,6 +139,9 @@ public class PreviewGenerator : IPreviewGenerator
         var allIssues = new List<PreviewIssue>();
         var existingPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        // Build a map of folders to merge
+        var mergeMap = BuildMergeMap(plans.ToList(), duplicates);
+
         foreach (var plan in plans)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -149,9 +152,21 @@ public class PreviewGenerator : IPreviewGenerator
                 continue;
             }
 
-            // Check for path uniqueness and generate unique path if needed
+            // Check if this plan should be merged with another
             var targetPath = plan.TargetPath;
-            if (existingPaths.Contains(targetPath))
+            var isMerged = mergeMap.TryGetValue(plan.SourceFolder.Path, out var mergedPath);
+            if (isMerged)
+            {
+                targetPath = mergedPath;
+                _logger.LogDebug(
+                    "Using merged target path for '{Source}': {Target}",
+                    plan.SourceFolder.Path,
+                    targetPath);
+            }
+
+            // Check for path uniqueness and generate unique path if needed
+            // Skip uniqueness check for merged paths - we WANT duplicates to share the same path
+            if (!isMerged && existingPaths.Contains(targetPath))
             {
                 targetPath = _pathGenerator.EnsureUniquePath(
                     plan.Metadata,
@@ -208,14 +223,19 @@ public class PreviewGenerator : IPreviewGenerator
         // Add duplicate detection issues
         foreach (var duplicate in duplicates)
         {
+            var severity = duplicate.MergeAutomatically ? IssueSeverity.Info : IssueSeverity.Warning;
+            var actionMessage = duplicate.MergeAutomatically
+                ? "Will be automatically merged into one folder"
+                : $"Recommended action: {duplicate.RecommendedResolution}";
+
             var issue = new PreviewIssue
             {
-                Severity = IssueSeverity.Warning,
+                Severity = severity,
                 Type = IssueType.PotentialDuplicate,
                 Message = $"Potential duplicate: '{Path.GetFileName(duplicate.SourceFolder.Path)}' and '{Path.GetFileName(duplicate.TargetFolder.Path)}' (confidence: {duplicate.ConfidenceScore:P0})",
                 SourcePath = duplicate.SourceFolder.Path,
                 DestinationPath = duplicate.TargetFolder.Path,
-                Suggestion = $"Recommended action: {duplicate.RecommendedResolution}"
+                Suggestion = actionMessage
             };
             allIssues.Add(issue);
         }
@@ -272,6 +292,86 @@ public class PreviewGenerator : IPreviewGenerator
         }
 
         _logger.LogInformation("Preview exported successfully to {Path}", outputPath);
+    }
+
+    /// <summary>
+    /// Builds a map of source folders to their merged target paths.
+    /// Returns a dictionary where key is source folder path and value is the canonical target path to use.
+    /// </summary>
+    private Dictionary<string, string> BuildMergeMap(
+        List<OrganizationPlan> plans,
+        List<DuplicationCandidate> duplicates)
+    {
+        var mergeMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        // Find duplicates that should be automatically merged
+        var duplicatesToMerge = duplicates.Where(d => d.MergeAutomatically).ToList();
+
+        if (duplicatesToMerge.Count == 0)
+        {
+            return mergeMap;
+        }
+
+        _logger.LogInformation(
+            "Found {Count} duplicates to automatically merge",
+            duplicatesToMerge.Count);
+
+        foreach (var duplicate in duplicatesToMerge)
+        {
+            // Find the plans for both source and target
+            var sourcePlan = plans.FirstOrDefault(p => p.SourceFolder.Path == duplicate.SourceFolder.Path);
+            var targetPlan = plans.FirstOrDefault(p => p.SourceFolder.Path == duplicate.TargetFolder.Path);
+
+            if (sourcePlan == null || targetPlan == null)
+            {
+                _logger.LogWarning(
+                    "Could not find plans for duplicate merge: {Source} <-> {Target}",
+                    duplicate.SourceFolder.Path,
+                    duplicate.TargetFolder.Path);
+                continue;
+            }
+
+            // Choose the canonical target path (prefer source, or remove year suffix)
+            var canonicalPath = ChooseCanonicalPath(sourcePlan.TargetPath, targetPlan.TargetPath);
+
+            // Map both source folders to the same canonical target
+            mergeMap[duplicate.SourceFolder.Path] = canonicalPath;
+            mergeMap[duplicate.TargetFolder.Path] = canonicalPath;
+
+            _logger.LogInformation(
+                "Will merge '{Source}' and '{Target}' into '{Canonical}'",
+                Path.GetFileName(duplicate.SourceFolder.Path),
+                Path.GetFileName(duplicate.TargetFolder.Path),
+                canonicalPath);
+        }
+
+        return mergeMap;
+    }
+
+    /// <summary>
+    /// Chooses the canonical (preferred) path from two duplicate targets.
+    /// Prefers paths without year suffixes.
+    /// </summary>
+    private string ChooseCanonicalPath(string path1, string path2)
+    {
+        var name1 = Path.GetFileName(path1) ?? "";
+        var name2 = Path.GetFileName(path2) ?? "";
+
+        // Prefer path without year suffix (e.g., "Lazar" over "Lazar (2018)")
+        var hasYearSuffix1 = System.Text.RegularExpressions.Regex.IsMatch(name1, @"\(\d{4}\)\s*$");
+        var hasYearSuffix2 = System.Text.RegularExpressions.Regex.IsMatch(name2, @"\(\d{4}\)\s*$");
+
+        if (hasYearSuffix1 && !hasYearSuffix2)
+        {
+            return path2;
+        }
+        if (hasYearSuffix2 && !hasYearSuffix1)
+        {
+            return path1;
+        }
+
+        // If both have or don't have year suffix, prefer shorter path
+        return path1.Length <= path2.Length ? path1 : path2;
     }
 
     /// <summary>

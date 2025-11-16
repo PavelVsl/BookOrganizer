@@ -44,6 +44,15 @@ public record DuplicationCandidate
     /// Recommended resolution action.
     /// </summary>
     public DuplicationResolution RecommendedResolution { get; init; }
+
+    /// <summary>
+    /// Whether this duplicate should be automatically merged during organization.
+    /// True if the recommended resolution is not KeepBoth and confidence is high enough.
+    /// </summary>
+    public bool MergeAutomatically =>
+        RecommendedResolution != DuplicationResolution.KeepBoth &&
+        RecommendedResolution != DuplicationResolution.Skip &&
+        ConfidenceScore >= 0.8;
 }
 
 /// <summary>
@@ -74,5 +83,10 @@ public enum DuplicationResolution
     /// <summary>
     /// Skip/ignore during organization.
     /// </summary>
-    Skip
+    Skip,
+
+    /// <summary>
+    /// Merge both versions into a single folder (consolidate all files).
+    /// </summary>
+    Merge
 }

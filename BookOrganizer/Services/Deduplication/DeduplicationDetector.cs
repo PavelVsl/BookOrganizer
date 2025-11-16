@@ -325,10 +325,10 @@ public class DeduplicationDetector : IDeduplicationDetector
         TimeSpan duration1,
         TimeSpan duration2)
     {
-        // If no meaningful differences, recommend keeping source
+        // If no meaningful differences, merge them
         if (differences.Count == 0)
         {
-            return DuplicationResolution.KeepSource;
+            return DuplicationResolution.Merge;
         }
 
         // If significantly different durations (>50%), likely abridged vs full
@@ -350,6 +350,12 @@ public class DeduplicationDetector : IDeduplicationDetector
         if (differences.Any(d => d.Contains("narrator", StringComparison.OrdinalIgnoreCase)))
         {
             return DuplicationResolution.KeepBoth;
+        }
+
+        // Minor differences (e.g., only year) - merge them into one folder
+        if (differences.Count <= 2)
+        {
+            return DuplicationResolution.Merge;
         }
 
         // Otherwise, keep the larger/longer version (higher quality)
