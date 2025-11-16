@@ -1,6 +1,10 @@
+using BookOrganizer.Infrastructure.Database;
 using BookOrganizer.Models;
+using BookOrganizer.Services.Metadata;
+using BookOrganizer.Services.Scanning;
 using BookOrganizer.Services.Text;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 
 namespace BookOrganizer.Services.Deduplication;
 
@@ -11,15 +15,21 @@ public class DeduplicationDetector : IDeduplicationDetector
 {
     private readonly ITextNormalizer _textNormalizer;
     private readonly ContentAnalyzer _contentAnalyzer;
+    private readonly IDirectoryScanner _directoryScanner;
+    private readonly IMetadataExtractor _metadataExtractor;
     private readonly ILogger<DeduplicationDetector> _logger;
 
     public DeduplicationDetector(
         ITextNormalizer textNormalizer,
         ContentAnalyzer contentAnalyzer,
+        IDirectoryScanner directoryScanner,
+        IMetadataExtractor metadataExtractor,
         ILogger<DeduplicationDetector> logger)
     {
         _textNormalizer = textNormalizer;
         _contentAnalyzer = contentAnalyzer;
+        _directoryScanner = directoryScanner;
+        _metadataExtractor = metadataExtractor;
         _logger = logger;
     }
 
@@ -220,6 +230,141 @@ public class DeduplicationDetector : IDeduplicationDetector
         };
 
         return Task.FromResult<DuplicationCandidate?>(candidate);
+    }
+
+    /// <inheritdoc />
+    public async Task<List<DuplicationCandidate>> DetectDuplicatesAgainstLibraryAsync(
+        IEnumerable<AudiobookWithMetadata> sourceAudiobooks,
+        string libraryPath,
+        double confidenceThreshold = 0.7,
+        CancellationToken cancellationToken = default)
+    {
+        var sourceList = sourceAudiobooks.ToList();
+        var candidates = new List<DuplicationCandidate>();
+
+        if (!Directory.Exists(libraryPath))
+        {
+            _logger.LogWarning("Library path does not exist: {Path}", libraryPath);
+            return candidates;
+        }
+
+        _logger.LogInformation(
+            "Detecting duplicates between {SourceCount} source audiobooks and existing library at {LibraryPath}",
+            sourceList.Count,
+            libraryPath);
+
+        // Create and initialize library database
+        var loggerFactory = Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance;
+        var dbLogger = loggerFactory.CreateLogger<LibraryDatabase>();
+        using var database = new LibraryDatabase(libraryPath, dbLogger);
+        await database.InitializeAsync(cancellationToken).ConfigureAwait(false);
+
+        // Load existing library books from database
+        var libraryBooks = await database.GetLibraryBooksAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        _logger.LogInformation("Loaded {Count} books from library database", libraryBooks.Count);
+
+        // If no library books in database, scan the library directory
+        if (libraryBooks.Count == 0)
+        {
+            _logger.LogInformation("Library database is empty, scanning library directory...");
+            var libraryFolders = await _directoryScanner.ScanDirectoryAsync(libraryPath, cancellationToken).ConfigureAwait(false);
+
+            _logger.LogInformation("Found {Count} audiobook folders in library", libraryFolders.Count);
+
+            // Populate database with library books
+            foreach (var folder in libraryFolders)
+            {
+                var metadata = await _metadataExtractor.ExtractMetadataAsync(folder, cancellationToken).ConfigureAwait(false);
+                var normalizedAuthor = _textNormalizer.NormalizeForComparison(metadata.Author);
+                var normalizedTitle = _textNormalizer.NormalizeForComparison(metadata.Title);
+                var normalizedSeries = !string.IsNullOrEmpty(metadata.Series)
+                    ? _textNormalizer.NormalizeForComparison(metadata.Series)
+                    : null;
+
+                await database.UpsertLibraryBookAsync(
+                    folder,
+                    metadata,
+                    normalizedAuthor,
+                    normalizedTitle,
+                    normalizedSeries,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            // Reload library books after populating
+            libraryBooks = await database.GetLibraryBooksAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+            _logger.LogInformation("Populated library database with {Count} books", libraryBooks.Count);
+        }
+
+        // Compare each source audiobook against library books
+        foreach (var sourceBook in sourceList)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var normalizedAuthor = _textNormalizer.NormalizeForComparison(sourceBook.Metadata.Author);
+            var normalizedTitle = _textNormalizer.NormalizeForComparison(sourceBook.Metadata.Title);
+
+            // Check if exists in library using normalized comparison
+            var exists = await database.ExistsInLibraryAsync(
+                normalizedAuthor,
+                normalizedTitle,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            if (exists)
+            {
+                // Find matching library book(s) for detailed comparison
+                var matchingLibraryBooks = libraryBooks.Where(lb =>
+                    lb.NormalizedAuthor == normalizedAuthor &&
+                    lb.NormalizedTitle == normalizedTitle).ToList();
+
+                foreach (var libraryBook in matchingLibraryBooks)
+                {
+                    // Deserialize library book metadata
+                    var libraryMetadata = JsonSerializer.Deserialize<BookMetadata>(libraryBook.MetadataJson);
+                    if (libraryMetadata == null)
+                    {
+                        _logger.LogWarning("Failed to deserialize metadata for library book: {Path}", libraryBook.Path);
+                        continue;
+                    }
+
+                    // Create AudiobookFolder for library book
+                    var libraryFolder = new AudiobookFolder
+                    {
+                        Path = libraryBook.Path,
+                        AudioFiles = new List<string>(), // Don't need files for comparison
+                        TotalSizeBytes = libraryBook.SizeBytes
+                    };
+
+                    var libraryAudiobook = new AudiobookWithMetadata(libraryFolder, libraryMetadata);
+
+                    // Compare using existing comparison logic
+                    var candidate = await CompareAudiobooksAsync(
+                        libraryAudiobook,
+                        sourceBook,
+                        cancellationToken).ConfigureAwait(false);
+
+                    if (candidate != null && candidate.ConfidenceScore >= confidenceThreshold)
+                    {
+                        // Mark as duplicate against existing library
+                        var libraryCandidate = candidate with { Scope = DuplicationScope.WithExistingLibrary };
+                        candidates.Add(libraryCandidate);
+
+                        _logger.LogDebug(
+                            "Found duplicate against library: '{Source}' matches '{Library}' (confidence: {Confidence:F2})",
+                            sourceBook.Folder.Path,
+                            libraryBook.Path,
+                            candidate.ConfidenceScore);
+                    }
+                }
+            }
+        }
+
+        _logger.LogInformation(
+            "Found {Count} duplicates against existing library (threshold: {Threshold})",
+            candidates.Count,
+            confidenceThreshold);
+
+        return candidates;
     }
 
     private bool CompareField(string? field1, string? field2)

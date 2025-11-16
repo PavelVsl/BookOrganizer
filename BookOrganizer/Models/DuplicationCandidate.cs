@@ -46,6 +46,11 @@ public record DuplicationCandidate
     public DuplicationResolution RecommendedResolution { get; init; }
 
     /// <summary>
+    /// Scope of the duplicate detection (within source or against existing library).
+    /// </summary>
+    public DuplicationScope Scope { get; init; } = DuplicationScope.WithinSource;
+
+    /// <summary>
     /// Whether this duplicate should be automatically merged during organization.
     /// True if the recommended resolution is not KeepBoth and confidence is high enough.
     /// </summary>
@@ -53,6 +58,22 @@ public record DuplicationCandidate
         RecommendedResolution != DuplicationResolution.KeepBoth &&
         RecommendedResolution != DuplicationResolution.Skip &&
         ConfidenceScore >= 0.8;
+}
+
+/// <summary>
+/// Scope of duplicate detection.
+/// </summary>
+public enum DuplicationScope
+{
+    /// <summary>
+    /// Duplicate found within source audiobooks being organized.
+    /// </summary>
+    WithinSource,
+
+    /// <summary>
+    /// Duplicate found against existing library books.
+    /// </summary>
+    WithExistingLibrary
 }
 
 /// <summary>
