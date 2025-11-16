@@ -75,6 +75,13 @@ public interface ILibraryDatabase : IDisposable
     /// Sets cache metadata.
     /// </summary>
     Task SetMetadataAsync(string key, string value, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets all source books from the database (temporary data for current operation).
+    /// </summary>
+    Task<List<SourceBookEntry>> GetSourceBooksAsync(
+        string? normalizedAuthor = null,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -91,6 +98,25 @@ public record LibraryBookEntry(
     string? DisplaySeries,
     string Path,
     DateTime LastModified,
+    long SizeBytes,
+    int? DurationSeconds,
+    int FileCount,
+    string MetadataJson);
+
+/// <summary>
+/// Represents a source book entry from the database (temporary data).
+/// </summary>
+public record SourceBookEntry(
+    int Id,
+    string NormalizedAuthor,
+    string NormalizedTitle,
+    string? NormalizedSeries,
+    string? SeriesNumber,
+    string DisplayAuthor,
+    string DisplayTitle,
+    string? DisplaySeries,
+    string SourcePath,
+    string? DestinationPath,
     long SizeBytes,
     int? DurationSeconds,
     int FileCount,

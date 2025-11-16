@@ -1034,7 +1034,7 @@
         "id": "15",
         "title": "Implement in-memory library tree structure for accurate preview and path normalization",
         "description": "Create LibraryTree class that builds in-memory representation of final library structure using normalized author/title grouping and SQLite database integration to eliminate preview duplicates and path inconsistencies.",
-        "status": "pending",
+        "status": "in-progress",
         "dependencies": [
           "12",
           "9"
@@ -1042,7 +1042,81 @@
         "priority": "medium",
         "details": "Create ILibraryTree interface and LibraryTree implementation that builds an in-memory representation of the final organized library structure using SQLite database from task 14. The tree integrates with the library metadata cache system to provide accurate preview generation and duplicate detection. Key components: 1) **Database Integration** - Use SQLite database at {libraryRoot}/.bookorganizer/library.db from task 14. Add source_books table (id, path, display_author, display_title, display_series, normalized_author, normalized_title, normalized_series, last_modified) for temporary preview data. Query library_books table using normalized_author/normalized_title columns for duplicate detection against existing library. 2) **LibraryTree class** - Main tree builder with methods: BuildFromDatabaseAsync(), GetNormalizedStructure(), DetectDuplicatesAsync(). Use SQL GROUP BY normalized_author queries to efficiently build tree structure from database. 3) **Tree Node Classes** - AuthorNode/BookNode classes containing both normalized keys (for grouping) and original metadata (for display/operations). Load data from SQL query results with proper column mapping. 4) **Author Normalization** - Apply TextNormalizer (task 12) for 'Last, First' to 'First Last' conversion and title case normalization. Store normalized forms in database columns for efficient querying. 5) **Integration Points** - Update PathGenerator.GenerateTargetPath() to query LibraryTree for normalized grouping. Modify PreviewGenerator to use LibraryTree.GetNormalizedStructure() with database backend instead of direct path generation. 6) **Duplicate Detection** - Query existing library_books table to identify conflicts with source_books using normalized columns. Generate warnings for true duplicates while distinguishing from encoding/case variations. 7) **Performance** - Leverage SQLite indexes on normalized_author and normalized_title columns. Use single query with JOINs to build tree efficiently for large collections.",
         "testStrategy": "Create comprehensive test scenarios with Czech author name variations stored in SQLite: 'František Kotleta' vs 'FRANTIŠEK KOTLETA' vs 'Kotleta, František' should group under single normalized_author value. Test encoding variations in database: 'Černá smečka' vs 'ÈERNÁ SMEÈKA' should normalize to same title in normalized_title column. Verify preview output matches actual organization by comparing LibraryTree SQL query results with PathGenerator outputs for same audiobooks. Test SQLite database operations: table creation, index performance, concurrent access during tree building. Test integration with task 14 library cache: verify source_books table insertion, library_books table querying, and proper duplicate detection between source and existing library. Test edge cases: missing metadata in database, very long author/title names affecting SQL queries, series vs standalone classification. Create test scenarios with existing organized library in database and new source books to verify duplicate detection accuracy. Test tree building performance with 1000+ audiobook records in SQLite. Verify original metadata preservation in database while using normalized columns for grouping decisions.",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create ILibraryTree interface with core operations",
+            "description": "Define the ILibraryTree interface with methods for building tree structure, normalizing data, and detecting duplicates using SQLite database backend",
+            "dependencies": [],
+            "details": "Create ILibraryTree interface in Services/Library/ folder with methods: BuildFromDatabaseAsync() for building tree from SQLite data, GetNormalizedStructure() for getting organized tree representation, DetectDuplicatesAsync() for finding conflicts between source and library books using normalized metadata. Interface should accept ILibraryDatabase dependency and return strongly-typed tree structures with author/book hierarchies. Include async cancellation token support throughout.",
+            "status": "done",
+            "testStrategy": "Create unit tests with mock SQLite data to verify interface contract compliance and method signatures return expected tree node types",
+            "updatedAt": "2025-11-16T09:48:46.917Z",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Implement AuthorNode and BookNode tree data structures",
+            "description": "Create tree node classes that store both normalized metadata keys for grouping and original display metadata for operations",
+            "dependencies": [
+              1
+            ],
+            "details": "Create AuthorNode record class containing NormalizedAuthor (for SQL queries), DisplayAuthor (for UI), and BookNodes collection. Create BookNode record class with NormalizedTitle, NormalizedSeries, DisplayTitle, DisplaySeries, SourcePath, DestinationPath, and BookMetadata properties. Both classes should map directly from SQLite column results and support efficient lookups using normalized keys while preserving original metadata for display purposes.",
+            "status": "in-progress",
+            "testStrategy": "Test node creation from database row data with Czech character variations and verify both normalized and display properties preserve correct values",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-16T09:48:47.936Z"
+          },
+          {
+            "id": 3,
+            "title": "Implement LibraryTree class with database integration",
+            "description": "Create LibraryTree implementation that uses SQLite database operations to build normalized tree structure efficiently",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Implement LibraryTree class in Services/Library/ accepting ILibraryDatabase and ITextNormalizer dependencies. BuildFromDatabaseAsync() method should execute SQL GROUP BY normalized_author queries to get authors from both source_books and library_books tables, then populate tree with AuthorNode/BookNode structures. Use single SQL query with JOINs for performance. GetNormalizedStructure() returns built tree. DetectDuplicatesAsync() compares source vs library books using normalized_author/normalized_title columns.",
+            "status": "pending",
+            "testStrategy": "Test with SQLite database containing Czech author name variations, verify GROUP BY queries return correct normalized groupings and tree structure reflects proper author/book hierarchies",
+            "parentId": "undefined"
+          },
+          {
+            "id": 4,
+            "title": "Extend database schema to support source_books table",
+            "description": "Add source_books table to SQLite schema for temporary preview data storage with normalized metadata columns",
+            "dependencies": [],
+            "details": "Extend LibraryDatabaseSchema.cs to include source_books table creation statement with columns: id (autoincrement), source_path (unique), display_author, display_title, display_series, normalized_author, normalized_title, normalized_series, series_number, size_bytes, file_count, metadata_json, created_at. Add indexes on normalized_author and normalized_title for fast lookups. Update LibraryDatabase.cs with AddSourceBookAsync() method and GetSourceBooksAsync() method. Ensure schema version increment for migration.",
+            "status": "pending",
+            "testStrategy": "Verify source_books table creation, index performance on normalized columns, and proper data insertion/retrieval with Czech character normalization",
+            "parentId": "undefined"
+          },
+          {
+            "id": 5,
+            "title": "Integrate LibraryTree with PathGenerator for normalized grouping",
+            "description": "Update PathGenerator to use LibraryTree for consistent author name normalization instead of direct TextNormalizer calls",
+            "dependencies": [
+              3
+            ],
+            "details": "Modify PathGenerator.GenerateTargetPath() method to query LibraryTree for normalized author grouping rather than calling TextNormalizer directly. Add ILibraryTree dependency to PathGenerator constructor. Use LibraryTree.GetNormalizedStructure() to ensure consistent author folder names match existing library structure. This prevents path inconsistencies where same author gets multiple folder variations due to different normalization timing.",
+            "status": "pending",
+            "testStrategy": "Test PathGenerator with existing library containing author 'František Kotleta' ensures new books by same author use identical normalized folder name and don't create duplicate author folders",
+            "parentId": "undefined"
+          },
+          {
+            "id": 6,
+            "title": "Update PreviewGenerator to use LibraryTree for duplicate detection",
+            "description": "Modify PreviewGenerator to integrate LibraryTree for accurate preview generation with database-backed duplicate detection",
+            "dependencies": [
+              3,
+              4
+            ],
+            "details": "Update PreviewGenerator.GeneratePreviewAsync() to populate source_books table with normalized metadata, then use LibraryTree.DetectDuplicatesAsync() for duplicate detection against existing library. Replace current preview logic to query LibraryTree.GetNormalizedStructure() for consistent path generation. Ensure preview accurately reflects final organized structure by using same normalization logic as actual organization. Add database cleanup of source_books after preview completion.",
+            "status": "pending",
+            "testStrategy": "Create comprehensive test with existing library books and new source books with encoding variations. Verify preview correctly identifies true duplicates while distinguishing from case/encoding differences, and generates accurate final folder structure",
+            "parentId": "undefined"
+          }
+        ],
+        "updatedAt": "2025-11-16T09:48:47.936Z"
       },
       {
         "id": "16",
@@ -1059,7 +1133,7 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-11-16T09:30:11.475Z",
+      "lastModified": "2025-11-16T09:48:47.937Z",
       "taskCount": 16,
       "completedCount": 14,
       "tags": [

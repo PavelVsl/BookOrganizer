@@ -277,6 +277,48 @@ public class LibraryDatabase : ILibraryDatabase
         return authors;
     }
 
+    public async Task<List<SourceBookEntry>> GetSourceBooksAsync(
+        string? normalizedAuthor = null,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureInitialized();
+
+        var books = new List<SourceBookEntry>();
+
+        using var command = _connection!.CreateCommand();
+        command.CommandText = normalizedAuthor == null
+            ? "SELECT * FROM source_books ORDER BY normalized_author, normalized_title"
+            : "SELECT * FROM source_books WHERE normalized_author = @author ORDER BY normalized_title";
+
+        if (normalizedAuthor != null)
+        {
+            command.Parameters.AddWithValue("@author", normalizedAuthor);
+        }
+
+        using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            books.Add(new SourceBookEntry(
+                Id: reader.GetInt32(0),
+                NormalizedAuthor: reader.GetString(1),
+                NormalizedTitle: reader.GetString(2),
+                NormalizedSeries: reader.IsDBNull(3) ? null : reader.GetString(3),
+                SeriesNumber: reader.IsDBNull(4) ? null : reader.GetString(4),
+                DisplayAuthor: reader.GetString(5),
+                DisplayTitle: reader.GetString(6),
+                DisplaySeries: reader.IsDBNull(7) ? null : reader.GetString(7),
+                SourcePath: reader.GetString(8),
+                DestinationPath: reader.IsDBNull(9) ? null : reader.GetString(9),
+                SizeBytes: reader.GetInt64(10),
+                DurationSeconds: reader.IsDBNull(11) ? null : reader.GetInt32(11),
+                FileCount: reader.GetInt32(12),
+                MetadataJson: reader.GetString(13)
+            ));
+        }
+
+        return books;
+    }
+
     public async Task<string?> GetMetadataAsync(string key, CancellationToken cancellationToken = default)
     {
         EnsureInitialized();
