@@ -1229,9 +1229,9 @@
             "description": "Create the JSON schema supporting Author, Series, and SeriesNumber fields at different hierarchy levels. Implement IMetadataJsonProcessor interface with recursive discovery and parsing of metadata.json files from root to audiobook folder, with cascading priority logic (audiobook > series > author > extracted).",
             "dependencies": [],
             "details": "Define metadata.json schema with fields: Author (string), Series (string), SeriesNumber (int), Title (string) as optional fields. Create IMetadataJsonProcessor service that: 1) Recursively discovers metadata.json files from library root down to audiobook folders. 2) Parses JSON with proper error handling and validation. 3) Implements cascading merge with priority: audiobook-level metadata > series-level metadata > author-level metadata > extracted metadata from tags. 4) Returns merged MetadataContext object containing resolved metadata at each hierarchy level with source tracking.",
-            "status": "in-progress",
+            "status": "done",
             "testStrategy": "Create test folder structures with metadata.json files at author, series, and book levels. Test cascading priority: verify book-level metadata overrides series-level, series overrides author, etc. Test JSON validation with malformed files. Test with Czech characters in metadata.",
-            "updatedAt": "2025-11-17T09:34:59.667Z",
+            "updatedAt": "2025-11-17T09:37:13.232Z",
             "parentId": "undefined"
           },
           {
@@ -1242,9 +1242,10 @@
               1
             ],
             "details": "Create AuthorTable (Id INT PRIMARY KEY, CanonicalName TEXT UNIQUE, DisplayName TEXT, SourcePath TEXT). Create SeriesTable (Id INT PRIMARY KEY, CanonicalName TEXT UNIQUE, DisplayName TEXT, AuthorId INT FK, SourcePath TEXT). Update AudiobookMetadata table to add AuthorId INT FK, SeriesId INT FK, SeriesNumber INT. Use TextNormalizer (from task 12) to generate CanonicalName from DisplayName for fuzzy matching while preserving original DisplayName. Create database migration script that handles existing data population.",
-            "status": "pending",
+            "status": "in-progress",
             "testStrategy": "Create database migration tests that verify: new tables created correctly, foreign keys established, existing audiobook data can be migrated to new schema, TextNormalizer correctly generates canonical names for Czech author/series names, duplicate detection by CanonicalName works.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-11-17T09:43:37.215Z"
           },
           {
             "id": 3,
@@ -1298,12 +1299,12 @@
             "parentId": "undefined"
           }
         ],
-        "updatedAt": "2025-11-17T09:34:59.667Z"
+        "updatedAt": "2025-11-17T09:43:37.215Z"
       }
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-11-17T09:34:59.669Z",
+      "lastModified": "2025-11-17T09:43:37.216Z",
       "taskCount": 21,
       "completedCount": 18,
       "tags": [

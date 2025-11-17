@@ -353,6 +353,105 @@ public class LibraryDatabase : ILibraryDatabase
         }
     }
 
+    #region Author and Series Management
+
+    /// <summary>
+    /// Gets or creates an author record, returning its ID.
+    /// </summary>
+    public async Task<long> GetOrCreateAuthorAsync(
+        string normalizedName,
+        string displayName,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureInitialized();
+
+        // Try to find existing author
+        using (var selectCommand = _connection!.CreateCommand())
+        {
+            selectCommand.CommandText = "SELECT id FROM authors WHERE normalized_name = $normalizedName COLLATE NOCASE";
+            selectCommand.Parameters.AddWithValue("$normalizedName", normalizedName);
+
+            var result = await selectCommand.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+            if (result != null)
+            {
+                return (long)result;
+            }
+        }
+
+        // Create new author
+        using var insertCommand = _connection!.CreateCommand();
+        insertCommand.CommandText = @"
+            INSERT INTO authors (normalized_name, display_name)
+            VALUES ($normalizedName, $displayName)
+            RETURNING id";
+
+        insertCommand.Parameters.AddWithValue("$normalizedName", normalizedName);
+        insertCommand.Parameters.AddWithValue("$displayName", displayName);
+
+        var id = await insertCommand.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        _logger.LogDebug("Created author {DisplayName} with ID {Id}", displayName, id);
+
+        return (long)id!;
+    }
+
+    /// <summary>
+    /// Gets or creates a series record, returning its ID.
+    /// </summary>
+    public async Task<long> GetOrCreateSeriesAsync(
+        string normalizedName,
+        string displayName,
+        long? authorId = null,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureInitialized();
+
+        // Try to find existing series
+        using (var selectCommand = _connection!.CreateCommand())
+        {
+            if (authorId.HasValue)
+            {
+                selectCommand.CommandText = @"
+                    SELECT id FROM series
+                    WHERE normalized_name = $normalizedName COLLATE NOCASE
+                    AND author_id = $authorId";
+                selectCommand.Parameters.AddWithValue("$authorId", authorId.Value);
+            }
+            else
+            {
+                selectCommand.CommandText = @"
+                    SELECT id FROM series
+                    WHERE normalized_name = $normalizedName COLLATE NOCASE
+                    AND author_id IS NULL";
+            }
+
+            selectCommand.Parameters.AddWithValue("$normalizedName", normalizedName);
+
+            var result = await selectCommand.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+            if (result != null)
+            {
+                return (long)result;
+            }
+        }
+
+        // Create new series
+        using var insertCommand = _connection!.CreateCommand();
+        insertCommand.CommandText = @"
+            INSERT INTO series (normalized_name, display_name, author_id)
+            VALUES ($normalizedName, $displayName, $authorId)
+            RETURNING id";
+
+        insertCommand.Parameters.AddWithValue("$normalizedName", normalizedName);
+        insertCommand.Parameters.AddWithValue("$displayName", displayName);
+        insertCommand.Parameters.AddWithValue("$authorId", authorId.HasValue ? (object)authorId.Value : DBNull.Value);
+
+        var id = await insertCommand.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        _logger.LogDebug("Created series {DisplayName} with ID {Id}", displayName, id);
+
+        return (long)id!;
+    }
+
+    #endregion
+
     public void Dispose()
     {
         if (_disposed)
