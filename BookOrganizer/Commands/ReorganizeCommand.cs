@@ -8,30 +8,18 @@ using System.CommandLine;
 namespace BookOrganizer.Commands;
 
 /// <summary>
-/// Command to organize audiobooks by executing file operations.
+/// Command to reorganize an existing library based on updated metadata.
 /// </summary>
-public class OrganizeCommand : Command
+public class ReorganizeCommand : Command
 {
-    public OrganizeCommand() : base("organize", "Organize audiobooks to target directory")
+    public ReorganizeCommand() : base("reorganize", "Reorganize library based on updated metadata.json files")
     {
-        var sourceOption = new Option<string>(
-            aliases: ["--source", "-s"],
-            description: "Source directory containing audiobooks")
+        var libraryOption = new Option<string>(
+            aliases: ["--library", "-l"],
+            description: "Library directory to reorganize")
         {
             IsRequired = true
         };
-
-        var destinationOption = new Option<string>(
-            aliases: ["--destination", "-d", "--library", "-l"],
-            description: "Target library directory for organized audiobooks")
-        {
-            IsRequired = true
-        };
-
-        var operationOption = new Option<string>(
-            aliases: ["--operation", "-o"],
-            description: "Operation type: copy, move, hardlink, symlink",
-            getDefaultValue: () => "copy");
 
         var noValidateOption = new Option<bool>(
             aliases: ["--no-validate"],
@@ -45,78 +33,46 @@ public class OrganizeCommand : Command
             aliases: ["--yes", "-y"],
             description: "Skip confirmation prompt (auto-confirm)");
 
-        var detectDuplicatesOption = new Option<bool>(
-            aliases: ["--detect-duplicates"],
-            description: "Detect and merge potential duplicate audiobooks");
-
-        var duplicateThresholdOption = new Option<double>(
-            aliases: ["--duplicate-threshold"],
-            description: "Minimum confidence for duplicate detection (0.0-1.0)",
-            getDefaultValue: () => 0.7);
-
-        AddOption(sourceOption);
-        AddOption(destinationOption);
-        AddOption(operationOption);
+        AddOption(libraryOption);
         AddOption(noValidateOption);
         AddOption(verboseOption);
         AddOption(yesOption);
-        AddOption(detectDuplicatesOption);
-        AddOption(duplicateThresholdOption);
 
         this.SetHandler(async (context) =>
         {
-            var source = context.ParseResult.GetValueForOption(sourceOption)!;
-            var destination = context.ParseResult.GetValueForOption(destinationOption)!;
-            var operation = context.ParseResult.GetValueForOption(operationOption)!;
+            var library = context.ParseResult.GetValueForOption(libraryOption)!;
             var noValidate = context.ParseResult.GetValueForOption(noValidateOption);
             var verbose = context.ParseResult.GetValueForOption(verboseOption);
             var yes = context.ParseResult.GetValueForOption(yesOption);
-            var detectDuplicates = context.ParseResult.GetValueForOption(detectDuplicatesOption);
-            var duplicateThreshold = context.ParseResult.GetValueForOption(duplicateThresholdOption);
 
             var exitCode = await ExecuteAsync(
-                source, destination, operation, !noValidate, verbose, yes,
-                detectDuplicates, duplicateThreshold);
+                library, !noValidate, verbose, yes);
 
             context.ExitCode = exitCode;
         });
     }
 
     private static async Task<int> ExecuteAsync(
-        string sourcePath,
-        string destinationPath,
-        string operationType,
+        string libraryPath,
         bool validateIntegrity,
         bool verbose,
-        bool autoConfirm,
-        bool detectDuplicates,
-        double duplicateThreshold)
+        bool autoConfirm)
     {
         try
         {
             // Get services from DI
             var organizer = Program.ServiceProvider.GetRequiredService<IFileOrganizer>();
-            var logger = Program.ServiceProvider.GetRequiredService<ILogger<OrganizeCommand>>();
+            var logger = Program.ServiceProvider.GetRequiredService<ILogger<ReorganizeCommand>>();
 
-            // Validate directories
-            if (!Directory.Exists(sourcePath))
+            // Validate library path
+            if (!Directory.Exists(libraryPath))
             {
-                AnsiConsole.MarkupLine("[red]Error:[/] Source directory does not exist: {0}", sourcePath);
+                AnsiConsole.MarkupLine("[red]Error:[/] Library directory does not exist: {0}", libraryPath);
                 return 1;
             }
 
-            // Parse operation type
-            if (!Enum.TryParse<FileOperationType>(operationType, ignoreCase: true, out var opType))
-            {
-                AnsiConsole.MarkupLine(
-                    "[red]Error:[/] Invalid operation type '{0}'. Valid options: copy, move, hardlink, symlink",
-                    operationType);
-                return 1;
-            }
-
-            // Confirm with user
             AnsiConsole.WriteLine();
-            AnsiConsole.Write(new Rule("[bold yellow]Audiobook Organization[/]").RuleStyle("grey"));
+            AnsiConsole.Write(new Rule("[bold yellow]Library Reorganization[/]").RuleStyle("grey"));
             AnsiConsole.WriteLine();
 
             var table = new Table()
@@ -125,19 +81,20 @@ public class OrganizeCommand : Command
                 .AddColumn("Setting")
                 .AddColumn("Value");
 
-            table.AddRow("Source", sourcePath);
-            table.AddRow("Destination", destinationPath);
-            table.AddRow("Operation", $"[{GetOperationColor(opType)}]{opType}[/]");
+            table.AddRow("Library Path", libraryPath);
+            table.AddRow("Operation", "[yellow]Move (within library)[/]");
             table.AddRow("Validate Integrity", validateIntegrity ? "[green]Yes[/]" : "[yellow]No[/]");
 
             AnsiConsole.Write(table);
             AnsiConsole.WriteLine();
+            AnsiConsole.MarkupLine("[dim]Tip: Edit metadata.json files in your library folders before running this command[/]");
+            AnsiConsole.WriteLine();
 
             if (!autoConfirm)
             {
-                if (!AnsiConsole.Confirm("Proceed with organization?", defaultValue: false))
+                if (!AnsiConsole.Confirm("Proceed with reorganization?", defaultValue: false))
                 {
-                    AnsiConsole.MarkupLine("[yellow]Organization cancelled.[/]");
+                    AnsiConsole.MarkupLine("[yellow]Reorganization cancelled.[/]");
                     return 0;
                 }
             }
@@ -148,7 +105,7 @@ public class OrganizeCommand : Command
 
             AnsiConsole.WriteLine();
 
-            // Execute organization with progress
+            // Execute reorganization with progress
             OrganizationResult? result = null;
 
             await AnsiConsole.Progress()
@@ -163,14 +120,14 @@ public class OrganizeCommand : Command
                     new SpinnerColumn())
                 .StartAsync(async ctx =>
                 {
-                    var overallTask = ctx.AddTask("[yellow]Organizing audiobooks...[/]", maxValue: 100);
+                    var overallTask = ctx.AddTask("[yellow]Reorganizing library...[/]", maxValue: 100);
                     var currentTask = ctx.AddTask("[grey]Preparing...[/]", maxValue: 100);
 
                     var progress = new Progress<OrganizationProgress>(p =>
                     {
                         // Update overall progress
                         overallTask.Value = p.PercentComplete * 100;
-                        overallTask.Description = $"[yellow]Organizing:[/] {p.AudiobooksCompleted}/{p.TotalAudiobooks} audiobooks";
+                        overallTask.Description = $"[yellow]Reorganizing:[/] {p.AudiobooksCompleted}/{p.TotalAudiobooks} audiobooks";
 
                         // Update current operation
                         if (!string.IsNullOrEmpty(p.CurrentAudiobook))
@@ -192,13 +149,9 @@ public class OrganizeCommand : Command
                         }
                     });
 
-                    result = await organizer.OrganizeAsync(
-                        sourcePath,
-                        destinationPath,
-                        opType,
+                    result = await organizer.ReorganizeLibraryAsync(
+                        libraryPath,
                         validateIntegrity,
-                        detectDuplicates,
-                        duplicateThreshold,
                         progress,
                         CancellationToken.None);
 
@@ -230,11 +183,11 @@ public class OrganizeCommand : Command
     }
 
     /// <summary>
-    /// Displays the organization results.
+    /// Displays the reorganization results.
     /// </summary>
     private static void DisplayResults(OrganizationResult result, bool verbose)
     {
-        AnsiConsole.Write(new Rule("[bold]Organization Results[/]").RuleStyle("grey"));
+        AnsiConsole.Write(new Rule("[bold]Reorganization Results[/]").RuleStyle("grey"));
         AnsiConsole.WriteLine();
 
         // Summary table
@@ -246,7 +199,7 @@ public class OrganizeCommand : Command
 
         summaryTable.AddRow("Total Audiobooks", $"[cyan]{result.TotalAudiobooks}[/]");
         summaryTable.AddRow(
-            "Successful",
+            "Reorganized",
             result.SuccessfulAudiobooks > 0
                 ? $"[green]{result.SuccessfulAudiobooks}[/]"
                 : $"[dim]{result.SuccessfulAudiobooks}[/]");
@@ -255,7 +208,7 @@ public class OrganizeCommand : Command
             result.FailedAudiobooks > 0
                 ? $"[red]{result.FailedAudiobooks}[/]"
                 : $"[dim]{result.FailedAudiobooks}[/]");
-        summaryTable.AddRow("Total Files", $"[cyan]{result.TotalFiles}[/]");
+        summaryTable.AddRow("Total Files Moved", $"[cyan]{result.TotalFiles}[/]");
         summaryTable.AddRow("Total Size", $"[cyan]{FormatBytes(result.TotalBytesProcessed)}[/]");
         summaryTable.AddRow("Duration", $"[cyan]{FormatDuration(result.Duration)}[/]");
 
@@ -265,11 +218,11 @@ public class OrganizeCommand : Command
         // Overall status
         if (result.Success)
         {
-            AnsiConsole.MarkupLine("[green]✓ Organization completed successfully![/]");
+            AnsiConsole.MarkupLine("[green]✓ Reorganization completed successfully![/]");
         }
         else
         {
-            AnsiConsole.MarkupLine("[red]✗ Organization completed with errors.[/]");
+            AnsiConsole.MarkupLine("[red]✗ Reorganization completed with errors.[/]");
             if (!string.IsNullOrEmpty(result.ErrorMessage))
             {
                 AnsiConsole.MarkupLine("[red]  {0}[/]", result.ErrorMessage);
@@ -301,21 +254,6 @@ public class OrganizeCommand : Command
         }
 
         AnsiConsole.WriteLine();
-    }
-
-    /// <summary>
-    /// Gets the color for an operation type.
-    /// </summary>
-    private static string GetOperationColor(FileOperationType operationType)
-    {
-        return operationType switch
-        {
-            FileOperationType.Copy => "green",
-            FileOperationType.Move => "yellow",
-            FileOperationType.HardLink => "cyan",
-            FileOperationType.SymbolicLink => "magenta",
-            _ => "white"
-        };
     }
 
     /// <summary>

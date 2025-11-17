@@ -5,6 +5,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.CommandLine;
 
+// Display version at startup
+Console.WriteLine($"BookOrganizer v{ThisAssembly.AssemblyInformationalVersion}");
+Console.WriteLine();
+
 // Build DI container
 var services = new ServiceCollection();
 services.AddBookOrganizerServices();
@@ -22,6 +26,7 @@ try
     rootCommand.AddCommand(new ScanCommand());
     rootCommand.AddCommand(new PreviewCommand());
     rootCommand.AddCommand(new OrganizeCommand());
+    rootCommand.AddCommand(new ReorganizeCommand());
     rootCommand.AddCommand(new ExportMetadataCommand());
     rootCommand.AddCommand(new VerifyCommand());
 

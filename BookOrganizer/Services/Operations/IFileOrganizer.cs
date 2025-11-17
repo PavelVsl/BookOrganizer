@@ -42,6 +42,20 @@ public interface IFileOrganizer
         bool validateIntegrity = true,
         IProgress<OrganizationProgress>? progress = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Reorganizes an existing library based on updated metadata.json files.
+    /// </summary>
+    /// <param name="libraryPath">Path to the organized library to reorganize.</param>
+    /// <param name="validateIntegrity">Whether to validate file integrity with checksums.</param>
+    /// <param name="progress">Optional progress reporter.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Result of the reorganization operation.</returns>
+    Task<OrganizationResult> ReorganizeLibraryAsync(
+        string libraryPath,
+        bool validateIntegrity = true,
+        IProgress<OrganizationProgress>? progress = null,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>

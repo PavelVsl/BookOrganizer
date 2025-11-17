@@ -441,4 +441,171 @@ public class FileOrganizer : IFileOrganizer
         // If both have or don't have year suffix, prefer shorter path
         return path1.Length <= path2.Length ? path1 : path2;
     }
+
+    public async Task<OrganizationResult> ReorganizeLibraryAsync(
+        string libraryPath,
+        bool validateIntegrity = true,
+        IProgress<OrganizationProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Starting library reorganization: {LibraryPath}", libraryPath);
+
+        var stopwatch = Stopwatch.StartNew();
+
+        try
+        {
+            // Scan library directory
+            _logger.LogInformation("Scanning library directory: {Path}", libraryPath);
+            var audiobooks = await _directoryScanner.ScanDirectoryAsync(libraryPath, cancellationToken)
+                .ConfigureAwait(false);
+
+            _logger.LogInformation("Found {Count} audiobook folders in library", audiobooks.Count);
+
+            // Create reorganization plans by comparing current vs expected paths
+            var plans = new List<OrganizationPlan>();
+
+            foreach (var audiobook in audiobooks)
+            {
+                // Extract metadata (prioritizes metadata.json with hierarchical support)
+                var metadata = await _metadataExtractor.ExtractMetadataAsync(
+                    audiobook,
+                    libraryPath,  // Enable hierarchical metadata loading
+                    cancellationToken).ConfigureAwait(false);
+
+                // Generate what the path SHOULD be based on current metadata
+                var expectedPath = _pathGenerator.GenerateTargetPath(metadata, libraryPath);
+
+                // If path differs from current location, needs reorganization
+                if (!string.Equals(audiobook.Path, expectedPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogDebug(
+                        "Book needs reorganization: '{CurrentPath}' -> '{ExpectedPath}'",
+                        audiobook.Path,
+                        expectedPath);
+
+                    plans.Add(new OrganizationPlan
+                    {
+                        SourceFolder = audiobook,
+                        Metadata = metadata,
+                        TargetPath = expectedPath,
+                        OperationType = FileOperationType.Move // Always use Move for reorganization
+                    });
+                }
+            }
+
+            if (plans.Count == 0)
+            {
+                _logger.LogInformation("No reorganization needed - all books are already in correct locations");
+
+                return new OrganizationResult
+                {
+                    Success = true,
+                    TotalAudiobooks = audiobooks.Count,
+                    SuccessfulAudiobooks = audiobooks.Count,
+                    FailedAudiobooks = 0,
+                    TotalFiles = 0,
+                    TotalBytesProcessed = 0,
+                    Duration = stopwatch.Elapsed,
+                    AudiobookResults = audiobooks.Select(ab => new AudiobookOperationResult
+                    {
+                        SourceFolder = ab,
+                        Metadata = new BookMetadata { Title = Path.GetFileName(ab.Path), Source = "NoChange" },
+                        TargetPath = ab.Path,
+                        Success = true,
+                        FilesProcessed = 0,
+                        FilesFailed = 0
+                    }).ToList()
+                };
+            }
+
+            _logger.LogInformation("Found {Count} books requiring reorganization", plans.Count);
+
+            // Ensure unique paths (handle collisions)
+            var existingPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < plans.Count; i++)
+            {
+                var plan = plans[i];
+                var targetPath = plan.TargetPath;
+
+                // Ensure unique path
+                if (existingPaths.Contains(targetPath))
+                {
+                    targetPath = _pathGenerator.EnsureUniquePath(plan.Metadata, targetPath, existingPaths);
+                    _logger.LogWarning(
+                        "Path collision detected, using unique path: {Path}",
+                        targetPath);
+                }
+                existingPaths.Add(targetPath);
+
+                // Update plan with potentially modified target path
+                plans[i] = plan with { TargetPath = targetPath };
+            }
+
+            // Execute reorganization plans
+            var result = await OrganizeFromPlansAsync(plans, validateIntegrity, progress, cancellationToken)
+                .ConfigureAwait(false);
+
+            // Clean up empty directories
+            await CleanupEmptyDirectoriesAsync(libraryPath);
+
+            stopwatch.Stop();
+            _logger.LogInformation(
+                "Reorganization completed in {Duration}. Success: {SuccessCount}/{Total}",
+                stopwatch.Elapsed,
+                result.SuccessfulAudiobooks,
+                result.TotalAudiobooks);
+
+            return result with { Duration = stopwatch.Elapsed };
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            _logger.LogError(ex, "Reorganization failed");
+
+            return new OrganizationResult
+            {
+                Success = false,
+                ErrorMessage = ex.Message,
+                Duration = stopwatch.Elapsed,
+                AudiobookResults = Array.Empty<AudiobookOperationResult>()
+            };
+        }
+    }
+
+    /// <summary>
+    /// Cleans up empty directories left after reorganization.
+    /// </summary>
+    private async Task CleanupEmptyDirectoriesAsync(string libraryPath)
+    {
+        await Task.Run(() =>
+        {
+            try
+            {
+                // Get all directories in library
+                var directories = Directory.GetDirectories(libraryPath, "*", SearchOption.AllDirectories)
+                    .OrderByDescending(d => d.Length); // Process deepest first
+
+                foreach (var directory in directories)
+                {
+                    try
+                    {
+                        // Check if directory is empty
+                        if (!Directory.EnumerateFileSystemEntries(directory).Any())
+                        {
+                            Directory.Delete(directory);
+                            _logger.LogDebug("Removed empty directory: {Path}", directory);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to remove directory: {Path}", directory);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error during empty directory cleanup");
+            }
+        }).ConfigureAwait(false);
+    }
 }

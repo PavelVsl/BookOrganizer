@@ -26,8 +26,8 @@ public class PreviewCommand : Command
         };
 
         var destinationOption = new Option<string>(
-            aliases: ["--destination", "-d"],
-            description: "Destination directory for organized library")
+            aliases: ["--destination", "-d", "--library", "-l"],
+            description: "Target library directory for organized audiobooks")
         {
             IsRequired = true
         };
