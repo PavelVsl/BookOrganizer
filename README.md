@@ -24,10 +24,20 @@ dotnet tool install -g BookOrganizer
 
 ```bash
 git clone https://github.com/yourusername/BookOrganizer.git
-cd BookOrganizer/BookOrganizer
-dotnet pack
-dotnet tool install -g --add-source ./bin/Release BookOrganizer
+cd BookOrganizer
+
+# Use the publish script (recommended)
+./publish.sh              # macOS/Linux
+# or
+.\publish.ps1             # Windows
+
+# Or manually:
+cd BookOrganizer
+dotnet pack -c Release -o ../nupkg
+dotnet tool install -g BookOrganizer --add-source ../nupkg
 ```
+
+The publish script automatically handles cleaning, building, packing, and installing the latest version.
 
 ## Quick Start
 
