@@ -29,6 +29,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IDirectoryScanner, DirectoryScanner>();
 
         // Metadata services
+        services.AddSingleton<IMetadataJsonProcessor, MetadataJsonProcessor>();
         services.AddSingleton<IMetadataExtractor, MetadataExtractor>();
         services.AddSingleton<IFilenameParser, FilenameParser>();
         services.AddSingleton<IMetadataConsolidator, MetadataConsolidator>();

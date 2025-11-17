@@ -14,7 +14,8 @@
       "Bash(task-master update-task:*)",
       "WebFetch(domain:developers.google.com)",
       "WebFetch(domain:xinyustudio.wordpress.com)",
-      "WebFetch(domain:www.googleapis.com)"
+      "WebFetch(domain:www.googleapis.com)",
+      "Bash(cat:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
