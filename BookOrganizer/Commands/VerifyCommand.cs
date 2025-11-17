@@ -139,6 +139,27 @@ public class VerifyCommand : Command
                 AnsiConsole.Write(new Rule("[bold yellow]Metadata Generation[/]").RuleStyle("grey"));
                 AnsiConsole.WriteLine();
 
+                // Collect all folders at all levels (author, series, book)
+                var allFolders = new List<string>();
+
+                // Add all author folders
+                var authorFolders = Directory.GetDirectories(libraryPath);
+                allFolders.AddRange(authorFolders);
+
+                // Add all series folders and book folders
+                foreach (var authorFolder in authorFolders)
+                {
+                    var subFolders = Directory.GetDirectories(authorFolder);
+                    allFolders.AddRange(subFolders);
+
+                    // Also add any third-level folders (books under series)
+                    foreach (var seriesFolder in subFolders)
+                    {
+                        var bookFolders = Directory.GetDirectories(seriesFolder);
+                        allFolders.AddRange(bookFolders);
+                    }
+                }
+
                 await AnsiConsole.Progress()
                     .AutoRefresh(true)
                     .AutoClear(false)
@@ -149,17 +170,17 @@ public class VerifyCommand : Command
                         new SpinnerColumn())
                     .StartAsync(async ctx =>
                     {
-                        var task = ctx.AddTask("[yellow]Generating metadata.json files...[/]", maxValue: folders.Count);
+                        var task = ctx.AddTask("[yellow]Generating metadata.json files...[/]", maxValue: allFolders.Count);
 
-                        foreach (var folder in folders)
+                        foreach (var folderPath in allFolders)
                         {
                             try
                             {
-                                var bookName = Path.GetFileName(folder.Path);
-                                task.Description = $"[yellow]Processing:[/] {bookName}";
+                                var folderName = Path.GetFileName(folderPath);
+                                task.Description = $"[yellow]Processing:[/] {folderName}";
 
                                 var result = await metadataGenerator.GenerateMetadataFromStructureAsync(
-                                    folder.Path,
+                                    folderPath,
                                     libraryPath,
                                     force,
                                     CancellationToken.None);
@@ -187,13 +208,13 @@ public class VerifyCommand : Command
                                     if (verbose)
                                     {
                                         AnsiConsole.MarkupLine("[yellow]Warning:[/] {0} - {1}",
-                                            folder.Path, result.ErrorMessage);
+                                            folderPath, result.ErrorMessage);
                                     }
                                 }
                             }
                             catch (Exception ex)
                             {
-                                logger.LogError(ex, "Failed to generate metadata for {Path}", folder.Path);
+                                logger.LogError(ex, "Failed to generate metadata for {Path}", folderPath);
                                 metadataErrors++;
                             }
 

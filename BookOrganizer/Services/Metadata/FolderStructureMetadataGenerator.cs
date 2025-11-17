@@ -24,19 +24,19 @@ public class FolderStructureMetadataGenerator : IMetadataGenerator
     }
 
     public async Task<MetadataGenerationResult> GenerateMetadataFromStructureAsync(
-        string bookFolderPath,
+        string folderPath,
         string libraryRootPath,
         bool force = false,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            var metadataFilePath = Path.Combine(bookFolderPath, "metadata.json");
+            var metadataFilePath = Path.Combine(folderPath, "metadata.json");
 
             // Check if metadata.json already exists
             if (File.Exists(metadataFilePath) && !force)
             {
-                _logger.LogDebug("Skipping {Path} - metadata.json already exists (use --force to overwrite)", bookFolderPath);
+                _logger.LogDebug("Skipping {Path} - metadata.json already exists (use --force to overwrite)", folderPath);
                 return new MetadataGenerationResult
                 {
                     Success = true,
@@ -46,28 +46,28 @@ public class FolderStructureMetadataGenerator : IMetadataGenerator
             }
 
             // Parse folder structure
-            var normalizedBookPath = Path.GetFullPath(bookFolderPath);
+            var normalizedFolderPath = Path.GetFullPath(folderPath);
             var normalizedLibraryRoot = Path.GetFullPath(libraryRootPath);
 
-            // Ensure book folder is within library root
-            if (!normalizedBookPath.StartsWith(normalizedLibraryRoot, StringComparison.OrdinalIgnoreCase))
+            // Ensure folder is within library root
+            if (!normalizedFolderPath.StartsWith(normalizedLibraryRoot, StringComparison.OrdinalIgnoreCase))
             {
                 return new MetadataGenerationResult
                 {
                     Success = false,
-                    ErrorMessage = $"Book folder is not within library root: {bookFolderPath}"
+                    ErrorMessage = $"Folder is not within library root: {folderPath}"
                 };
             }
 
             // Get relative path and split into components
-            var relativePath = Path.GetRelativePath(normalizedLibraryRoot, normalizedBookPath);
+            var relativePath = Path.GetRelativePath(normalizedLibraryRoot, normalizedFolderPath);
             var pathComponents = relativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
                 .Where(p => !string.IsNullOrWhiteSpace(p) && p != ".")
                 .ToArray();
 
-            if (pathComponents.Length < 2)
+            if (pathComponents.Length < 1)
             {
-                var warning = $"Invalid folder structure: {relativePath} (expected Author/Title or Author/Series/Title)";
+                var warning = $"Invalid folder structure: {relativePath}";
                 _logger.LogWarning(warning);
                 return new MetadataGenerationResult
                 {
@@ -76,50 +76,52 @@ public class FolderStructureMetadataGenerator : IMetadataGenerator
                 };
             }
 
+            // Determine if this is a book folder (contains audio files) or intermediate folder
+            var hasAudioFiles = Directory.GetFiles(folderPath, "*.mp3", SearchOption.TopDirectoryOnly).Any() ||
+                                Directory.GetFiles(folderPath, "*.m4a", SearchOption.TopDirectoryOnly).Any() ||
+                                Directory.GetFiles(folderPath, "*.m4b", SearchOption.TopDirectoryOnly).Any();
+
             // Parse structure based on depth
-            MetadataOverride metadata;
-
-            if (pathComponents.Length == 2)
+            MetadataOverride metadata = pathComponents.Length switch
             {
-                // Structure: library/Author/Title/
-                var author = pathComponents[0];
-                var title = pathComponents[1];
-
-                metadata = new MetadataOverride
+                // Author level: library/Author/
+                1 => new MetadataOverride
                 {
-                    Author = author,
-                    Title = title,
+                    Author = pathComponents[0],
                     Source = "FolderStructure"
-                };
+                },
 
-                _logger.LogInformation("Parsed metadata from 2-level structure: {Author} / {Title}", author, title);
-            }
-            else if (pathComponents.Length >= 3)
-            {
-                // Structure: library/Author/Series/Title/
-                var author = pathComponents[0];
-                var series = pathComponents[1];
-                var title = pathComponents[2];
-
-                metadata = new MetadataOverride
+                // Level 2: Could be Series or Title (depends on if it contains audio files)
+                2 when hasAudioFiles => new MetadataOverride
                 {
-                    Author = author,
-                    Series = series,
-                    Title = title,
+                    Author = pathComponents[0],
+                    Title = pathComponents[1],
                     Source = "FolderStructure"
-                };
+                },
 
-                _logger.LogInformation("Parsed metadata from 3-level structure: {Author} / {Series} / {Title}",
-                    author, series, title);
-            }
-            else
-            {
-                return new MetadataGenerationResult
+                // Level 2: Series folder (no audio files, will have book subfolders)
+                2 => new MetadataOverride
                 {
-                    Success = false,
-                    ErrorMessage = $"Unexpected folder structure: {relativePath}"
-                };
-            }
+                    Author = pathComponents[0],
+                    Series = pathComponents[1],
+                    Source = "FolderStructure"
+                },
+
+                // Book level: library/Author/Series/Title/
+                >= 3 => new MetadataOverride
+                {
+                    Author = pathComponents[0],
+                    Series = pathComponents[1],
+                    Title = pathComponents[2],
+                    Source = "FolderStructure"
+                },
+
+                // Should never reach here due to earlier validation
+                _ => throw new InvalidOperationException($"Unexpected path depth: {pathComponents.Length}")
+            };
+
+            _logger.LogInformation("Generated metadata for {Level}-level folder: {Path}",
+                pathComponents.Length, relativePath);
 
             // Write metadata.json
             await using var fileStream = File.Create(metadataFilePath);
@@ -137,7 +139,7 @@ public class FolderStructureMetadataGenerator : IMetadataGenerator
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to generate metadata for {Path}", bookFolderPath);
+            _logger.LogError(ex, "Failed to generate metadata for {Path}", folderPath);
             return new MetadataGenerationResult
             {
                 Success = false,
