@@ -1242,10 +1242,10 @@
               1
             ],
             "details": "Create AuthorTable (Id INT PRIMARY KEY, CanonicalName TEXT UNIQUE, DisplayName TEXT, SourcePath TEXT). Create SeriesTable (Id INT PRIMARY KEY, CanonicalName TEXT UNIQUE, DisplayName TEXT, AuthorId INT FK, SourcePath TEXT). Update AudiobookMetadata table to add AuthorId INT FK, SeriesId INT FK, SeriesNumber INT. Use TextNormalizer (from task 12) to generate CanonicalName from DisplayName for fuzzy matching while preserving original DisplayName. Create database migration script that handles existing data population.",
-            "status": "in-progress",
+            "status": "done",
             "testStrategy": "Create database migration tests that verify: new tables created correctly, foreign keys established, existing audiobook data can be migrated to new schema, TextNormalizer correctly generates canonical names for Czech author/series names, duplicate detection by CanonicalName works.",
             "parentId": "undefined",
-            "updatedAt": "2025-11-17T09:43:37.215Z"
+            "updatedAt": "2025-11-17T09:45:54.424Z"
           },
           {
             "id": 3,
@@ -1255,9 +1255,10 @@
               2
             ],
             "details": "Create IFolderHierarchyAnalyzer interface and implementation that: 1) Walks directory tree upward from audiobook folder to identify author and series folders. 2) Detects patterns like /Author/Series/Book or /Author/Series/Number - Title. 3) Uses metadata.json presence and FilenameParser to confirm folder types. 4) Extracts series name from folder name when metadata.json absent (e.g., 'Temna vez' from folder name). 5) Returns HierarchyContext with author folder path, series folder path, series name, and confidence levels. 6) Integrates with existing FilenameParser.",
-            "status": "pending",
+            "status": "in-progress",
             "testStrategy": "Test with various folder structures: /Author/Series/Book, /Author/Book (no series), /Author/Series/01 - BookTitle. Verify extraction works with and without metadata.json files. Test with Czech folder names containing diacritics. Test edge cases: deeply nested folders, single-level structures.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-11-17T10:06:14.145Z"
           },
           {
             "id": 4,
@@ -1299,12 +1300,12 @@
             "parentId": "undefined"
           }
         ],
-        "updatedAt": "2025-11-17T09:43:37.215Z"
+        "updatedAt": "2025-11-17T10:06:14.145Z"
       }
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-11-17T09:43:37.216Z",
+      "lastModified": "2025-11-17T10:06:14.146Z",
       "taskCount": 21,
       "completedCount": 18,
       "tags": [

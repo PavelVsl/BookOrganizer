@@ -30,6 +30,7 @@ public static class ServiceCollectionExtensions
 
         // Metadata services
         services.AddSingleton<IMetadataJsonProcessor, MetadataJsonProcessor>();
+        services.AddSingleton<IFolderHierarchyAnalyzer, FolderHierarchyAnalyzer>();
         services.AddSingleton<IMetadataExtractor, MetadataExtractor>();
         services.AddSingleton<IFilenameParser, FilenameParser>();
         services.AddSingleton<IMetadataConsolidator, MetadataConsolidator>();
