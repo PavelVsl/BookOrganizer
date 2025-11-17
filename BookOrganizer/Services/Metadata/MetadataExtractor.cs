@@ -154,11 +154,15 @@ public class MetadataExtractor : IMetadataExtractor
             consolidated = ApplyOverrides(consolidated, overrideMetadata);
         }
 
-        // Final fallback: if title is still "Unknown Title", use folder name
-        if (consolidated.Title == "Unknown Title")
+        // Final fallback: if title is generic/placeholder, use folder name
+        var isGenericTitle = consolidated.Title == "Unknown Title" ||
+                            consolidated.Title == "Audiobooks" ||
+                            consolidated.Title == "Audiobook";
+
+        if (isGenericTitle)
         {
             var folderName = Path.GetFileName(audiobookFolder.Path);
-            _logger.LogInformation("Final fallback: using folder name as title: {Title}", folderName);
+            _logger.LogInformation("Title '{OldTitle}' is generic, using folder name: {Title}", consolidated.Title, folderName);
             consolidated = consolidated with { Title = folderName };
         }
 
