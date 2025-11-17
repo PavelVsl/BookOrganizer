@@ -82,6 +82,11 @@ public class PreviewCommand : Command
             aliases: ["--export-metadata"],
             description: "Export metadata.json files to source audiobook folders for editing");
 
+        var metadataSourceOption = new Option<string>(
+            aliases: ["--metadata-source"],
+            description: "Source for metadata extraction: 'mp3' (from ID3 tags) or 'folder' (from folder structure)",
+            getDefaultValue: () => "mp3");
+
         var interactiveOption = new Option<bool>(
             aliases: ["--interactive", "-i"],
             description: "Prompt to organize immediately after successful preview");
@@ -100,6 +105,7 @@ public class PreviewCommand : Command
         AddOption(duplicateThresholdOption);
         AddOption(rebuildCacheOption);
         AddOption(exportMetadataOption);
+        AddOption(metadataSourceOption);
         AddOption(interactiveOption);
 
         this.SetHandler(async (context) =>
@@ -118,6 +124,7 @@ public class PreviewCommand : Command
             var duplicateThreshold = context.ParseResult.GetValueForOption(duplicateThresholdOption);
             var rebuildCache = context.ParseResult.GetValueForOption(rebuildCacheOption);
             var exportMetadata = context.ParseResult.GetValueForOption(exportMetadataOption);
+            var metadataSource = context.ParseResult.GetValueForOption(metadataSourceOption)!;
             var interactive = context.ParseResult.GetValueForOption(interactiveOption);
 
             var exitCode = await ExecuteAsync(
@@ -125,7 +132,7 @@ public class PreviewCommand : Command
                 authorFilter, seriesFilter, maxItemsFilter,
                 compactMode, noTreeMode, verboseMode,
                 detectDuplicates, duplicateThreshold, rebuildCache,
-                exportMetadata, interactive);
+                exportMetadata, metadataSource, interactive);
 
             context.ExitCode = exitCode;
         });
@@ -146,6 +153,7 @@ public class PreviewCommand : Command
         double duplicateThreshold,
         bool rebuildCache,
         bool exportMetadata,
+        string metadataSource,
         bool interactive)
     {
         try
@@ -229,7 +237,7 @@ public class PreviewCommand : Command
             if (exportMetadata)
             {
                 AnsiConsole.WriteLine();
-                await ExportMetadataAsync(sourcePath, verbose);
+                await ExportMetadataAsync(sourcePath, metadataSource, verbose);
             }
 
             // Show summary
@@ -314,13 +322,17 @@ public class PreviewCommand : Command
     /// <summary>
     /// Exports metadata.json files to source audiobook folders.
     /// </summary>
-    private static async Task ExportMetadataAsync(string sourcePath, bool verbose)
+    private static async Task ExportMetadataAsync(string sourcePath, string metadataSource, bool verbose)
     {
         var scanner = Program.ServiceProvider.GetRequiredService<IDirectoryScanner>();
         var metadataExtractor = Program.ServiceProvider.GetRequiredService<IMetadataExtractor>();
+        var folderHierarchyAnalyzer = Program.ServiceProvider.GetRequiredService<IFolderHierarchyAnalyzer>();
+        var filenameParser = Program.ServiceProvider.GetRequiredService<IFilenameParser>();
         var logger = Program.ServiceProvider.GetRequiredService<ILogger<PreviewCommand>>();
 
-        AnsiConsole.MarkupLine("[yellow]Exporting metadata to source folders...[/]");
+        var useFolderSource = metadataSource.Equals("folder", StringComparison.OrdinalIgnoreCase);
+
+        AnsiConsole.MarkupLine($"[yellow]Exporting metadata to source folders (source: {metadataSource})...[/]");
         AnsiConsole.WriteLine();
 
         // Scan for audiobook folders
@@ -378,21 +390,44 @@ public class PreviewCommand : Command
 
                         task.Description = $"[yellow]Processing:[/] {Path.GetFileName(folder.Path)}";
 
-                        // Extract metadata
-                        var metadata = await metadataExtractor.ExtractMetadataAsync(folder, null, CancellationToken.None);
+                        MetadataOverride metadataOverride;
 
-                        // Create metadata override from extracted data
-                        var metadataOverride = new MetadataOverride
+                        if (useFolderSource)
                         {
-                            Title = metadata.Title,
-                            Author = metadata.Author,
-                            Narrator = metadata.Narrator,
-                            Series = metadata.Series,
-                            SeriesNumber = metadata.SeriesNumber,
-                            Year = metadata.Year,
-                            Genre = metadata.Genre,
-                            Description = metadata.Description
-                        };
+                            // Extract metadata from folder structure
+                            var hierarchyInfo = folderHierarchyAnalyzer.AnalyzeHierarchy(folder.Path, sourcePath);
+
+                            // Parse just the folder name for title and series number
+                            var folderName = Path.GetFileName(folder.Path);
+                            var filenameInfo = filenameParser.ParseFolderPath(folderName);
+
+                            metadataOverride = new MetadataOverride
+                            {
+                                Title = filenameInfo.Title,
+                                Author = hierarchyInfo?.Author ?? filenameInfo.Author,
+                                Series = hierarchyInfo?.Series ?? filenameInfo.Series,
+                                SeriesNumber = filenameInfo.SeriesNumber,
+                                Source = "FolderStructure"
+                            };
+                        }
+                        else
+                        {
+                            // Extract metadata from MP3 tags (default)
+                            var metadata = await metadataExtractor.ExtractMetadataAsync(folder, null, CancellationToken.None);
+
+                            metadataOverride = new MetadataOverride
+                            {
+                                Title = metadata.Title,
+                                Author = metadata.Author,
+                                Narrator = metadata.Narrator,
+                                Series = metadata.Series,
+                                SeriesNumber = metadata.SeriesNumber,
+                                Year = metadata.Year,
+                                Genre = metadata.Genre,
+                                Description = metadata.Description,
+                                Source = "MP3Tags"
+                            };
+                        }
 
                         // Serialize to JSON with UTF-8 encoding
                         var options = new JsonSerializerOptions

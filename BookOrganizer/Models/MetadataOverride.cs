@@ -55,4 +55,9 @@ public record MetadataOverride
     /// Additional notes or comments.
     /// </summary>
     public string? Notes { get; init; }
+
+    /// <summary>
+    /// Source of metadata extraction (e.g., "MP3Tags", "FolderStructure").
+    /// </summary>
+    public string? Source { get; init; }
 }
