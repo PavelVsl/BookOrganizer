@@ -6,6 +6,22 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <LangVersion>13</LangVersion>
+
+        <!-- .NET Global Tool Configuration -->
+        <PackAsTool>true</PackAsTool>
+        <ToolCommandName>bookorganizer</ToolCommandName>
+        <PackageId>BookOrganizer</PackageId>
+        <Version>1.0.0</Version>
+        <Authors>Pavel</Authors>
+        <Description>CLI tool for organizing audiobook libraries for Jellyfin with metadata extraction, duplicate detection, and Czech language support</Description>
+        <PackageTags>audiobook;jellyfin;organizer;metadata;mp3;cli;tool</PackageTags>
+        <PackageProjectUrl>https://github.com/yourusername/BookOrganizer</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/yourusername/BookOrganizer</RepositoryUrl>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+
+        <!-- Suppress nullable warnings for Release -->
+        <NoWarn>$(NoWarn);CS8604;CS8602</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>
@@ -17,6 +33,10 @@
         <PackageReference Include="Spectre.Console" Version="0.49.1" />
         <PackageReference Include="System.Text.Json" Version="9.0.0" />
         <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="../README.md" Pack="true" PackagePath="/" />
     </ItemGroup>
 
 </Project>
