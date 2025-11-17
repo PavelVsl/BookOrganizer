@@ -86,7 +86,7 @@ public class MetadataExtractor : IMetadataExtractor
         }
 
         // Get metadata from ID3 tags
-        var id3Metadata = ConsolidateMetadata(fileMetadataList);
+        var id3Metadata = ConsolidateMetadata(fileMetadataList, audiobookFolder.Path);
 
         // Get metadata from filename/folder structure
         var filenameMetadata = _filenameParser.ParseFolderPath(audiobookFolder.Path);
@@ -152,6 +152,14 @@ public class MetadataExtractor : IMetadataExtractor
         {
             _logger.LogInformation("Applying metadata.json overrides from {Path}", metadataJsonPath);
             consolidated = ApplyOverrides(consolidated, overrideMetadata);
+        }
+
+        // Final fallback: if title is still "Unknown Title", use folder name
+        if (consolidated.Title == "Unknown Title")
+        {
+            var folderName = Path.GetFileName(audiobookFolder.Path);
+            _logger.LogInformation("Final fallback: using folder name as title: {Title}", folderName);
+            consolidated = consolidated with { Title = folderName };
         }
 
         _logger.LogInformation(
@@ -266,7 +274,7 @@ public class MetadataExtractor : IMetadataExtractor
         };
     }
 
-    private BookMetadata ConsolidateMetadata(List<FileMetadata> fileMetadataList)
+    private BookMetadata ConsolidateMetadata(List<FileMetadata> fileMetadataList, string folderPath)
     {
         // Use the most common values across all files
         var title = GetMostCommonValue(fileMetadataList.Select(m => m.Album).Where(v => v != null));
@@ -277,6 +285,13 @@ public class MetadataExtractor : IMetadataExtractor
         // Year: use the most common non-zero year
         var years = fileMetadataList.Select(m => m.Year).Where(y => y > 0).ToList();
         var year = years.Count > 0 ? (uint?)GetMostCommonValue(years) : null;
+
+        // If title is missing or "Unknown Title", use folder name as fallback
+        if (string.IsNullOrWhiteSpace(title) || title == "Unknown Title")
+        {
+            title = Path.GetFileName(folderPath);
+            _logger.LogInformation("Using folder name as title: {Title}", title);
+        }
 
         // Try to extract series information from title/album
         (var series, var seriesNumber) = ExtractSeriesInfo(title);
