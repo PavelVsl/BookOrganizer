@@ -23,6 +23,7 @@ try
     rootCommand.AddCommand(new PreviewCommand());
     rootCommand.AddCommand(new OrganizeCommand());
     rootCommand.AddCommand(new ExportMetadataCommand());
+    rootCommand.AddCommand(new VerifyCommand());
 
     // Execute
     return await rootCommand.InvokeAsync(args);
