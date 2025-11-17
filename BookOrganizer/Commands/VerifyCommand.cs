@@ -36,10 +36,20 @@ public class VerifyCommand : Command
             description: "Minimum confidence for duplicate detection (0.0-1.0)",
             getDefaultValue: () => 0.7);
 
+        var generateMetadataOption = new Option<bool>(
+            aliases: ["--generate-metadata"],
+            description: "Generate missing metadata.json files from folder structure");
+
+        var forceOption = new Option<bool>(
+            aliases: ["--force"],
+            description: "Overwrite existing metadata.json files when generating");
+
         AddOption(libraryOption);
         AddOption(verboseOption);
         AddOption(checkDuplicatesOption);
         AddOption(duplicateThresholdOption);
+        AddOption(generateMetadataOption);
+        AddOption(forceOption);
 
         this.SetHandler(async (context) =>
         {
@@ -47,8 +57,11 @@ public class VerifyCommand : Command
             var verbose = context.ParseResult.GetValueForOption(verboseOption);
             var checkDuplicates = context.ParseResult.GetValueForOption(checkDuplicatesOption);
             var duplicateThreshold = context.ParseResult.GetValueForOption(duplicateThresholdOption);
+            var generateMetadata = context.ParseResult.GetValueForOption(generateMetadataOption);
+            var force = context.ParseResult.GetValueForOption(forceOption);
 
-            var exitCode = await ExecuteAsync(library, verbose, checkDuplicates, duplicateThreshold);
+            var exitCode = await ExecuteAsync(library, verbose, checkDuplicates, duplicateThreshold,
+                generateMetadata, force);
             context.ExitCode = exitCode;
         });
     }
@@ -57,13 +70,16 @@ public class VerifyCommand : Command
         string libraryPath,
         bool verbose,
         bool checkDuplicates,
-        double duplicateThreshold)
+        double duplicateThreshold,
+        bool generateMetadata,
+        bool force)
     {
         try
         {
             // Get services from DI
             var scanner = Program.ServiceProvider.GetRequiredService<IDirectoryScanner>();
             var metadataExtractor = Program.ServiceProvider.GetRequiredService<IMetadataExtractor>();
+            var metadataGenerator = Program.ServiceProvider.GetRequiredService<IMetadataGenerator>();
             var logger = Program.ServiceProvider.GetRequiredService<ILogger<VerifyCommand>>();
 
             // Validate library directory
@@ -112,6 +128,86 @@ public class VerifyCommand : Command
 
             AnsiConsole.MarkupLine("[green]Found {0} audiobook(s)[/]", totalBooks);
             AnsiConsole.WriteLine();
+
+            // Generate metadata.json files if requested
+            var metadataGenerated = 0;
+            var metadataSkipped = 0;
+            var metadataErrors = 0;
+
+            if (generateMetadata)
+            {
+                AnsiConsole.Write(new Rule("[bold yellow]Metadata Generation[/]").RuleStyle("grey"));
+                AnsiConsole.WriteLine();
+
+                await AnsiConsole.Progress()
+                    .AutoRefresh(true)
+                    .AutoClear(false)
+                    .Columns(
+                        new TaskDescriptionColumn(),
+                        new ProgressBarColumn(),
+                        new PercentageColumn(),
+                        new SpinnerColumn())
+                    .StartAsync(async ctx =>
+                    {
+                        var task = ctx.AddTask("[yellow]Generating metadata.json files...[/]", maxValue: folders.Count);
+
+                        foreach (var folder in folders)
+                        {
+                            try
+                            {
+                                var bookName = Path.GetFileName(folder.Path);
+                                task.Description = $"[yellow]Processing:[/] {bookName}";
+
+                                var result = await metadataGenerator.GenerateMetadataFromStructureAsync(
+                                    folder.Path,
+                                    libraryPath,
+                                    force,
+                                    CancellationToken.None);
+
+                                if (result.Success)
+                                {
+                                    if (result.Skipped)
+                                    {
+                                        metadataSkipped++;
+                                    }
+                                    else
+                                    {
+                                        metadataGenerated++;
+
+                                        if (verbose)
+                                        {
+                                            AnsiConsole.MarkupLine("[green]Generated:[/] {0}", result.FilePath);
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    metadataErrors++;
+
+                                    if (verbose)
+                                    {
+                                        AnsiConsole.MarkupLine("[yellow]Warning:[/] {0} - {1}",
+                                            folder.Path, result.ErrorMessage);
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                logger.LogError(ex, "Failed to generate metadata for {Path}", folder.Path);
+                                metadataErrors++;
+                            }
+
+                            task.Increment(1);
+                        }
+                    });
+
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine("[green]Metadata generation complete:[/]");
+                AnsiConsole.MarkupLine("  Generated: {0}", metadataGenerated);
+                AnsiConsole.MarkupLine("  Skipped: {0}", metadataSkipped);
+                AnsiConsole.MarkupLine("  Errors: {0}", metadataErrors);
+                AnsiConsole.WriteLine();
+            }
 
             // Note: Duplicate detection will be performed inline during verification
 

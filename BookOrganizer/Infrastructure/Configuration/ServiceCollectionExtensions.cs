@@ -35,6 +35,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IFilenameParser, FilenameParser>();
         services.AddSingleton<IMetadataConsolidator, MetadataConsolidator>();
         services.AddSingleton<IMetadataValidator, MetadataValidator>();
+        services.AddSingleton<IMetadataGenerator, FolderStructureMetadataGenerator>();
 
         // Operation services
         services.AddSingleton<IPathGenerator, PathGenerator>();
