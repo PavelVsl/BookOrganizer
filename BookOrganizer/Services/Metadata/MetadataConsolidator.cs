@@ -13,6 +13,8 @@ public class MetadataConsolidator : IMetadataConsolidator
     private readonly ITextNormalizer _textNormalizer;
 
     // Source reliability weights (higher = more reliable)
+    // Hierarchical metadata.json files have HIGHEST priority (explicit user overrides)
+    private const double HierarchicalMetadataJsonWeight = 2.0;
     private const double Id3TagsWeight = 1.0;
     private const double FilenameWeight = 0.6;
     private const double FolderStructureWeight = 0.4;
@@ -236,6 +238,7 @@ public class MetadataConsolidator : IMetadataConsolidator
     {
         return source switch
         {
+            "HierarchicalMetadataJson" => HierarchicalMetadataJsonWeight,
             "ID3Tags" => Id3TagsWeight,
             "FilenameParser" => FilenameWeight,
             _ when source.Contains("Folder", StringComparison.OrdinalIgnoreCase) => FolderStructureWeight,
