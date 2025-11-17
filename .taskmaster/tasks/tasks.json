@@ -2,7 +2,7 @@
   "master": {
     "tasks": [
       {
-        "id": 1,
+        "id": "1",
         "title": "Project setup and foundation architecture",
         "description": "Establish the core project structure, dependencies, and foundational architecture for the AudioBook Organizer CLI application",
         "details": "Update the .csproj file to include required NuGet packages: TagLib-Sharp for MP3 metadata, System.CommandLine for CLI parsing, Microsoft.Extensions.DependencyInjection for DI container, Microsoft.Extensions.Logging for structured logging, and Spectre.Console for enhanced CLI UI. Create the basic folder structure with separate projects/folders for Core (domain models), Infrastructure (file operations, metadata extraction), and CLI (command-line interface). Set up dependency injection container and logging configuration. Create base interfaces for the main services (IMetadataExtractor, IFileScanner, IOrganizer). Implement proper error handling patterns and establish coding conventions following .NET standards with nullable reference types.",
@@ -79,7 +79,7 @@
         "updatedAt": "2025-11-15T15:45:12.349Z"
       },
       {
-        "id": 2,
+        "id": "2",
         "title": "Directory scanning and MP3 file detection",
         "description": "Implement the core directory scanning functionality to recursively find and identify audiobook folders containing MP3 files",
         "details": "Create IFileScanner interface and FileScanner implementation that recursively scans directories for folders containing MP3 files. Group related MP3 files by parent directory, calculate total size and file counts per audiobook folder. Implement caching mechanism using SQLite to store scan results for faster re-analysis. Handle file system exceptions gracefully (permission errors, locked files). Support scanning multiple source directories concurrently. Create AudiobookFolder model with properties: Path, MP3Files, TotalSize, FileCount, LastModified. Implement progress reporting for long scan operations.",
@@ -162,7 +162,7 @@
         "updatedAt": "2025-11-15T15:54:48.300Z"
       },
       {
-        "id": 3,
+        "id": "3",
         "title": "MP3 metadata extraction using TagLib-Sharp",
         "description": "Implement metadata extraction from MP3 files using ID3 tags and file system information",
         "details": "Create IMetadataExtractor interface and MetadataExtractor implementation using TagLib-Sharp library. Extract standard ID3 tags: Artist, Album, Title, Genre, Year, Track Number. Handle Czech characters and diacritics correctly using UTF-8 encoding. Create MetadataInfo model with confidence scoring for each field. Implement fallback to filename parsing when ID3 tags are missing or incomplete. Add validation for extracted metadata (reasonable year ranges, non-empty required fields). Handle corrupted or unreadable MP3 files gracefully. Support extracting duration and bitrate information for quality assessment.",
@@ -247,7 +247,7 @@
         "updatedAt": "2025-11-15T15:59:43.654Z"
       },
       {
-        "id": 4,
+        "id": "4",
         "title": "Intelligent filename pattern matching for Czech audiobooks",
         "description": "Implement sophisticated pattern matching to extract metadata from folder and file names, especially for Czech audiobook naming conventions",
         "details": "Create IFilenameParser interface and FilenameParser implementation with regex patterns for common naming conventions: 'Author - Book Title', 'Book Title - Author', 'Author - Series Name 01 - Book Title', '[Author] Series (01) - Book Title'. Handle Czech author name formats ('Firstname Lastname' vs 'Lastname, Firstname'). Extract series information and book numbers when present. Implement fuzzy matching for partial matches. Create confidence scoring system based on pattern complexity and completeness. Support configurable custom patterns via configuration. Normalize extracted text (trim whitespace, fix common typos, standardize punctuation).",
@@ -333,7 +333,7 @@
         "updatedAt": "2025-11-15T16:17:34.973Z"
       },
       {
-        "id": 5,
+        "id": "5",
         "title": "Command-line interface with System.CommandLine",
         "description": "Build the main CLI application with clear command structure and user-friendly interface using System.CommandLine and Spectre.Console",
         "details": "Implement main CLI commands: 'scan' (analyze directories), 'preview' (dry-run organization), 'organize' (execute organization), 'verify' (check organized library), 'config' (manage settings). Use System.CommandLine for argument parsing with proper validation and help text. Integrate Spectre.Console for enhanced UI with progress bars, tables, and colored output. Support common flags: --dry-run, --verbose, --help, --source, --destination. Implement interactive prompts for missing required information with validation. Create non-interactive mode for scripting with proper exit codes. Add comprehensive help system with examples and command descriptions.",
@@ -416,7 +416,7 @@
         "updatedAt": "2025-11-15T16:10:17.422Z"
       },
       {
-        "id": 6,
+        "id": "6",
         "title": "Metadata consolidation and confidence scoring system",
         "description": "Implement intelligent metadata consolidation that combines information from ID3 tags, filenames, and folder structures with confidence scoring",
         "details": "Create IMetadataConsolidator interface and MetadataConsolidator implementation that combines metadata from multiple sources (ID3 tags, filename parsing, folder structure). Implement confidence scoring algorithm based on source reliability, completeness, and consistency across files in the same audiobook. Create ConsolidatedMetadata model with per-field confidence scores. Implement conflict resolution rules (prefer ID3 over filename, prefer complete information, handle inconsistencies). Add validation rules for metadata quality (valid years, reasonable author/title lengths). Support user-defined metadata validation rules via configuration.",
@@ -496,7 +496,7 @@
         "updatedAt": "2025-11-15T16:39:33.313Z"
       },
       {
-        "id": 7,
+        "id": "7",
         "title": "Folder structure generation and path sanitization",
         "description": "Implement the target folder structure generation with proper path sanitization and collision handling",
         "details": "Create IPathGenerator interface and PathGenerator implementation that generates clean folder structures: '/library/author/[series/]book'. Implement path sanitization for invalid filesystem characters, handle Windows MAX_PATH limitations. Support configurable naming templates via configuration. Handle name collisions by appending numbers or year information. Create series folder logic with proper naming: '/library/Author/Series Name/01 - Book Title/'. Support standalone books: '/library/Author/Book Title/'. Implement path validation and length checking before operations. Handle special cases like books with same title by different authors.",
@@ -575,7 +575,7 @@
         "updatedAt": "2025-11-15T16:54:20.494Z"
       },
       {
-        "id": 8,
+        "id": "8",
         "title": "File operations engine with integrity validation",
         "description": "Implement safe file copy/move operations with integrity validation, progress tracking, and rollback capability",
         "details": "Create IFileOperator interface and FileOperator implementation supporting both copy and move operations. Implement checksum validation (MD5 or SHA256) before and after operations to ensure file integrity. Create operation manifest system for rollback capability in case of failures. Implement progress reporting for long operations with cancellation support. Preserve original file timestamps and update ID3 tags with organized metadata. Handle file locking and permission errors gracefully with retry logic. Support resuming interrupted operations from manifest. Create backup system for critical operations.",
@@ -655,7 +655,7 @@
         "updatedAt": "2025-11-15T17:12:23.569Z"
       },
       {
-        "id": 9,
+        "id": "9",
         "title": "Preview mode and dry-run functionality",
         "description": "Implement comprehensive preview mode that shows all planned changes without executing them",
         "details": "Create IPreviewGenerator interface and PreviewGenerator implementation that shows source → destination mappings, metadata changes, estimated disk space requirements, and potential errors. Display organized folder structure in tree format using Spectre.Console. Highlight potential issues (name collisions, missing metadata, path length problems). Support filtering preview by operation type, author, or error status. Export preview results to file formats (JSON, CSV, text). Calculate and display operation statistics (files to move/copy, total size, estimated time). Implement preview comparison between different organization strategies.",
@@ -734,7 +734,7 @@
         "updatedAt": "2025-11-15T17:35:02.949Z"
       },
       {
-        "id": 10,
+        "id": "10",
         "title": "Configuration management and logging system",
         "description": "Implement comprehensive configuration management and structured logging system for the application",
         "details": "Create IConfigurationManager interface and ConfigurationManager implementation using JSON configuration files. Support user preferences: default paths, naming templates, metadata provider settings. Implement per-library configuration profiles for different organization strategies. Set up structured logging using Microsoft.Extensions.Logging with configurable log levels (verbose, normal, quiet). Create detailed operation logs with timestamps, source/destination paths, operation types, and errors. Generate summary reports after completion with statistics and recommendations. Support log export in multiple formats (JSON, CSV, plain text). Implement log rotation and cleanup for long-running operations.",
@@ -747,7 +747,7 @@
         "subtasks": []
       },
       {
-        "id": 11,
+        "id": "11",
         "title": "Implement FileOrganizer service and OrganizeCommand CLI with batch operations and progress tracking",
         "description": "Create a comprehensive file organization service that orchestrates the audiobook organization workflow and a corresponding CLI command with progress tracking and batch operations.",
         "details": "Enhance the IFileOrganizer interface to include batch operations for processing multiple audiobooks simultaneously with progress reporting using IProgress<T>. Implement FileOrganizer service that orchestrates the complete workflow: scanning directories using IDirectoryScanner, extracting metadata with IMetadataExtractor, consolidating metadata with IMetadataConsolidator, generating target paths with IPathGenerator, and executing file operations with IFileOperator. Add comprehensive error handling with detailed error messages, operation rollback capability in case of failures, and logging of all operations. Implement OrganizeCommand CLI command using System.CommandLine with options for --source, --destination, --operation-type (copy/move/hardlink/symlink), --dry-run, --verbose, and --force flags. Use Spectre.Console for progress bars showing current file being processed, percentage complete, files processed/total, estimated time remaining. Display operation summary including successful operations, failed operations, total files processed, total size processed, and operation duration. Handle cancellation gracefully with Ctrl+C support. Integrate with existing Result<T> pattern for error handling. Register both IFileOrganizer implementation and OrganizeCommand in Program.cs dependency injection container and command collection.",
@@ -829,7 +829,7 @@
         "updatedAt": "2025-11-15T18:24:40.052Z"
       },
       {
-        "id": 12,
+        "id": "12",
         "title": "Implement culture-aware Czech text normalization for metadata comparison",
         "description": "Add comprehensive text normalization that properly handles Czech diacritics, case variations, and encoding detection/conversion for author names, titles, and series names in both FilenameParser and MetadataConsolidator.",
         "status": "done",
@@ -914,7 +914,7 @@
         "updatedAt": "2025-11-15T18:59:30.409Z"
       },
       {
-        "id": 13,
+        "id": "13",
         "title": "Implement book deduplication detection and handling system",
         "description": "Create a comprehensive deduplication system that identifies duplicate audiobooks using normalized metadata comparison, content analysis, and user-guided resolution with caching.",
         "details": "Create a new service `IDeduplicationService` with implementation `DeduplicationService` that identifies potential duplicate audiobooks through multiple detection strategies: 1) **Normalized metadata comparison** - Use TextNormalizer from task 12 to create canonical forms of author+title for fuzzy matching, handle encoding variations and case differences. 2) **Content-based analysis** - Compare total duration by summing MP3 file lengths using TagLib-Sharp, calculate aggregate file sizes, optionally generate audio fingerprints using acoustic analysis. 3) **Structural comparison** - Analyze file count differences, folder organization patterns, detect abridged vs unabridged versions by duration ratios. Create `DuplicationCandidate` model with source/target AudiobookFolder references, confidence score (0.0-1.0), detected differences (metadata, content, structure), and resolution recommendations. Implement `IDuplicationResolver` for user interaction presenting side-by-side comparisons via Spectre.Console tables showing metadata fields, file counts, total sizes, duration estimates. Provide resolution options: keep both with version suffixes (Author/Title/Version 1), keep higher quality version based on file size/duration, skip/ignore during organization. Create `IDeduplicationCache` using SQLite to store user decisions (source path hash + normalized metadata hash → resolution choice) to prevent repeated prompts. Integrate with PreviewCommand and OrganizeCommand by adding deduplication detection phase after metadata extraction but before path generation. Add CLI flags: `--detect-duplicates` (enable detection), `--auto-resolve` (apply cached decisions), `--duplicate-threshold` (confidence threshold 0.0-1.0). Extend PreviewResult model with `PotentialDuplicates` property containing DuplicationCandidate list. Update FileOrganizer workflow to call deduplication detection and resolution before executing organization plans.",
@@ -1016,7 +1016,7 @@
         "updatedAt": "2025-11-16T08:14:17.783Z"
       },
       {
-        "id": 14,
+        "id": "14",
         "title": "Implement library metadata cache system for duplicate detection against existing library",
         "description": "Create a comprehensive caching system that stores metadata for existing organized library books to enable duplicate detection between source books and already organized library content using SQLite database storage.",
         "status": "done",
@@ -1031,7 +1031,7 @@
         "subtasks": []
       },
       {
-        "id": 15,
+        "id": "15",
         "title": "Implement in-memory library tree structure for accurate preview and path normalization",
         "description": "Create LibraryTree class that builds in-memory representation of final library structure using normalized author/title grouping and SQLite database integration to eliminate preview duplicates and path inconsistencies.",
         "status": "done",
@@ -1119,7 +1119,7 @@
         "updatedAt": "2025-11-16T09:48:47.936Z"
       },
       {
-        "id": 16,
+        "id": "16",
         "title": "Implement Google Books API metadata enrichment provider",
         "description": "Add Google Books API as a fallback metadata source to enrich audiobook metadata when ID3 tags and filename parsing provide low-confidence results",
         "details": "Add Google.Apis.Books.v1 NuGet package. Create GoogleBooksMetadataProvider service with SQLite caching (90-day TTL). Search by ISBN (preferred) or title+author (fallback). Integrate with MetadataExtractor as enrichment source when confidence < 0.7. Proper error handling with retry logic for rate limits. Czech language support with diacritics handling. Configuration for API key, thresholds, and caching. API is free with 1,000 requests/day quota. Provides: title, author, series, year, description, genre, publisher, ISBN, cover images. Cannot provide: narrator, duration (audiobook-specific).",
@@ -1129,19 +1129,95 @@
         "priority": "medium",
         "subtasks": [],
         "updatedAt": "2025-11-16T09:30:11.473Z"
+      },
+      {
+        "id": "17",
+        "title": "Add --export-metadata flag to PreviewCommand for extracting metadata during preview",
+        "description": "Implement an --export-metadata flag in PreviewCommand that exports consolidated metadata as JSON files during preview operations, enabling users to review and manually edit metadata before organization.",
+        "details": "Add a new --export-metadata flag to the PreviewCommand that works in conjunction with preview generation. When enabled, create a .bookorganizer/export directory in the destination path and write individual metadata.json files for each detected audiobook containing consolidated metadata from task 6. Each JSON file should include: display_author, display_title, display_series, year, genre, confidence_scores (per-field), sources (which sources contributed to each field), and operation_details (source_path, detected_file_count, total_duration). The export feature should integrate with the existing LibraryTree from task 15 to avoid exporting duplicates. Implement with: 1) IMetadataExporter interface with ExportMetadataAsync(previewResults, exportPath) method. 2) MetadataExporter implementation that formats consolidated metadata using System.Text.Json with custom JsonSerializerOptions for pretty-printing and proper encoding. 3) Directory creation and file write operations using proper error handling for permission issues. 4) Progress reporting via Spectre.Console to show export status. 5) Integration with PreviewCommand to conditionally call exporter based on flag. 6) Ensure Czech character support (ě, š, č, ř, ž, ý, á, í, é, ú, ů, ď, ť, ň) in JSON output with UTF-8 encoding. The exported metadata files should be easily editable by users in standard text editors, with clear field names and optional value for missing data.",
+        "testStrategy": "Test the export-metadata flag with preview operations containing mixed audiobook quality: some with complete ID3 tags, some with only filename information, and some with low confidence scores. Verify exported JSON files are valid, properly formatted, and contain all expected fields including confidence scores and source attribution. Test Czech character preservation in export by creating audiobooks with Czech author names and verifying diacritics are correctly written to and read from JSON files. Verify the export directory structure is created correctly, including .bookorganizer/export subdirectory. Test that duplicate audiobooks detected by LibraryTree are properly excluded from export. Test error handling for scenarios like permission-denied during file write, disk space issues, and invalid paths. Verify that running preview with --export-metadata multiple times correctly overwrites previous exports. Test that the exported metadata files can be successfully read back and parsed for potential future import functionality.",
+        "status": "in-progress",
+        "dependencies": [
+          "3",
+          "6",
+          "12",
+          "13",
+          "14",
+          "15"
+        ],
+        "priority": "medium",
+        "subtasks": [],
+        "updatedAt": "2025-11-17T08:08:31.974Z"
+      },
+      {
+        "id": "18",
+        "title": "Add --interactive flag to PreviewCommand for immediate organization prompt",
+        "description": "Implement an --interactive flag in PreviewCommand that automatically prompts users to organize audiobooks immediately after a successful preview with no errors, streamlining the workflow from preview to organization.",
+        "details": "Add a new boolean --interactive flag to the PreviewCommand that modifies the post-preview behavior. When enabled and preview completes successfully with zero errors reported, the application should: 1) Display a summary of what was found and would be organized. 2) Prompt the user with a yes/no question: 'Proceed with organization?' using Spectre.Console's interactive prompt. 3) If user confirms with 'yes', automatically execute the OrganizeCommand with the same source and destination paths, using the same operation mode (copy/move/hardlink/symlink) as was intended in the preview. 4) If user declines, exit gracefully with a message indicating the preview is complete but no organization was performed. Handle cases where preview has errors - the interactive prompt should not appear if any errors were detected. Implement this using a new service interface IOrganizationPromptService (or integrate into existing command services) that handles the user interaction and command chaining. Use System.CommandLine's command delegation pattern to invoke OrganizeCommand from PreviewCommand when confirmed. Ensure the interactive flag works with all other PreviewCommand flags (--export-metadata, --report-format, etc.) without conflicts. Store the user's previous choice (yes/no) in a simple preference file if needed for future runs.",
+        "testStrategy": "Create integration tests with sample audiobook directories: 1) Test preview completion with zero errors triggers the interactive prompt. 2) Verify that preview with any errors does NOT show the interactive prompt. 3) Test user selecting 'yes' in the prompt correctly invokes OrganizeCommand with same parameters (verify files are organized). 4) Test user selecting 'no' prevents organization from occurring (verify no files are moved/copied). 5) Test the flag works alongside --export-metadata, verifying metadata is exported AND organization prompt appears if preview succeeds. 6) Test with different operation modes (copy, move, hardlink, symlink) ensuring the chosen mode is preserved when auto-invoking OrganizeCommand. 7) Test non-interactive mode (flag not set) behaves as before - preview completes without prompting. 8) Test --quiet flag compatibility - ensure interactive prompts are suppressed when quiet mode is active.",
+        "status": "pending",
+        "dependencies": [
+          "11",
+          "13",
+          "14",
+          "15",
+          "17"
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": "19",
+        "title": "Implement ProcessCommand for automated complete workflow automation",
+        "description": "Create a comprehensive ProcessCommand that orchestrates the complete audiobook organization workflow: preview generation, metadata export for user editing, interactive wait for completion, re-preview validation, execution of organization, and final library verification.",
+        "details": "Implement ProcessCommand in Commands/ProcessCommand.cs that automates the entire workflow without requiring separate CLI invocations. The command should: 1) **Initialize and scan** - Use IDirectoryScanner to scan source directory and detect audiobooks. 2) **Generate initial preview** - Use IPreviewGenerator to show planned organization structure and potential issues. 3) **Export metadata for editing** - Create metadata JSON file in source directory containing all extracted metadata per audiobook, allowing user external editing in text editor or spreadsheet. Use System.Text.Json for serialization with proper formatting. 4) **Interactive wait phase** - Display message prompting user to edit metadata file, provide file path, and wait for user confirmation (with timeout option). Support --auto-wait-seconds=60 flag for non-interactive mode. 5) **Re-preview after edits** - Reload metadata from edited JSON, detect changes, and regenerate preview showing what changed. Highlight metadata modifications in output using Spectre.Console colors. 6) **Execute organization** - If user confirms, invoke IFileOrganizer to execute the actual file operations with progress tracking. Support --no-verify flag to skip final verification step. 7) **Verify library** - Use existing verification logic to validate organized library structure, checksums, and metadata consistency. Display verification report with statistics. Integrate with existing OrganizeCommand's structure and IoC container. Handle exceptions gracefully at each stage with clear error messages. Support standard flags: --source, --destination, --dry-run, --operation-type (copy/move/hardlink/symlink), --yes (skip confirmations), --quiet, --verbose. Add --metadata-export-path flag for custom export location. Log all operations to file for audit trail. Reuse IFileOrganizer, IPreviewGenerator, IMetadataExtractor, IMetadataConsolidator from completed tasks.",
+        "testStrategy": "Create integration tests covering: 1) Complete workflow from scan through verification with sample audiobook collection. 2) Metadata export/import round-trip - export metadata, modify JSON file, verify changes are detected and applied correctly. 3) Interactive wait simulation using test input/output streams. 4) Preview consistency - verify re-preview matches actual organization plan after metadata edits. 5) Error handling at each stage (invalid metadata JSON, user cancellation during wait, file operation failures). 6) Non-interactive mode with --yes and --auto-wait-seconds flags. 7) Verification results accuracy after organization. Test with Czech characters in metadata and filenames. Verify operation manifest creation for potential rollback. Test timeout behavior if user doesn't confirm within specified seconds.",
+        "status": "pending",
+        "dependencies": [
+          "2",
+          "3",
+          "6",
+          "7",
+          "8",
+          "9",
+          "11",
+          "14",
+          "15"
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": "20",
+        "title": "Implement VerifyCommand for post-organization verification",
+        "description": "Create a comprehensive VerifyCommand that validates the organized library for metadata consistency, duplicate detection, missing files, and structural issues after organization.",
+        "details": "Implement VerifyCommand in Commands/VerifyCommand.cs that performs thorough post-organization verification. The command should: 1) **Metadata consistency validation** - Use ILibraryMetadataCache and LibraryTree to verify that all organized books have consistent metadata, check for missing or malformed ID3 tags, validate author/title/series normalization across the entire library, and identify metadata inconsistencies using TextNormalizer. 2) **Duplicate detection** - Leverage IDeduplicationService from task 13 to scan the organized library for duplicates that may have been created or missed during organization, perform normalized metadata comparison and content-based analysis (duration, file sizes), and generate reports of potential duplicates. 3) **Missing files detection** - Verify physical file integrity by checking all MP3 files referenced in LibraryTree exist and are readable, validate checksums against stored values from task 8's operation manifests, detect orphaned files in the library that aren't in the metadata cache, and check for incomplete audiobooks (missing expected track numbers). 4) **Structural issues identification** - Validate folder structure against configured naming templates from task 7, check for path length violations and invalid characters, verify proper nesting of author/series/book folders, and identify naming inconsistencies or duplicated folder structures. 5) **Report generation** - Create comprehensive JSON and human-readable reports detailing all issues found, categorized by severity (error/warning/info), including repair suggestions, statistics on metadata quality, and recommendations for manual intervention. 6) **Repair capabilities** - Implement optional --repair flag for automatic fixes of fixable issues like updating inconsistent metadata, removing identified duplicates, and reorganizing misplaced files. Use IProgress<T> for progress reporting during verification of large libraries.",
+        "testStrategy": "Create integration tests with sample organized library containing: 1) Various metadata inconsistencies (missing tags, inconsistent author names, malformed metadata), 2) Known duplicate audiobooks with different folder structures, 3) Missing MP3 files and orphaned files not in cache, 4) Structural issues like invalid characters in folder names, path length violations, incorrect nesting, and naming template mismatches. Test JSON report generation with --json flag. Test --repair flag on library copies and verify fixes are applied correctly. Test with Czech character metadata to ensure proper validation. Verify performance with large library (1000+ books). Test progress reporting accuracy and cancellation during long verification operations.",
+        "status": "pending",
+        "dependencies": [
+          "2",
+          "3",
+          "6",
+          "7",
+          "8",
+          "11",
+          "12",
+          "13",
+          "14",
+          "15"
+        ],
+        "priority": "medium",
+        "subtasks": []
       }
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-11-16T09:48:47.937Z",
-      "taskCount": 16,
-      "completedCount": 14,
+      "lastModified": "2025-11-17T08:08:31.975Z",
+      "taskCount": 20,
+      "completedCount": 15,
       "tags": [
         "master"
-      ],
-      "created": "2025-11-16T10:14:07.442Z",
-      "description": "Tasks for master context",
-      "updated": "2025-11-16T10:14:49.793Z"
+      ]
     }
   }
 }

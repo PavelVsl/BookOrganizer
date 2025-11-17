@@ -1,9 +1,12 @@
 using BookOrganizer.Models;
 using BookOrganizer.Services.Preview;
+using BookOrganizer.Services.Metadata;
+using BookOrganizer.Services.Scanning;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
 using System.CommandLine;
+using System.Text.Json;
 
 namespace BookOrganizer.Commands;
 
@@ -74,6 +77,10 @@ public class PreviewCommand : Command
             aliases: ["--rebuild-cache"],
             description: "Force rebuild of library metadata cache");
 
+        var exportMetadataOption = new Option<bool>(
+            aliases: ["--export-metadata"],
+            description: "Export metadata.json files to source audiobook folders for editing");
+
         AddOption(sourceOption);
         AddOption(destinationOption);
         AddOption(operationOption);
@@ -87,6 +94,7 @@ public class PreviewCommand : Command
         AddOption(detectDuplicatesOption);
         AddOption(duplicateThresholdOption);
         AddOption(rebuildCacheOption);
+        AddOption(exportMetadataOption);
 
         this.SetHandler(async (context) =>
         {
@@ -103,12 +111,14 @@ public class PreviewCommand : Command
             var detectDuplicates = context.ParseResult.GetValueForOption(detectDuplicatesOption);
             var duplicateThreshold = context.ParseResult.GetValueForOption(duplicateThresholdOption);
             var rebuildCache = context.ParseResult.GetValueForOption(rebuildCacheOption);
+            var exportMetadata = context.ParseResult.GetValueForOption(exportMetadataOption);
 
             var exitCode = await ExecuteAsync(
                 source, destination, operation, export,
                 authorFilter, seriesFilter, maxItemsFilter,
                 compactMode, noTreeMode, verboseMode,
-                detectDuplicates, duplicateThreshold, rebuildCache);
+                detectDuplicates, duplicateThreshold, rebuildCache,
+                exportMetadata);
 
             context.ExitCode = exitCode;
         });
@@ -127,7 +137,8 @@ public class PreviewCommand : Command
         bool verbose,
         bool detectDuplicates,
         double duplicateThreshold,
-        bool rebuildCache)
+        bool rebuildCache,
+        bool exportMetadata)
     {
         try
         {
@@ -206,6 +217,13 @@ public class PreviewCommand : Command
                 AnsiConsole.MarkupLine("[green]✓[/] Preview exported to: {0}", exportPath);
             }
 
+            // Export metadata if requested
+            if (exportMetadata)
+            {
+                AnsiConsole.WriteLine();
+                await ExportMetadataAsync(sourcePath, verbose);
+            }
+
             // Show summary
             AnsiConsole.WriteLine();
             var hasErrors = preview.Statistics.IssueCounts[IssueSeverity.Error] > 0;
@@ -254,5 +272,145 @@ public class PreviewCommand : Command
             ".txt" => ExportFormat.Text,
             _ => ExportFormat.Text // Default to text
         };
+    }
+
+    /// <summary>
+    /// Exports metadata.json files to source audiobook folders.
+    /// </summary>
+    private static async Task ExportMetadataAsync(string sourcePath, bool verbose)
+    {
+        var scanner = Program.ServiceProvider.GetRequiredService<IDirectoryScanner>();
+        var metadataExtractor = Program.ServiceProvider.GetRequiredService<IMetadataExtractor>();
+        var logger = Program.ServiceProvider.GetRequiredService<ILogger<PreviewCommand>>();
+
+        AnsiConsole.MarkupLine("[yellow]Exporting metadata to source folders...[/]");
+        AnsiConsole.WriteLine();
+
+        // Scan for audiobook folders
+        var folders = await AnsiConsole.Status()
+            .StartAsync("[yellow]Scanning directories...[/]", async ctx =>
+            {
+                ctx.Spinner(Spinner.Known.Dots);
+                ctx.SpinnerStyle(Style.Parse("yellow"));
+
+                var progress = new Progress<ScanProgress>(p =>
+                {
+                    ctx.Status($"[yellow]Scanning:[/] {p.CurrentDirectory ?? "..."}");
+                });
+
+                return await scanner.ScanDirectoryAsync(sourcePath, progress, CancellationToken.None);
+            });
+
+        if (folders.Count == 0)
+        {
+            AnsiConsole.MarkupLine("[yellow]No audiobook folders found.[/]");
+            return;
+        }
+
+        // Extract and export metadata
+        var exportedCount = 0;
+        var skippedCount = 0;
+        var errorCount = 0;
+
+        await AnsiConsole.Progress()
+            .AutoRefresh(true)
+            .AutoClear(false)
+            .Columns(
+                new TaskDescriptionColumn(),
+                new ProgressBarColumn(),
+                new PercentageColumn(),
+                new SpinnerColumn())
+            .StartAsync(async ctx =>
+            {
+                var task = ctx.AddTask("[yellow]Exporting metadata...[/]", maxValue: folders.Count);
+
+                foreach (var folder in folders)
+                {
+                    try
+                    {
+                        var metadataFilePath = Path.Combine(folder.Path, "metadata.json");
+
+                        // Skip if file exists (no force option in preview)
+                        if (File.Exists(metadataFilePath))
+                        {
+                            skippedCount++;
+                            task.Description = $"[dim]Skipped:[/] {Path.GetFileName(folder.Path)}";
+                            task.Increment(1);
+                            continue;
+                        }
+
+                        task.Description = $"[yellow]Processing:[/] {Path.GetFileName(folder.Path)}";
+
+                        // Extract metadata
+                        var metadata = await metadataExtractor.ExtractMetadataAsync(folder, CancellationToken.None);
+
+                        // Create metadata override from extracted data
+                        var metadataOverride = new MetadataOverride
+                        {
+                            Title = metadata.Title,
+                            Author = metadata.Author,
+                            Narrator = metadata.Narrator,
+                            Series = metadata.Series,
+                            SeriesNumber = metadata.SeriesNumber,
+                            Year = metadata.Year,
+                            Genre = metadata.Genre,
+                            Description = metadata.Description
+                        };
+
+                        // Serialize to JSON with UTF-8 encoding
+                        var options = new JsonSerializerOptions
+                        {
+                            WriteIndented = true,
+                            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                        };
+
+                        var json = JsonSerializer.Serialize(metadataOverride, options);
+
+                        // Write to file
+                        await File.WriteAllTextAsync(metadataFilePath, json);
+
+                        exportedCount++;
+
+                        if (verbose)
+                        {
+                            AnsiConsole.MarkupLine(
+                                "[green]✓[/] Exported: [dim]{0}[/]",
+                                metadataFilePath);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        errorCount++;
+                        logger.LogError(ex, "Failed to export metadata for {Path}", folder.Path);
+
+                        if (verbose)
+                        {
+                            AnsiConsole.MarkupLine(
+                                "[red]✗[/] Error: [dim]{0}[/] - {1}",
+                                folder.Path,
+                                ex.Message);
+                        }
+                    }
+
+                    task.Increment(1);
+                }
+            });
+
+        // Display summary
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("[green]✓[/] Metadata export complete:");
+        AnsiConsole.MarkupLine("  [green]Exported:[/] {0}", exportedCount);
+        AnsiConsole.MarkupLine("  [dim]Skipped:[/] {0} (files already exist)", skippedCount);
+        if (errorCount > 0)
+        {
+            AnsiConsole.MarkupLine("  [red]Errors:[/] {0}", errorCount);
+        }
+        AnsiConsole.WriteLine();
+
+        if (exportedCount > 0 || skippedCount > 0)
+        {
+            AnsiConsole.MarkupLine("[dim]Tip: Edit the metadata.json files, then run preview again to see changes[/]");
+        }
     }
 }
