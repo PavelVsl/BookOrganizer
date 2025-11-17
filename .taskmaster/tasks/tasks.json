@@ -1215,7 +1215,7 @@
         "description": "Add support for metadata.json files at author and series folder levels that cascade metadata to child audiobooks. Implement normalized author and series tables in database with parent folder structure detection.",
         "details": "Create a hierarchical metadata system that processes metadata.json files at multiple folder levels:\n\n1. **Metadata.json schema and processing** - Define metadata.json schema supporting Author, Series, SeriesNumber fields at different hierarchy levels. Create IMetadataJsonProcessor service that: discovers and parses metadata.json files recursively from root to audiobook folder, merges metadata with cascading priority (audiobook-level > series-level > author-level > extracted metadata), validates JSON structure with proper error handling.\n\n2. **Database schema enhancements** - Add normalized tables to SQLite: AuthorTable (Id, CanonicalName, DisplayName, SourcePath), SeriesTable (Id, CanonicalName, DisplayName, AuthorId, SourcePath). Update AudiobookMetadata table with foreign keys: AuthorId, SeriesId, SeriesNumber. Use TextNormalizer (task 12) to generate CanonicalName for fuzzy matching while preserving original DisplayName.\n\n3. **Folder structure analysis** - Enhance FilenameParser to detect series from parent folder patterns: /Author/Series/Book, /Author/Series/Number - Title. Implement IFolderHierarchyAnalyzer that walks up directory tree, identifies author and series folders by structure and metadata.json presence, extracts series name from folder name when metadata.json absent.\n\n4. **Metadata cascading logic** - In MetadataConsolidator, implement cascading: Author field cascades from author-level metadata.json (e.g., /King Stephen/metadata.json sets Author='Stephen King'). Series and SeriesNumber cascade from series-level metadata.json (e.g., /King Stephen/Temna vez/metadata.json sets Series='Temna vez'). Book-level metadata.json can override any cascaded value. FilenameParser provides fallback when metadata.json missing.\n\n5. **Example metadata.json files** - Author-level (/audiobooks/King Stephen/metadata.json): {\"Author\": \"Stephen King\"}. Series-level (/audiobooks/King Stephen/Temna vez/metadata.json): {\"Series\": \"Temna vez\", \"Author\": \"Stephen King\"}. Book-level can override: {\"SeriesNumber\": 1, \"Title\": \"Pistolník\"}.\n\n6. **Cache updates** - Update ILibraryMetadataCache to store normalized author/series IDs alongside metadata. Ensure deduplication uses normalized tables for matching.\n\n7. **Czech language support** - Use TextNormalizer for all author/series name comparisons. Support Czech series names with proper diacritics handling (Temna vez vs Temná věž).",
         "testStrategy": "Create test folder structure mimicking Czech audiobook library: 1) /King Stephen/Temna vez/1 - Pistolník with series-level metadata.json defining series name, verify series extracted correctly. 2) Author-level metadata.json at /King Stephen/ defining author, verify cascading to all books. 3) Nested structure with override: book-level metadata.json overriding series-level values. 4) Missing metadata.json scenarios where FilenameParser provides fallback. 5) Database verification: check AuthorTable and SeriesTable populated with canonical and display names, verify foreign key relationships in AudiobookMetadata. 6) Czech character handling: test series names with diacritics (Temná věž, Pustina), verify TextNormalizer integration for matching. 7) Integration test with MetadataConsolidator ensuring cascaded metadata appears in final AudiobookMetadata. 8) Verify preview command shows hierarchical metadata sources in output.",
-        "status": "in-progress",
+        "status": "done",
         "dependencies": [
           "3",
           "6",
@@ -1269,10 +1269,10 @@
               3
             ],
             "details": "Enhance MetadataConsolidator.ConsolidateMetadata() to: 1) Use IFolderHierarchyAnalyzer to determine author/series folder context. 2) Load metadata.json files at each hierarchy level using IMetadataJsonProcessor. 3) Apply cascading: book-level metadata.json values override series-level, series-level override author-level, author-level overrides extracted metadata. 4) For Author field: cascade from author-level metadata.json (e.g., /King Stephen/metadata.json sets Author='Stephen King'). 5) For Series and SeriesNumber: cascade from series-level metadata.json (e.g., /King Stephen/Temna vez/metadata.json sets Series='Temna vez'). 6) Fall back to FilenameParser results when metadata.json values absent. 7) Track metadata source for debugging and conflict resolution.",
-            "status": "in-progress",
+            "status": "done",
             "testStrategy": "Create test scenarios: author-level metadata affects all books in author folder, series-level metadata affects series books only, book-level metadata overrides all, missing metadata.json uses FilenameParser fallback. Test with Czech author/series names. Test conflict resolution when metadata.json conflicts with FilenameParser.",
             "parentId": "undefined",
-            "updatedAt": "2025-11-17T10:07:47.359Z"
+            "updatedAt": "2025-11-17T10:11:24.076Z"
           },
           {
             "id": 5,
@@ -1283,9 +1283,10 @@
               4
             ],
             "details": "Create example files: 1) /audiobooks/King Stephen/metadata.json: {\"Author\": \"Stephen King\"}. 2) /audiobooks/King Stephen/Temna vez/metadata.json: {\"Series\": \"Temna vez\", \"Author\": \"Stephen King\"}. 3) /audiobooks/King Stephen/Temna vez/1 - Pistolník/metadata.json: {\"SeriesNumber\": 1, \"Title\": \"Pistolník\"}. Add documentation explaining: hierarchy levels, cascading priority, optional fields at each level, how to use metadata.json to override folder-based detection. Include README section with step-by-step examples of setting up Czech audiobook library with hierarchical metadata.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Verify example files parse correctly and cascade as documented. Test that documentation examples match actual implementation behavior. Create integration tests using example files.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-11-17T10:11:39.075Z"
           },
           {
             "id": 6,
@@ -1296,19 +1297,20 @@
               4
             ],
             "details": "Enhance ILibraryMetadataCache: 1) Store AuthorId and SeriesId references in cached metadata. 2) Implement cache lookup by CanonicalName (normalized author/series name) to detect duplicates across different DisplayName variations. 3) Update cache invalidation logic when new authors/series are normalized. 4) Implement deduplication matching that uses TextNormalizer to compare canonical forms, handling Czech diacritics variations (Temná věž vs Temna vez vs TEMNA VEZ). 5) Cache results of metadata cascading to avoid re-processing identical folder hierarchies. 6) Implement cache statistics for performance monitoring.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test cache lookups find duplicates with different author name variations (František vs Frantisek). Test Czech diacritics handling (Temná věž variations). Test cache invalidation when new hierarchy detected. Test performance with large library (thousands of books). Verify cache prevents redundant processing of identical hierarchies.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-11-17T10:11:40.644Z"
           }
         ],
-        "updatedAt": "2025-11-17T10:07:47.359Z"
+        "updatedAt": "2025-11-17T10:11:40.644Z"
       }
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-11-17T10:07:47.361Z",
+      "lastModified": "2025-11-17T10:11:40.645Z",
       "taskCount": 21,
-      "completedCount": 18,
+      "completedCount": 19,
       "tags": [
         "master"
       ]
