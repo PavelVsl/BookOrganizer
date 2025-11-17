@@ -1,4 +1,4 @@
-# BookOrganizer - Claude Code Instructions
+no# BookOrganizer - Claude Code Instructions
 
 ## Project Overview
 AudioBook Organizer is a .NET 9 console application for organizing and structuring a personal audiobook library. The tool analyzes unorganized audiobook folders, extracts metadata, and reorganizes them into a clean, consistent structure.

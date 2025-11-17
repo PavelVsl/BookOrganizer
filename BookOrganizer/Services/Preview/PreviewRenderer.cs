@@ -320,14 +320,13 @@ public class PreviewRenderer : IPreviewRenderer
         // Show paths if requested
         if (options.ShowFullPaths)
         {
-            var sourcePath = options.CompactMode
-                ? Path.GetFileName(op.SourcePath)
-                : op.SourcePath;
+            // Always show full source path for easy problem identification
+            var sourcePath = op.SourcePath;
             var destPath = options.CompactMode
                 ? Path.GetFileName(op.DestinationPath)
                 : op.DestinationPath;
 
-            bookNode.AddNode($"[dim]From:[/] {Markup.Escape(sourcePath)}");
+            bookNode.AddNode($"[dim]Source:[/] {Markup.Escape(sourcePath)}");
             bookNode.AddNode($"[dim]To:[/] {Markup.Escape(destPath)}");
         }
     }
