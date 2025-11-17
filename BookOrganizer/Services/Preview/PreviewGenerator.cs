@@ -77,9 +77,10 @@ public class PreviewGenerator : IPreviewGenerator
 
         foreach (var audiobook in audiobooks)
         {
-            // Extract and consolidate metadata
+            // Extract and consolidate metadata (with hierarchical support)
             var metadata = await _metadataExtractor.ExtractMetadataAsync(
                 audiobook,
+                sourcePath, // Enable hierarchical metadata detection
                 cancellationToken).ConfigureAwait(false);
 
             // Generate target path

@@ -379,7 +379,7 @@ public class PreviewCommand : Command
                         task.Description = $"[yellow]Processing:[/] {Path.GetFileName(folder.Path)}";
 
                         // Extract metadata
-                        var metadata = await metadataExtractor.ExtractMetadataAsync(folder, CancellationToken.None);
+                        var metadata = await metadataExtractor.ExtractMetadataAsync(folder, null, CancellationToken.None);
 
                         // Create metadata override from extracted data
                         var metadataOverride = new MetadataOverride

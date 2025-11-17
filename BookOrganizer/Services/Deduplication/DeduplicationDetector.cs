@@ -284,7 +284,7 @@ public class DeduplicationDetector : IDeduplicationDetector
             // Populate database with library books
             foreach (var folder in libraryFolders)
             {
-                var metadata = await _metadataExtractor.ExtractMetadataAsync(folder, cancellationToken).ConfigureAwait(false);
+                var metadata = await _metadataExtractor.ExtractMetadataAsync(folder, null, cancellationToken).ConfigureAwait(false);
                 var normalizedAuthor = _textNormalizer.NormalizeForComparison(metadata.Author);
                 var normalizedTitle = _textNormalizer.NormalizeForComparison(metadata.Title);
                 var normalizedSeries = !string.IsNullOrEmpty(metadata.Series)

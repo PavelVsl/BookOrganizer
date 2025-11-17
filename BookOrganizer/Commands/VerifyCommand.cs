@@ -154,7 +154,7 @@ public class VerifyCommand : Command
                             }
 
                             // Check 2: Verify metadata
-                            var metadata = await metadataExtractor.ExtractMetadataAsync(folder, CancellationToken.None);
+                            var metadata = await metadataExtractor.ExtractMetadataAsync(folder, null, CancellationToken.None);
 
                             if (string.IsNullOrWhiteSpace(metadata.Title))
                             {
@@ -240,7 +240,7 @@ public class VerifyCommand : Command
                         for (int i = 0; i < folders.Count; i++)
                         {
                             var folder = folders[i];
-                            var metadata = await metadataExtractor.ExtractMetadataAsync(folder, CancellationToken.None);
+                            var metadata = await metadataExtractor.ExtractMetadataAsync(folder, null, CancellationToken.None);
 
                             // Create a normalized key for duplicate detection
                             var normalizedAuthor = NormalizeForComparison(metadata.Author ?? "");

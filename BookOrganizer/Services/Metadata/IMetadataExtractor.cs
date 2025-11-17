@@ -12,9 +12,11 @@ public interface IMetadataExtractor
     /// Analyzes all audio files and consolidates metadata.
     /// </summary>
     /// <param name="audiobookFolder">The audiobook folder to analyze.</param>
+    /// <param name="sourceRootPath">Optional source root path for hierarchical metadata detection.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Consolidated book metadata with confidence score.</returns>
     Task<BookMetadata> ExtractMetadataAsync(
         AudiobookFolder audiobookFolder,
+        string? sourceRootPath = null,
         CancellationToken cancellationToken = default);
 }

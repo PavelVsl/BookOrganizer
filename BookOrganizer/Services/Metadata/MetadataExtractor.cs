@@ -15,20 +15,27 @@ public class MetadataExtractor : IMetadataExtractor
     private readonly ILogger<MetadataExtractor> _logger;
     private readonly IFilenameParser _filenameParser;
     private readonly IMetadataConsolidator _consolidator;
+    private readonly IMetadataJsonProcessor _metadataJsonProcessor;
+    private readonly IFolderHierarchyAnalyzer _folderHierarchyAnalyzer;
 
     public MetadataExtractor(
         ILogger<MetadataExtractor> logger,
         IFilenameParser filenameParser,
-        IMetadataConsolidator consolidator)
+        IMetadataConsolidator consolidator,
+        IMetadataJsonProcessor metadataJsonProcessor,
+        IFolderHierarchyAnalyzer folderHierarchyAnalyzer)
     {
         _logger = logger;
         _filenameParser = filenameParser;
         _consolidator = consolidator;
+        _metadataJsonProcessor = metadataJsonProcessor;
+        _folderHierarchyAnalyzer = folderHierarchyAnalyzer;
     }
 
     /// <inheritdoc />
     public async Task<BookMetadata> ExtractMetadataAsync(
         AudiobookFolder audiobookFolder,
+        string? sourceRootPath = null,
         CancellationToken cancellationToken = default)
     {
         if (audiobookFolder.AudioFiles.Count == 0)
@@ -43,7 +50,17 @@ public class MetadataExtractor : IMetadataExtractor
             audiobookFolder.AudioFiles.Count,
             audiobookFolder.Path);
 
-        // Check for metadata.json override file first
+        // Load hierarchical metadata from parent folders (if sourceRoot provided)
+        HierarchicalMetadata? hierarchicalMetadata = null;
+        if (!string.IsNullOrWhiteSpace(sourceRootPath))
+        {
+            hierarchicalMetadata = await _metadataJsonProcessor.LoadHierarchicalMetadataAsync(
+                audiobookFolder.Path,
+                sourceRootPath,
+                cancellationToken);
+        }
+
+        // Check for metadata.json override file first (immediate folder)
         var metadataJsonPath = Path.Combine(audiobookFolder.Path, "metadata.json");
         var overrideMetadata = await LoadMetadataOverrideAsync(metadataJsonPath, cancellationToken);
 
@@ -74,13 +91,64 @@ public class MetadataExtractor : IMetadataExtractor
         // Get metadata from filename/folder structure
         var filenameMetadata = _filenameParser.ParseFolderPath(audiobookFolder.Path);
 
+        // Get metadata from folder hierarchy (if sourceRoot provided)
+        BookMetadata? folderHierarchyMetadata = null;
+        if (!string.IsNullOrWhiteSpace(sourceRootPath))
+        {
+            var hierarchyInfo = _folderHierarchyAnalyzer.AnalyzeHierarchy(audiobookFolder.Path, sourceRootPath);
+            if (hierarchyInfo != null)
+            {
+                folderHierarchyMetadata = new BookMetadata
+                {
+                    Title = string.Empty, // Not provided by folder hierarchy
+                    Source = "FolderHierarchy",
+                    Author = hierarchyInfo.Author,
+                    Series = hierarchyInfo.Series,
+                    Confidence = hierarchyInfo.Confidence
+                };
+
+                _logger.LogDebug(
+                    "Folder hierarchy detected: Author={Author}, Series={Series}, Confidence={Confidence:F2}",
+                    hierarchyInfo.Author, hierarchyInfo.Series, hierarchyInfo.Confidence);
+            }
+        }
+
+        // Get hierarchical metadata from metadata.json files (highest priority for Author/Series)
+        BookMetadata? hierarchicalJsonMetadata = null;
+        if (hierarchicalMetadata != null)
+        {
+            var effectiveMetadata = hierarchicalMetadata.GetEffectiveMetadata();
+            hierarchicalJsonMetadata = new BookMetadata
+            {
+                Title = effectiveMetadata.Title ?? string.Empty,
+                Source = "HierarchicalMetadataJson",
+                Author = effectiveMetadata.Author,
+                Series = effectiveMetadata.Series,
+                SeriesNumber = effectiveMetadata.SeriesNumber,
+                Narrator = effectiveMetadata.Narrator,
+                Year = effectiveMetadata.Year,
+                Genre = effectiveMetadata.Genre,
+                Description = effectiveMetadata.Description,
+                Confidence = 0.95 // High confidence for explicit metadata.json
+            };
+
+            _logger.LogInformation(
+                "Hierarchical metadata loaded: Author={Author}, Series={Series}",
+                effectiveMetadata.Author, effectiveMetadata.Series);
+        }
+
         // Consolidate metadata from multiple sources
-        var metadataSources = new[] { id3Metadata, filenameMetadata };
+        // Priority: hierarchical metadata.json > folder hierarchy > ID3 > filename
+        var metadataSources = new[] { hierarchicalJsonMetadata, folderHierarchyMetadata, id3Metadata, filenameMetadata }
+            .Where(m => m != null)
+            .Cast<BookMetadata>()
+            .ToArray();
+
         var consolidatedResult = await _consolidator.ConsolidateAsync(metadataSources, cancellationToken);
         var consolidated = consolidatedResult.ToBookMetadata();
 
-        // Apply metadata.json overrides if present
-        if (overrideMetadata != null)
+        // Apply metadata.json overrides if present (immediate folder only - already handled by hierarchical)
+        if (overrideMetadata != null && hierarchicalMetadata == null)
         {
             _logger.LogInformation("Applying metadata.json overrides from {Path}", metadataJsonPath);
             consolidated = ApplyOverrides(consolidated, overrideMetadata);

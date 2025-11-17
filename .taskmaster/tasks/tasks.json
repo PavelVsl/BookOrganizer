@@ -1255,10 +1255,10 @@
               2
             ],
             "details": "Create IFolderHierarchyAnalyzer interface and implementation that: 1) Walks directory tree upward from audiobook folder to identify author and series folders. 2) Detects patterns like /Author/Series/Book or /Author/Series/Number - Title. 3) Uses metadata.json presence and FilenameParser to confirm folder types. 4) Extracts series name from folder name when metadata.json absent (e.g., 'Temna vez' from folder name). 5) Returns HierarchyContext with author folder path, series folder path, series name, and confidence levels. 6) Integrates with existing FilenameParser.",
-            "status": "in-progress",
+            "status": "done",
             "testStrategy": "Test with various folder structures: /Author/Series/Book, /Author/Book (no series), /Author/Series/01 - BookTitle. Verify extraction works with and without metadata.json files. Test with Czech folder names containing diacritics. Test edge cases: deeply nested folders, single-level structures.",
             "parentId": "undefined",
-            "updatedAt": "2025-11-17T10:06:14.145Z"
+            "updatedAt": "2025-11-17T10:07:34.985Z"
           },
           {
             "id": 4,
@@ -1269,9 +1269,10 @@
               3
             ],
             "details": "Enhance MetadataConsolidator.ConsolidateMetadata() to: 1) Use IFolderHierarchyAnalyzer to determine author/series folder context. 2) Load metadata.json files at each hierarchy level using IMetadataJsonProcessor. 3) Apply cascading: book-level metadata.json values override series-level, series-level override author-level, author-level overrides extracted metadata. 4) For Author field: cascade from author-level metadata.json (e.g., /King Stephen/metadata.json sets Author='Stephen King'). 5) For Series and SeriesNumber: cascade from series-level metadata.json (e.g., /King Stephen/Temna vez/metadata.json sets Series='Temna vez'). 6) Fall back to FilenameParser results when metadata.json values absent. 7) Track metadata source for debugging and conflict resolution.",
-            "status": "pending",
+            "status": "in-progress",
             "testStrategy": "Create test scenarios: author-level metadata affects all books in author folder, series-level metadata affects series books only, book-level metadata overrides all, missing metadata.json uses FilenameParser fallback. Test with Czech author/series names. Test conflict resolution when metadata.json conflicts with FilenameParser.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-11-17T10:07:47.359Z"
           },
           {
             "id": 5,
@@ -1300,12 +1301,12 @@
             "parentId": "undefined"
           }
         ],
-        "updatedAt": "2025-11-17T10:06:14.145Z"
+        "updatedAt": "2025-11-17T10:07:47.359Z"
       }
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-11-17T10:06:14.146Z",
+      "lastModified": "2025-11-17T10:07:47.361Z",
       "taskCount": 21,
       "completedCount": 18,
       "tags": [

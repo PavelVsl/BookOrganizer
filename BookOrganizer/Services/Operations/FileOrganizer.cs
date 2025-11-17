@@ -72,7 +72,7 @@ public class FileOrganizer : IFileOrganizer
             foreach (var audiobook in audiobooks)
             {
                 // Extract metadata
-                var metadata = await _metadataExtractor.ExtractMetadataAsync(audiobook, cancellationToken)
+                var metadata = await _metadataExtractor.ExtractMetadataAsync(audiobook, null, cancellationToken)
                     .ConfigureAwait(false);
 
                 // Generate target path
