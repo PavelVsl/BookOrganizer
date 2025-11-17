@@ -2,6 +2,7 @@ using BookOrganizer.Models;
 using BookOrganizer.Services.Preview;
 using BookOrganizer.Services.Metadata;
 using BookOrganizer.Services.Scanning;
+using BookOrganizer.Services.Operations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
@@ -81,6 +82,10 @@ public class PreviewCommand : Command
             aliases: ["--export-metadata"],
             description: "Export metadata.json files to source audiobook folders for editing");
 
+        var interactiveOption = new Option<bool>(
+            aliases: ["--interactive", "-i"],
+            description: "Prompt to organize immediately after successful preview");
+
         AddOption(sourceOption);
         AddOption(destinationOption);
         AddOption(operationOption);
@@ -95,6 +100,7 @@ public class PreviewCommand : Command
         AddOption(duplicateThresholdOption);
         AddOption(rebuildCacheOption);
         AddOption(exportMetadataOption);
+        AddOption(interactiveOption);
 
         this.SetHandler(async (context) =>
         {
@@ -112,13 +118,14 @@ public class PreviewCommand : Command
             var duplicateThreshold = context.ParseResult.GetValueForOption(duplicateThresholdOption);
             var rebuildCache = context.ParseResult.GetValueForOption(rebuildCacheOption);
             var exportMetadata = context.ParseResult.GetValueForOption(exportMetadataOption);
+            var interactive = context.ParseResult.GetValueForOption(interactiveOption);
 
             var exitCode = await ExecuteAsync(
                 source, destination, operation, export,
                 authorFilter, seriesFilter, maxItemsFilter,
                 compactMode, noTreeMode, verboseMode,
                 detectDuplicates, duplicateThreshold, rebuildCache,
-                exportMetadata);
+                exportMetadata, interactive);
 
             context.ExitCode = exitCode;
         });
@@ -138,7 +145,8 @@ public class PreviewCommand : Command
         bool detectDuplicates,
         double duplicateThreshold,
         bool rebuildCache,
-        bool exportMetadata)
+        bool exportMetadata,
+        bool interactive)
     {
         try
         {
@@ -244,6 +252,35 @@ public class PreviewCommand : Command
             else
             {
                 AnsiConsole.MarkupLine("[green]✓ No issues detected - ready to organize![/]");
+            }
+
+            // Interactive mode - prompt to organize if no errors
+            if (interactive && !hasErrors && preview.Operations.Count > 0)
+            {
+                AnsiConsole.WriteLine();
+
+                if (AnsiConsole.Confirm("[bold]Do you want to organize these audiobooks now?[/]", defaultValue: false))
+                {
+                    AnsiConsole.WriteLine();
+                    AnsiConsole.MarkupLine("[green]Starting organization...[/]");
+                    AnsiConsole.WriteLine();
+
+                    // Execute organization
+                    var exitCode = await ExecuteOrganizeAsync(
+                        sourcePath,
+                        destinationPath,
+                        opType,
+                        validateIntegrity: true,
+                        verbose,
+                        detectDuplicates,
+                        duplicateThreshold);
+
+                    return exitCode;
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine("[yellow]Organization skipped.[/]");
+                }
             }
 
             return hasErrors ? 2 : 0; // Return 2 if errors, 0 if no errors
@@ -411,6 +448,137 @@ public class PreviewCommand : Command
         if (exportedCount > 0 || skippedCount > 0)
         {
             AnsiConsole.MarkupLine("[dim]Tip: Edit the metadata.json files, then run preview again to see changes[/]");
+        }
+    }
+
+    /// <summary>
+    /// Executes organization operation.
+    /// </summary>
+    private static async Task<int> ExecuteOrganizeAsync(
+        string sourcePath,
+        string destinationPath,
+        FileOperationType operationType,
+        bool validateIntegrity,
+        bool verbose,
+        bool detectDuplicates,
+        double duplicateThreshold)
+    {
+        try
+        {
+            var organizer = Program.ServiceProvider.GetRequiredService<IFileOrganizer>();
+            var logger = Program.ServiceProvider.GetRequiredService<ILogger<PreviewCommand>>();
+
+            // Execute organization with progress
+            OrganizationResult? result = null;
+
+            await AnsiConsole.Progress()
+                .AutoRefresh(true)
+                .AutoClear(false)
+                .HideCompleted(false)
+                .Columns(
+                    new TaskDescriptionColumn(),
+                    new ProgressBarColumn(),
+                    new PercentageColumn(),
+                    new RemainingTimeColumn(),
+                    new SpinnerColumn())
+                .StartAsync(async ctx =>
+                {
+                    var overallTask = ctx.AddTask("[yellow]Organizing audiobooks...[/]", maxValue: 100);
+                    var currentTask = ctx.AddTask("[grey]Preparing...[/]", maxValue: 100);
+
+                    var progress = new Progress<OrganizationProgress>(p =>
+                    {
+                        // Update overall progress
+                        overallTask.Value = p.PercentComplete * 100;
+                        overallTask.Description = $"[yellow]Organizing:[/] {p.AudiobooksCompleted}/{p.TotalAudiobooks} audiobooks";
+
+                        // Update current operation
+                        if (!string.IsNullOrEmpty(p.CurrentAudiobook))
+                        {
+                            currentTask.Description = $"[cyan]{p.CurrentAudiobook}[/]";
+                        }
+
+                        if (!string.IsNullOrEmpty(p.CurrentFile))
+                        {
+                            var fileName = Path.GetFileName(p.CurrentFile);
+                            currentTask.Description = $"[dim]{fileName}[/]";
+                        }
+
+                        // Update file progress within current audiobook
+                        if (p.TotalFiles > 0)
+                        {
+                            var filePercent = (double)p.FilesCompleted / p.TotalFiles * 100;
+                            currentTask.Value = filePercent;
+                        }
+                    });
+
+                    result = await organizer.OrganizeAsync(
+                        sourcePath,
+                        destinationPath,
+                        operationType,
+                        validateIntegrity,
+                        detectDuplicates,
+                        duplicateThreshold,
+                        progress,
+                        CancellationToken.None);
+
+                    overallTask.StopTask();
+                    currentTask.StopTask();
+                });
+
+            AnsiConsole.WriteLine();
+
+            // Display results summary
+            if (result != null)
+            {
+                AnsiConsole.Write(new Rule("[bold]Organization Results[/]").RuleStyle("grey"));
+                AnsiConsole.WriteLine();
+
+                var summaryTable = new Table()
+                    .Border(TableBorder.Rounded)
+                    .BorderColor(Color.Grey)
+                    .AddColumn("Metric")
+                    .AddColumn(new TableColumn("Value").RightAligned());
+
+                summaryTable.AddRow("Total Audiobooks", $"[cyan]{result.TotalAudiobooks}[/]");
+                summaryTable.AddRow(
+                    "Successful",
+                    result.SuccessfulAudiobooks > 0
+                        ? $"[green]{result.SuccessfulAudiobooks}[/]"
+                        : $"[dim]{result.SuccessfulAudiobooks}[/]");
+                summaryTable.AddRow(
+                    "Failed",
+                    result.FailedAudiobooks > 0
+                        ? $"[red]{result.FailedAudiobooks}[/]"
+                        : $"[dim]{result.FailedAudiobooks}[/]");
+                summaryTable.AddRow("Total Files", $"[cyan]{result.TotalFiles}[/]");
+
+                AnsiConsole.Write(summaryTable);
+                AnsiConsole.WriteLine();
+
+                if (result.Success)
+                {
+                    AnsiConsole.MarkupLine("[green]✓ Organization completed successfully![/]");
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine("[red]✗ Organization completed with errors.[/]");
+                }
+
+                return result.Success ? 0 : 1;
+            }
+
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.WriteLine();
+            AnsiConsole.MarkupLine("[red]Error during organization:[/] {0}", ex.Message);
+            if (verbose)
+            {
+                AnsiConsole.WriteException(ex);
+            }
+            return 1;
         }
     }
 }
