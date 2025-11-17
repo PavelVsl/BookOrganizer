@@ -206,6 +206,27 @@ library/
 │           └── *.mp3
 ```
 
+## Configuration
+
+### Log Level
+
+By default, BookOrganizer uses `Warning` log level for clean output. To enable verbose logging, set the `BOOKORGANIZER_LOG_LEVEL` environment variable:
+
+```bash
+# Enable verbose logging (shows all Info messages)
+export BOOKORGANIZER_LOG_LEVEL=Information
+bookorganizer preview -s ~/audiobooks -d ~/library
+
+# Enable debug logging (very detailed)
+export BOOKORGANIZER_LOG_LEVEL=Debug
+bookorganizer preview -s ~/audiobooks -d ~/library
+
+# Reset to default (Warning level)
+unset BOOKORGANIZER_LOG_LEVEL
+```
+
+**Available log levels:** `Debug`, `Information`, `Warning`, `Error`, `Critical`
+
 ## Requirements
 
 - .NET 9.0 or later
