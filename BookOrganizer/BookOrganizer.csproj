@@ -11,7 +11,6 @@
         <PackAsTool>true</PackAsTool>
         <ToolCommandName>bookorganizer</ToolCommandName>
         <PackageId>BookOrganizer</PackageId>
-        <Version>1.0.0</Version>
         <Authors>Pavel</Authors>
         <Description>CLI tool for organizing audiobook libraries for Jellyfin with metadata extraction, duplicate detection, and Czech language support</Description>
         <PackageTags>audiobook;jellyfin;organizer;metadata;mp3;cli;tool</PackageTags>
@@ -25,6 +24,10 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Nerdbank.GitVersioning" Version="3.9.50">
+          <PrivateAssets>all</PrivateAssets>
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
         <PackageReference Include="TagLibSharp" Version="2.3.0" />
         <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
