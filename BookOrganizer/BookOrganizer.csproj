@@ -2,10 +2,10 @@
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <TargetFramework>net9.0</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <LangVersion>13</LangVersion>
+        <LangVersion>14</LangVersion>
 
         <!-- .NET Global Tool Configuration -->
         <PackAsTool>true</PackAsTool>
@@ -34,7 +34,6 @@
         <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.0" />
         <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.0" />
         <PackageReference Include="Spectre.Console" Version="0.49.1" />
-        <PackageReference Include="System.Text.Json" Version="9.0.0" />
         <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.0" />
     </ItemGroup>
 
