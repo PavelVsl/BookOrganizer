@@ -5,6 +5,16 @@ AudioBook Organizer is a .NET 9 console application for organizing and structuri
 
 **Primary Use Case**: Managing a Czech audiobook library with hundreds of books in various states of organization.
 
+## Testing Folders
+
+**IMPORTANT**: Always use these dedicated testing folders - NEVER use production folders for testing:
+- **Test Source**: `/Users/pavel/Documents/dev/source`
+- **Test Library**: `/Users/pavel/Documents/dev/library`
+
+**Production Folders** (use only for actual organization, never for testing):
+- **Production Source**: `/Users/pavel/Documents/audiobooks`
+- **Production Library**: `/Users/pavel/Documents/library`
+
 ## Task Master AI Instructions
 **Import Task Master's development workflow commands and guidelines, treat as if import is in the main CLAUDE.md file.**
 @./.taskmaster/CLAUDE.md
