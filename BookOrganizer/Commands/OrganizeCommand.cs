@@ -14,71 +14,73 @@ public class OrganizeCommand : Command
 {
     public OrganizeCommand() : base("organize", "Organize audiobooks to target directory")
     {
-        var sourceOption = new Option<string>(
-            aliases: ["--source", "-s"],
-            description: "Source directory containing audiobooks")
+        var sourceOption = new Option<string>("--source", "-s")
         {
-            IsRequired = true
+            Description = "Source directory containing audiobooks",
+            Required = true
         };
 
-        var destinationOption = new Option<string>(
-            aliases: ["--destination", "-d", "--library", "-l"],
-            description: "Target library directory for organized audiobooks")
+        var destinationOption = new Option<string>("--destination", "-d", "--library", "-l")
         {
-            IsRequired = true
+            Description = "Target library directory for organized audiobooks",
+            Required = true
         };
 
-        var operationOption = new Option<string>(
-            aliases: ["--operation", "-o"],
-            description: "Operation type: copy, move, hardlink, symlink",
-            getDefaultValue: () => "copy");
-
-        var noValidateOption = new Option<bool>(
-            aliases: ["--no-validate"],
-            description: "Skip file integrity validation (faster but risky)");
-
-        var verboseOption = new Option<bool>(
-            aliases: ["--verbose", "-v"],
-            description: "Show detailed output");
-
-        var yesOption = new Option<bool>(
-            aliases: ["--yes", "-y"],
-            description: "Skip confirmation prompt (auto-confirm)");
-
-        var detectDuplicatesOption = new Option<bool>(
-            aliases: ["--detect-duplicates"],
-            description: "Detect and merge potential duplicate audiobooks");
-
-        var duplicateThresholdOption = new Option<double>(
-            aliases: ["--duplicate-threshold"],
-            description: "Minimum confidence for duplicate detection (0.0-1.0)",
-            getDefaultValue: () => 0.7);
-
-        AddOption(sourceOption);
-        AddOption(destinationOption);
-        AddOption(operationOption);
-        AddOption(noValidateOption);
-        AddOption(verboseOption);
-        AddOption(yesOption);
-        AddOption(detectDuplicatesOption);
-        AddOption(duplicateThresholdOption);
-
-        this.SetHandler(async (context) =>
+        var operationOption = new Option<string>("--operation", "-o")
         {
-            var source = context.ParseResult.GetValueForOption(sourceOption)!;
-            var destination = context.ParseResult.GetValueForOption(destinationOption)!;
-            var operation = context.ParseResult.GetValueForOption(operationOption)!;
-            var noValidate = context.ParseResult.GetValueForOption(noValidateOption);
-            var verbose = context.ParseResult.GetValueForOption(verboseOption);
-            var yes = context.ParseResult.GetValueForOption(yesOption);
-            var detectDuplicates = context.ParseResult.GetValueForOption(detectDuplicatesOption);
-            var duplicateThreshold = context.ParseResult.GetValueForOption(duplicateThresholdOption);
+            Description = "Operation type: copy, move, hardlink, symlink",
+            DefaultValueFactory = _ => "copy"
+        };
 
-            var exitCode = await ExecuteAsync(
+        var noValidateOption = new Option<bool>("--no-validate")
+        {
+            Description = "Skip file integrity validation (faster but risky)"
+        };
+
+        var verboseOption = new Option<bool>("--verbose", "-v")
+        {
+            Description = "Show detailed output"
+        };
+
+        var yesOption = new Option<bool>("--yes", "-y")
+        {
+            Description = "Skip confirmation prompt (auto-confirm)"
+        };
+
+        var detectDuplicatesOption = new Option<bool>("--detect-duplicates")
+        {
+            Description = "Detect and merge potential duplicate audiobooks"
+        };
+
+        var duplicateThresholdOption = new Option<double>("--duplicate-threshold")
+        {
+            Description = "Minimum confidence for duplicate detection (0.0-1.0)",
+            DefaultValueFactory = _ => 0.7
+        };
+
+        Options.Add(sourceOption);
+        Options.Add(destinationOption);
+        Options.Add(operationOption);
+        Options.Add(noValidateOption);
+        Options.Add(verboseOption);
+        Options.Add(yesOption);
+        Options.Add(detectDuplicatesOption);
+        Options.Add(duplicateThresholdOption);
+
+        this.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
+        {
+            var source = parseResult.GetValue(sourceOption)!;
+            var destination = parseResult.GetValue(destinationOption)!;
+            var operation = parseResult.GetValue(operationOption)!;
+            var noValidate = parseResult.GetValue(noValidateOption);
+            var verbose = parseResult.GetValue(verboseOption);
+            var yes = parseResult.GetValue(yesOption);
+            var detectDuplicates = parseResult.GetValue(detectDuplicatesOption);
+            var duplicateThreshold = parseResult.GetValue(duplicateThresholdOption);
+
+            return await ExecuteAsync(
                 source, destination, operation, !noValidate, verbose, yes,
                 detectDuplicates, duplicateThreshold);
-
-            context.ExitCode = exitCode;
         });
     }
 

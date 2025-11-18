@@ -13,21 +13,26 @@ public class ScanCommand : Command
 {
     public ScanCommand() : base("scan", "Scan directories for audiobook folders")
     {
-        var sourceOption = new Option<string>(
-            aliases: ["--source", "-s"],
-            description: "Source directory to scan")
+        var sourceOption = new Option<string>("--source", "-s")
         {
-            IsRequired = true
+            Description = "Source directory to scan",
+            Required = true
         };
 
-        var verboseOption = new Option<bool>(
-            aliases: ["--verbose", "-v"],
-            description: "Show detailed output");
+        var verboseOption = new Option<bool>("--verbose", "-v")
+        {
+            Description = "Show detailed output"
+        };
 
-        AddOption(sourceOption);
-        AddOption(verboseOption);
+        Options.Add(sourceOption);
+        Options.Add(verboseOption);
 
-        this.SetHandler(ExecuteAsync, sourceOption, verboseOption);
+        this.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
+        {
+            var source = parseResult.GetValue(sourceOption)!;
+            var verbose = parseResult.GetValue(verboseOption);
+            return await ExecuteAsync(source, verbose);
+        });
     }
 
     private static async Task<int> ExecuteAsync(string sourcePath, bool verbose)

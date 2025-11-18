@@ -1,7 +1,7 @@
 no# BookOrganizer - Claude Code Instructions
 
 ## Project Overview
-AudioBook Organizer is a .NET 9 console application for organizing and structuring a personal audiobook library. The tool analyzes unorganized audiobook folders, extracts metadata, and reorganizes them into a clean, consistent structure.
+AudioBook Organizer is a .NET 10 console application for organizing and structuring a personal audiobook library. The tool analyzes unorganized audiobook folders, extracts metadata, and reorganizes them into a clean, consistent structure.
 
 **Primary Use Case**: Managing a Czech audiobook library with hundreds of books in various states of organization.
 
@@ -22,7 +22,7 @@ AudioBook Organizer is a .NET 9 console application for organizing and structuri
 ## Technology Stack
 
 ### Core Technologies
-- **.NET 9** with C# 13
+- **.NET 10** with C# 14
 - **Console Application** (cross-platform: Windows, macOS, Linux)
 - **System.CommandLine** for CLI argument parsing
 - **TagLib-Sharp** for MP3 metadata reading/writing
@@ -261,5 +261,5 @@ When uncertain about implementation details:
 - [System.CommandLine Docs](https://learn.microsoft.com/dotnet/standard/commandline/)
 - [TagLib-Sharp GitHub](https://github.com/mono/taglib-sharp)
 - [Spectre.Console Docs](https://spectreconsole.net/)
-- [.NET 9 What's New](https://learn.microsoft.com/dotnet/core/whats-new/dotnet-9)
+- [.NET 10 What's New](https://learn.microsoft.com/dotnet/core/whats-new/dotnet-10)
 - source @/Users/pavel/Documents/audiobooks destination @/Users/pavel/Documents/library

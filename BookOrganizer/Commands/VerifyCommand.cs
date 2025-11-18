@@ -16,53 +16,56 @@ public class VerifyCommand : Command
 {
     public VerifyCommand() : base("verify", "Verify library integrity and metadata consistency")
     {
-        var libraryOption = new Option<string>(
-            aliases: ["--library", "-l"],
-            description: "Library directory to verify")
+        var libraryOption = new Option<string>("--library", "-l")
         {
-            IsRequired = true
+            Description = "Library directory to verify",
+            Required = true
         };
 
-        var verboseOption = new Option<bool>(
-            aliases: ["--verbose", "-v"],
-            description: "Show detailed output");
-
-        var checkDuplicatesOption = new Option<bool>(
-            aliases: ["--check-duplicates"],
-            description: "Check for potential duplicate audiobooks");
-
-        var duplicateThresholdOption = new Option<double>(
-            aliases: ["--duplicate-threshold"],
-            description: "Minimum confidence for duplicate detection (0.0-1.0)",
-            getDefaultValue: () => 0.7);
-
-        var generateMetadataOption = new Option<bool>(
-            aliases: ["--generate-metadata"],
-            description: "Generate missing metadata.json files from folder structure");
-
-        var forceOption = new Option<bool>(
-            aliases: ["--force"],
-            description: "Overwrite existing metadata.json files when generating");
-
-        AddOption(libraryOption);
-        AddOption(verboseOption);
-        AddOption(checkDuplicatesOption);
-        AddOption(duplicateThresholdOption);
-        AddOption(generateMetadataOption);
-        AddOption(forceOption);
-
-        this.SetHandler(async (context) =>
+        var verboseOption = new Option<bool>("--verbose", "-v")
         {
-            var library = context.ParseResult.GetValueForOption(libraryOption)!;
-            var verbose = context.ParseResult.GetValueForOption(verboseOption);
-            var checkDuplicates = context.ParseResult.GetValueForOption(checkDuplicatesOption);
-            var duplicateThreshold = context.ParseResult.GetValueForOption(duplicateThresholdOption);
-            var generateMetadata = context.ParseResult.GetValueForOption(generateMetadataOption);
-            var force = context.ParseResult.GetValueForOption(forceOption);
+            Description = "Show detailed output"
+        };
 
-            var exitCode = await ExecuteAsync(library, verbose, checkDuplicates, duplicateThreshold,
+        var checkDuplicatesOption = new Option<bool>("--check-duplicates")
+        {
+            Description = "Check for potential duplicate audiobooks"
+        };
+
+        var duplicateThresholdOption = new Option<double>("--duplicate-threshold")
+        {
+            Description = "Minimum confidence for duplicate detection (0.0-1.0)",
+            DefaultValueFactory = _ => 0.7
+        };
+
+        var generateMetadataOption = new Option<bool>("--generate-metadata")
+        {
+            Description = "Generate missing metadata.json files from folder structure"
+        };
+
+        var forceOption = new Option<bool>("--force")
+        {
+            Description = "Overwrite existing metadata.json files when generating"
+        };
+
+        Options.Add(libraryOption);
+        Options.Add(verboseOption);
+        Options.Add(checkDuplicatesOption);
+        Options.Add(duplicateThresholdOption);
+        Options.Add(generateMetadataOption);
+        Options.Add(forceOption);
+
+        this.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
+        {
+            var library = parseResult.GetValue(libraryOption)!;
+            var verbose = parseResult.GetValue(verboseOption);
+            var checkDuplicates = parseResult.GetValue(checkDuplicatesOption);
+            var duplicateThreshold = parseResult.GetValue(duplicateThresholdOption);
+            var generateMetadata = parseResult.GetValue(generateMetadataOption);
+            var force = parseResult.GetValue(forceOption);
+
+            return await ExecuteAsync(library, verbose, checkDuplicates, duplicateThreshold,
                 generateMetadata, force);
-            context.ExitCode = exitCode;
         });
     }
 

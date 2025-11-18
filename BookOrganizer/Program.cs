@@ -23,15 +23,16 @@ try
     var rootCommand = new RootCommand("BookOrganizer - Organize your audiobook library for Jellyfin");
 
     // Add commands
-    rootCommand.AddCommand(new ScanCommand());
-    rootCommand.AddCommand(new PreviewCommand());
-    rootCommand.AddCommand(new OrganizeCommand());
-    rootCommand.AddCommand(new ReorganizeCommand());
-    rootCommand.AddCommand(new ExportMetadataCommand());
-    rootCommand.AddCommand(new VerifyCommand());
+    rootCommand.Subcommands.Add(new ScanCommand());
+    rootCommand.Subcommands.Add(new PreviewCommand());
+    rootCommand.Subcommands.Add(new OrganizeCommand());
+    rootCommand.Subcommands.Add(new ReorganizeCommand());
+    rootCommand.Subcommands.Add(new ExportMetadataCommand());
+    rootCommand.Subcommands.Add(new VerifyCommand());
 
     // Execute
-    return await rootCommand.InvokeAsync(args);
+    var parseResult = rootCommand.Parse(args);
+    return await parseResult.InvokeAsync();
 }
 catch (BookOrganizerException ex)
 {

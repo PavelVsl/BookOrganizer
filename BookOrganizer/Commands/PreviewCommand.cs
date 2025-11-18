@@ -18,123 +18,133 @@ public class PreviewCommand : Command
 {
     public PreviewCommand() : base("preview", "Preview audiobook organization without executing")
     {
-        var sourceOption = new Option<string>(
-            aliases: ["--source", "-s"],
-            description: "Source directory containing audiobooks")
+        var sourceOption = new Option<string>("--source", "-s")
         {
-            IsRequired = true
+            Description = "Source directory containing audiobooks",
+            Required = true
         };
 
-        var destinationOption = new Option<string>(
-            aliases: ["--destination", "-d", "--library", "-l"],
-            description: "Target library directory for organized audiobooks")
+        var destinationOption = new Option<string>("--destination", "-d", "--library", "-l")
         {
-            IsRequired = true
+            Description = "Target library directory for organized audiobooks",
+            Required = true
         };
 
-        var operationOption = new Option<string>(
-            aliases: ["--operation", "-o"],
-            description: "Operation type: copy, move, hardlink, symlink",
-            getDefaultValue: () => "copy");
-
-        var exportOption = new Option<string?>(
-            aliases: ["--export", "-e"],
-            description: "Export preview to file (supports .json, .csv, .txt)");
-
-        var authorOption = new Option<string?>(
-            aliases: ["--author", "-a"],
-            description: "Filter by author name (case-insensitive)");
-
-        var seriesOption = new Option<string?>(
-            aliases: ["--series"],
-            description: "Filter by series name (case-insensitive)");
-
-        var maxItemsOption = new Option<int?>(
-            aliases: ["--max-items", "-m"],
-            description: "Maximum number of audiobooks to show");
-
-        var compactOption = new Option<bool>(
-            aliases: ["--compact", "-c"],
-            description: "Use compact display mode");
-
-        var noTreeOption = new Option<bool>(
-            aliases: ["--no-tree"],
-            description: "Don't show tree view");
-
-        var verboseOption = new Option<bool>(
-            aliases: ["--verbose", "-v"],
-            description: "Show detailed output");
-
-        var detectDuplicatesOption = new Option<bool>(
-            aliases: ["--detect-duplicates"],
-            description: "Detect potential duplicate audiobooks");
-
-        var duplicateThresholdOption = new Option<double>(
-            aliases: ["--duplicate-threshold"],
-            description: "Minimum confidence for duplicate detection (0.0-1.0)",
-            getDefaultValue: () => 0.7);
-
-        var rebuildCacheOption = new Option<bool>(
-            aliases: ["--rebuild-cache"],
-            description: "Force rebuild of library metadata cache");
-
-        var exportMetadataOption = new Option<bool>(
-            aliases: ["--export-metadata"],
-            description: "Export metadata.json files to source audiobook folders for editing");
-
-        var metadataSourceOption = new Option<string>(
-            aliases: ["--metadata-source"],
-            description: "Source for metadata extraction: 'mp3' (from ID3 tags) or 'folder' (from folder structure)",
-            getDefaultValue: () => "mp3");
-
-        var interactiveOption = new Option<bool>(
-            aliases: ["--interactive", "-i"],
-            description: "Prompt to organize immediately after successful preview");
-
-        AddOption(sourceOption);
-        AddOption(destinationOption);
-        AddOption(operationOption);
-        AddOption(exportOption);
-        AddOption(authorOption);
-        AddOption(seriesOption);
-        AddOption(maxItemsOption);
-        AddOption(compactOption);
-        AddOption(noTreeOption);
-        AddOption(verboseOption);
-        AddOption(detectDuplicatesOption);
-        AddOption(duplicateThresholdOption);
-        AddOption(rebuildCacheOption);
-        AddOption(exportMetadataOption);
-        AddOption(metadataSourceOption);
-        AddOption(interactiveOption);
-
-        this.SetHandler(async (context) =>
+        var operationOption = new Option<string>("--operation", "-o")
         {
-            var source = context.ParseResult.GetValueForOption(sourceOption)!;
-            var destination = context.ParseResult.GetValueForOption(destinationOption)!;
-            var operation = context.ParseResult.GetValueForOption(operationOption)!;
-            var export = context.ParseResult.GetValueForOption(exportOption);
-            var authorFilter = context.ParseResult.GetValueForOption(authorOption);
-            var seriesFilter = context.ParseResult.GetValueForOption(seriesOption);
-            var maxItemsFilter = context.ParseResult.GetValueForOption(maxItemsOption);
-            var compactMode = context.ParseResult.GetValueForOption(compactOption);
-            var noTreeMode = context.ParseResult.GetValueForOption(noTreeOption);
-            var verboseMode = context.ParseResult.GetValueForOption(verboseOption);
-            var detectDuplicates = context.ParseResult.GetValueForOption(detectDuplicatesOption);
-            var duplicateThreshold = context.ParseResult.GetValueForOption(duplicateThresholdOption);
-            var rebuildCache = context.ParseResult.GetValueForOption(rebuildCacheOption);
-            var exportMetadata = context.ParseResult.GetValueForOption(exportMetadataOption);
-            var metadataSource = context.ParseResult.GetValueForOption(metadataSourceOption)!;
-            var interactive = context.ParseResult.GetValueForOption(interactiveOption);
+            Description = "Operation type: copy, move, hardlink, symlink",
+            DefaultValueFactory = _ => "copy"
+        };
 
-            var exitCode = await ExecuteAsync(
+        var exportOption = new Option<string?>("--export", "-e")
+        {
+            Description = "Export preview to file (supports .json, .csv, .txt)"
+        };
+
+        var authorOption = new Option<string?>("--author", "-a")
+        {
+            Description = "Filter by author name (case-insensitive)"
+        };
+
+        var seriesOption = new Option<string?>("--series")
+        {
+            Description = "Filter by series name (case-insensitive)"
+        };
+
+        var maxItemsOption = new Option<int?>("--max-items", "-m")
+        {
+            Description = "Maximum number of audiobooks to show"
+        };
+
+        var compactOption = new Option<bool>("--compact", "-c")
+        {
+            Description = "Use compact display mode"
+        };
+
+        var noTreeOption = new Option<bool>("--no-tree")
+        {
+            Description = "Don't show tree view"
+        };
+
+        var verboseOption = new Option<bool>("--verbose", "-v")
+        {
+            Description = "Show detailed output"
+        };
+
+        var detectDuplicatesOption = new Option<bool>("--detect-duplicates")
+        {
+            Description = "Detect potential duplicate audiobooks"
+        };
+
+        var duplicateThresholdOption = new Option<double>("--duplicate-threshold")
+        {
+            Description = "Minimum confidence for duplicate detection (0.0-1.0)",
+            DefaultValueFactory = _ => 0.7
+        };
+
+        var rebuildCacheOption = new Option<bool>("--rebuild-cache")
+        {
+            Description = "Force rebuild of library metadata cache"
+        };
+
+        var exportMetadataOption = new Option<bool>("--export-metadata")
+        {
+            Description = "Export metadata.json files to source audiobook folders for editing"
+        };
+
+        var metadataSourceOption = new Option<string>("--metadata-source")
+        {
+            Description = "Source for metadata extraction: 'mp3' (from ID3 tags) or 'folder' (from folder structure)",
+            DefaultValueFactory = _ => "mp3"
+        };
+
+        var interactiveOption = new Option<bool>("--interactive", "-i")
+        {
+            Description = "Prompt to organize immediately after successful preview"
+        };
+
+        Options.Add(sourceOption);
+        Options.Add(destinationOption);
+        Options.Add(operationOption);
+        Options.Add(exportOption);
+        Options.Add(authorOption);
+        Options.Add(seriesOption);
+        Options.Add(maxItemsOption);
+        Options.Add(compactOption);
+        Options.Add(noTreeOption);
+        Options.Add(verboseOption);
+        Options.Add(detectDuplicatesOption);
+        Options.Add(duplicateThresholdOption);
+        Options.Add(rebuildCacheOption);
+        Options.Add(exportMetadataOption);
+        Options.Add(metadataSourceOption);
+        Options.Add(interactiveOption);
+
+        this.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
+        {
+            var source = parseResult.GetValue(sourceOption)!;
+            var destination = parseResult.GetValue(destinationOption)!;
+            var operation = parseResult.GetValue(operationOption)!;
+            var export = parseResult.GetValue(exportOption);
+            var authorFilter = parseResult.GetValue(authorOption);
+            var seriesFilter = parseResult.GetValue(seriesOption);
+            var maxItemsFilter = parseResult.GetValue(maxItemsOption);
+            var compactMode = parseResult.GetValue(compactOption);
+            var noTreeMode = parseResult.GetValue(noTreeOption);
+            var verboseMode = parseResult.GetValue(verboseOption);
+            var detectDuplicates = parseResult.GetValue(detectDuplicatesOption);
+            var duplicateThreshold = parseResult.GetValue(duplicateThresholdOption);
+            var rebuildCache = parseResult.GetValue(rebuildCacheOption);
+            var exportMetadata = parseResult.GetValue(exportMetadataOption);
+            var metadataSource = parseResult.GetValue(metadataSourceOption)!;
+            var interactive = parseResult.GetValue(interactiveOption);
+
+            return await ExecuteAsync(
                 source, destination, operation, export,
                 authorFilter, seriesFilter, maxItemsFilter,
                 compactMode, noTreeMode, verboseMode,
                 detectDuplicates, duplicateThreshold, rebuildCache,
                 exportMetadata, metadataSource, interactive);
-
-            context.ExitCode = exitCode;
         });
     }
 

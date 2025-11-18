@@ -16,26 +16,33 @@ public class ExportMetadataCommand : Command
 {
     public ExportMetadataCommand() : base("export-metadata", "Export metadata.json files to audiobook folders")
     {
-        var sourceOption = new Option<string>(
-            aliases: ["--source", "-s"],
-            description: "Source directory to scan for audiobooks")
+        var sourceOption = new Option<string>("--source", "-s")
         {
-            IsRequired = true
+            Description = "Source directory to scan for audiobooks",
+            Required = true
         };
 
-        var forceOption = new Option<bool>(
-            aliases: ["--force", "-f"],
-            description: "Overwrite existing metadata.json files");
+        var forceOption = new Option<bool>("--force", "-f")
+        {
+            Description = "Overwrite existing metadata.json files"
+        };
 
-        var verboseOption = new Option<bool>(
-            aliases: ["--verbose", "-v"],
-            description: "Show detailed output");
+        var verboseOption = new Option<bool>("--verbose", "-v")
+        {
+            Description = "Show detailed output"
+        };
 
-        AddOption(sourceOption);
-        AddOption(forceOption);
-        AddOption(verboseOption);
+        Options.Add(sourceOption);
+        Options.Add(forceOption);
+        Options.Add(verboseOption);
 
-        this.SetHandler(ExecuteAsync, sourceOption, forceOption, verboseOption);
+        this.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
+        {
+            var source = parseResult.GetValue(sourceOption)!;
+            var force = parseResult.GetValue(forceOption);
+            var verbose = parseResult.GetValue(verboseOption);
+            return await ExecuteAsync(source, force, verbose);
+        });
     }
 
     private static async Task<int> ExecuteAsync(string sourcePath, bool force, bool verbose)

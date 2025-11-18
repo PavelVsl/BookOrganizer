@@ -14,41 +14,41 @@ public class ReorganizeCommand : Command
 {
     public ReorganizeCommand() : base("reorganize", "Reorganize library based on updated metadata.json files")
     {
-        var libraryOption = new Option<string>(
-            aliases: ["--library", "-l"],
-            description: "Library directory to reorganize")
+        var libraryOption = new Option<string>("--library", "-l")
         {
-            IsRequired = true
+            Description = "Library directory to reorganize",
+            Required = true
         };
 
-        var noValidateOption = new Option<bool>(
-            aliases: ["--no-validate"],
-            description: "Skip file integrity validation (faster but risky)");
-
-        var verboseOption = new Option<bool>(
-            aliases: ["--verbose", "-v"],
-            description: "Show detailed output");
-
-        var yesOption = new Option<bool>(
-            aliases: ["--yes", "-y"],
-            description: "Skip confirmation prompt (auto-confirm)");
-
-        AddOption(libraryOption);
-        AddOption(noValidateOption);
-        AddOption(verboseOption);
-        AddOption(yesOption);
-
-        this.SetHandler(async (context) =>
+        var noValidateOption = new Option<bool>("--no-validate")
         {
-            var library = context.ParseResult.GetValueForOption(libraryOption)!;
-            var noValidate = context.ParseResult.GetValueForOption(noValidateOption);
-            var verbose = context.ParseResult.GetValueForOption(verboseOption);
-            var yes = context.ParseResult.GetValueForOption(yesOption);
+            Description = "Skip file integrity validation (faster but risky)"
+        };
 
-            var exitCode = await ExecuteAsync(
+        var verboseOption = new Option<bool>("--verbose", "-v")
+        {
+            Description = "Show detailed output"
+        };
+
+        var yesOption = new Option<bool>("--yes", "-y")
+        {
+            Description = "Skip confirmation prompt (auto-confirm)"
+        };
+
+        Options.Add(libraryOption);
+        Options.Add(noValidateOption);
+        Options.Add(verboseOption);
+        Options.Add(yesOption);
+
+        this.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
+        {
+            var library = parseResult.GetValue(libraryOption)!;
+            var noValidate = parseResult.GetValue(noValidateOption);
+            var verbose = parseResult.GetValue(verboseOption);
+            var yes = parseResult.GetValue(yesOption);
+
+            return await ExecuteAsync(
                 library, !noValidate, verbose, yes);
-
-            context.ExitCode = exitCode;
         });
     }
 
