@@ -187,13 +187,21 @@ public class MetadataExtractor : IMetadataExtractor
                 using var file = File.Create(filePath);
                 var tag = file.Tag;
 
+                // Join all performers - Czech audiobooks often have "Author / cte Narrator" in performers
+                var allPerformers = tag.Performers != null && tag.Performers.Length > 0
+                    ? string.Join("; ", tag.Performers)
+                    : null;
+                var allAlbumArtists = tag.AlbumArtists != null && tag.AlbumArtists.Length > 0
+                    ? string.Join("; ", tag.AlbumArtists)
+                    : null;
+
                 return new FileMetadata
                 {
                     FilePath = filePath,
                     Title = GetStringValue(tag.Title),
                     Album = GetStringValue(tag.Album),
-                    Artist = GetStringValue(tag.FirstPerformer),
-                    AlbumArtist = GetStringValue(tag.FirstAlbumArtist),
+                    Artist = GetStringValue(allPerformers),
+                    AlbumArtist = GetStringValue(allAlbumArtists),
                     Composer = GetStringValue(tag.FirstComposer),
                     Genre = GetStringValue(tag.FirstGenre),
                     Year = tag.Year,
@@ -401,9 +409,20 @@ public class MetadataExtractor : IMetadataExtractor
     {
         // Use the most common values across all files
         var title = GetMostCommonValue(fileMetadataList.Select(m => m.Album).Where(v => v != null));
-        var author = GetMostCommonValue(fileMetadataList.Select(m => m.AlbumArtist ?? m.Artist ?? m.Composer).Where(v => v != null));
-        var narrator = GetMostCommonValue(fileMetadataList.Select(m => m.Artist).Where(v => v != null));
         var genre = GetMostCommonValue(fileMetadataList.Select(m => m.Genre).Where(v => v != null));
+
+        // For author/narrator, prefer Artist field as it often contains "Author / cte Narrator" format
+        // Fall back to AlbumArtist or Composer if Artist is empty
+        var rawArtist = GetMostCommonValue(fileMetadataList.Select(m => m.Artist).Where(v => v != null));
+        if (string.IsNullOrWhiteSpace(rawArtist))
+        {
+            rawArtist = GetMostCommonValue(fileMetadataList.Select(m => m.AlbumArtist ?? m.Composer).Where(v => v != null));
+        }
+
+        _logger.LogDebug("Raw artist field: {RawArtist}", rawArtist);
+
+        // Parse Czech audiobook format: "Author / cte Narrator" or "Author / ucinkuji Narrators"
+        var (author, narrator) = ParseCzechAuthorNarrator(rawArtist);
 
         // Year: use the most common non-zero year
         var years = fileMetadataList.Select(m => m.Year).Where(y => y > 0).ToList();
@@ -473,6 +492,56 @@ public class MetadataExtractor : IMetadataExtractor
         }
 
         return (null, null);
+    }
+
+    /// <summary>
+    /// Parses Czech audiobook format where author and narrator are combined.
+    /// Supports formats like:
+    /// - "Author / cte Narrator" (cte = reads)
+    /// - "Author / čte Narrator" (čte = reads, with diacritics)
+    /// - "Author ; cte Narrator" (semicolon from joined array)
+    /// - "Author / ucinkuji Narrator1, Narrator2" (ucinkuji = perform)
+    /// - "Author / účinkují Narrator1, Narrator2" (účinkují = perform, with diacritics)
+    /// </summary>
+    private static (string? author, string? narrator) ParseCzechAuthorNarrator(string? artistField)
+    {
+        if (string.IsNullOrWhiteSpace(artistField))
+            return (null, null);
+
+        // Narrator keywords (Czech for "reads", "read by", "perform")
+        string[] narratorKeywords = ["cte", "čte", "ctou", "čtou", "ucinkuji", "účinkují", "účinkuje"];
+
+        // Look for separator (/ or ;) followed by narrator keyword
+        foreach (var keyword in narratorKeywords)
+        {
+            // Try to find patterns like "/ cte", "; cte", "/cte", ";cte" with flexible whitespace
+            var separatorIndex = -1;
+            var keywordIndex = artistField.IndexOf(keyword, StringComparison.OrdinalIgnoreCase);
+
+            if (keywordIndex > 0)
+            {
+                // Look backwards for separator (/ or ;)
+                var beforeKeyword = artistField[..keywordIndex].TrimEnd();
+                if (beforeKeyword.EndsWith('/') || beforeKeyword.EndsWith(';'))
+                {
+                    separatorIndex = beforeKeyword.Length - 1;
+
+                    var author = artistField[..separatorIndex].Trim();
+                    var narrator = artistField[(keywordIndex + keyword.Length)..].Trim();
+
+                    // Clean up narrator - remove trailing punctuation
+                    narrator = narrator.TrimEnd('.', ',', ';');
+
+                    if (!string.IsNullOrWhiteSpace(author) && !string.IsNullOrWhiteSpace(narrator))
+                    {
+                        return (author, narrator);
+                    }
+                }
+            }
+        }
+
+        // No narrator pattern found - the whole string is likely just the author
+        return (artistField, null);
     }
 
     private static double CalculateConfidence(
