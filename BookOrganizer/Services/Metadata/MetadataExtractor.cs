@@ -227,6 +227,7 @@ public class MetadataExtractor : IMetadataExtractor
 
     /// <summary>
     /// Loads metadata override from metadata.json file if it exists.
+    /// Supports both BookOrganizer format and Audiobookshelf format.
     /// </summary>
     private async Task<MetadataOverride?> LoadMetadataOverrideAsync(
         string metadataJsonPath,
@@ -247,6 +248,18 @@ public class MetadataExtractor : IMetadataExtractor
                 ReadCommentHandling = JsonCommentHandling.Skip
             };
 
+            // Try to parse as JsonDocument first to detect format
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            // Check if this is Audiobookshelf format (series is an array)
+            if (root.TryGetProperty("series", out var seriesElement) &&
+                seriesElement.ValueKind == JsonValueKind.Array)
+            {
+                return ParseAudiobookshelfFormat(root);
+            }
+
+            // Otherwise, try standard BookOrganizer format
             return JsonSerializer.Deserialize<MetadataOverride>(json, options);
         }
         catch (Exception ex)
@@ -254,6 +267,90 @@ public class MetadataExtractor : IMetadataExtractor
             _logger.LogWarning(ex, "Failed to load metadata.json from {Path}", metadataJsonPath);
             return null;
         }
+    }
+
+    /// <summary>
+    /// Parses Audiobookshelf format metadata.json into MetadataOverride.
+    /// </summary>
+    private MetadataOverride ParseAudiobookshelfFormat(JsonElement root)
+    {
+        string? title = null;
+        string? author = null;
+        string? narrator = null;
+        string? series = null;
+        string? seriesNumber = null;
+        int? year = null;
+        string? genre = null;
+        string? publisher = null;
+        string? description = null;
+
+        if (root.TryGetProperty("title", out var titleEl))
+            title = titleEl.GetString();
+
+        if (root.TryGetProperty("author", out var authorEl))
+            author = authorEl.GetString();
+
+        if (root.TryGetProperty("narrator", out var narratorEl))
+            narrator = narratorEl.GetString();
+
+        if (root.TryGetProperty("publisher", out var publisherEl))
+            publisher = publisherEl.GetString();
+
+        if (root.TryGetProperty("description", out var descEl))
+            description = descEl.GetString();
+
+        // Parse publishedYear (string in Audiobookshelf format)
+        if (root.TryGetProperty("publishedYear", out var yearEl))
+        {
+            var yearStr = yearEl.GetString();
+            if (int.TryParse(yearStr, out var parsedYear))
+                year = parsedYear;
+        }
+
+        // Parse genres array into semicolon-separated string
+        if (root.TryGetProperty("genres", out var genresEl) && genresEl.ValueKind == JsonValueKind.Array)
+        {
+            var genres = new List<string>();
+            foreach (var g in genresEl.EnumerateArray())
+            {
+                var genreStr = g.GetString();
+                if (!string.IsNullOrWhiteSpace(genreStr))
+                    genres.Add(genreStr);
+            }
+            if (genres.Count > 0)
+                genre = string.Join("; ", genres);
+        }
+
+        // Parse series array - take first series entry
+        if (root.TryGetProperty("series", out var seriesEl) && seriesEl.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var s in seriesEl.EnumerateArray())
+            {
+                if (s.TryGetProperty("series", out var seriesNameEl))
+                {
+                    series = seriesNameEl.GetString();
+                }
+                if (s.TryGetProperty("sequence", out var seqEl))
+                {
+                    seriesNumber = seqEl.GetString();
+                }
+                break; // Take only first series
+            }
+        }
+
+        return new MetadataOverride
+        {
+            Title = title,
+            Author = author,
+            Narrator = narrator,
+            Series = series,
+            SeriesNumber = seriesNumber,
+            Year = year,
+            Genre = genre,
+            Publisher = publisher,
+            Description = description,
+            Source = "Audiobookshelf"
+        };
     }
 
     /// <summary>
