@@ -60,9 +60,9 @@ public class MetadataExtractor : IMetadataExtractor
                 cancellationToken);
         }
 
-        // Check for metadata.json override file first (immediate folder)
-        var metadataJsonPath = Path.Combine(audiobookFolder.Path, "metadata.json");
-        var overrideMetadata = await LoadMetadataOverrideAsync(metadataJsonPath, cancellationToken);
+        // Check for metadata override file first (immediate folder)
+        // Try bookinfo.json (BookOrganizer format) first, then metadata.json (Audiobookshelf or legacy)
+        var overrideMetadata = await LoadMetadataOverrideAsync(audiobookFolder.Path, cancellationToken);
 
         // Extract metadata from all files
         var fileMetadataList = new List<FileMetadata>();
@@ -147,10 +147,10 @@ public class MetadataExtractor : IMetadataExtractor
         var consolidatedResult = await _consolidator.ConsolidateAsync(metadataSources, cancellationToken);
         var consolidated = consolidatedResult.ToBookMetadata();
 
-        // Apply metadata.json overrides if present (immediate folder only - already handled by hierarchical)
+        // Apply metadata overrides if present (immediate folder only - already handled by hierarchical)
         if (overrideMetadata != null && hierarchicalMetadata == null)
         {
-            _logger.LogInformation("Applying metadata.json overrides from {Path}", metadataJsonPath);
+            _logger.LogInformation("Applying metadata overrides from {Path}", audiobookFolder.Path);
             consolidated = ApplyOverrides(consolidated, overrideMetadata);
         }
 
@@ -226,21 +226,43 @@ public class MetadataExtractor : IMetadataExtractor
     }
 
     /// <summary>
-    /// Loads metadata override from metadata.json file if it exists.
-    /// Supports both BookOrganizer format and Audiobookshelf format.
+    /// Loads metadata override from bookinfo.json or metadata.json file if either exists.
+    /// Supports both BookOrganizer format (bookinfo.json) and Audiobookshelf format (metadata.json).
     /// </summary>
     private async Task<MetadataOverride?> LoadMetadataOverrideAsync(
-        string metadataJsonPath,
+        string folderPath,
         CancellationToken cancellationToken)
     {
-        if (!System.IO.File.Exists(metadataJsonPath))
+        // Try bookinfo.json first (BookOrganizer format)
+        var bookinfoPath = Path.Combine(folderPath, "bookinfo.json");
+        if (System.IO.File.Exists(bookinfoPath))
         {
-            return null;
+            var result = await LoadMetadataFromFileAsync(bookinfoPath, cancellationToken);
+            if (result != null)
+                return result;
         }
 
+        // Fall back to metadata.json (Audiobookshelf or legacy BookOrganizer format)
+        var metadataJsonPath = Path.Combine(folderPath, "metadata.json");
+        if (System.IO.File.Exists(metadataJsonPath))
+        {
+            return await LoadMetadataFromFileAsync(metadataJsonPath, cancellationToken);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Loads metadata from a specific JSON file.
+    /// Supports both BookOrganizer and Audiobookshelf formats.
+    /// </summary>
+    private async Task<MetadataOverride?> LoadMetadataFromFileAsync(
+        string filePath,
+        CancellationToken cancellationToken)
+    {
         try
         {
-            var json = await System.IO.File.ReadAllTextAsync(metadataJsonPath, cancellationToken);
+            var json = await System.IO.File.ReadAllTextAsync(filePath, cancellationToken);
             var options = new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true,
@@ -264,7 +286,7 @@ public class MetadataExtractor : IMetadataExtractor
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to load metadata.json from {Path}", metadataJsonPath);
+            _logger.LogWarning(ex, "Failed to load metadata from {Path}", filePath);
             return null;
         }
     }

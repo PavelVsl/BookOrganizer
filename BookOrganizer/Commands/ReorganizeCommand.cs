@@ -87,7 +87,7 @@ public class ReorganizeCommand : Command
 
             AnsiConsole.Write(table);
             AnsiConsole.WriteLine();
-            AnsiConsole.MarkupLine("[dim]Tip: Edit metadata.json files in your library folders before running this command[/]");
+            AnsiConsole.MarkupLine("[dim]Tip: Edit bookinfo.json or metadata.json files in your library folders before running this command[/]");
             AnsiConsole.WriteLine();
 
             if (!autoConfirm)

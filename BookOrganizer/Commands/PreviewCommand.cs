@@ -89,7 +89,7 @@ public class PreviewCommand : Command
 
         var exportMetadataOption = new Option<bool>("--export-metadata")
         {
-            Description = "Export metadata.json files to source audiobook folders for editing"
+            Description = "Export bookinfo.json files to source audiobook folders for editing"
         };
 
         var metadataSourceOption = new Option<string>("--metadata-source")
@@ -387,10 +387,10 @@ public class PreviewCommand : Command
                 {
                     try
                     {
-                        var metadataFilePath = Path.Combine(folder.Path, "metadata.json");
+                        var metadataFilePath = Path.Combine(folder.Path, "bookinfo.json");
 
-                        // Skip if file exists (no force option in preview)
-                        if (File.Exists(metadataFilePath))
+                        // Skip if bookinfo.json or metadata.json exists (no force option in preview)
+                        if (File.Exists(metadataFilePath) || File.Exists(Path.Combine(folder.Path, "metadata.json")))
                         {
                             skippedCount++;
                             task.Description = $"[dim]Skipped:[/] {Path.GetFileName(folder.Path)}";
@@ -492,7 +492,7 @@ public class PreviewCommand : Command
 
         if (exportedCount > 0 || skippedCount > 0)
         {
-            AnsiConsole.MarkupLine("[dim]Tip: Edit the metadata.json files, then run preview again to see changes[/]");
+            AnsiConsole.MarkupLine("[dim]Tip: Edit the bookinfo.json files, then run preview again to see changes[/]");
         }
     }
 

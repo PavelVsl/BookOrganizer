@@ -18,7 +18,7 @@ public class BookOrganizerFormatter : IMetadataFormatter
     };
 
     /// <inheritdoc />
-    public string FileName => "metadata.json";
+    public string FileName => "bookinfo.json";
 
     /// <inheritdoc />
     public string FormatName => "BookOrganizer";
