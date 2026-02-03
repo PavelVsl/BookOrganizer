@@ -1,6 +1,4 @@
 using System.CommandLine;
-using System.Text.Json;
-using BookOrganizer.Models;
 using BookOrganizer.Services.Metadata;
 using BookOrganizer.Services.Scanning;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,11 +8,12 @@ using Spectre.Console;
 namespace BookOrganizer.Commands;
 
 /// <summary>
-/// Command to export metadata.json files to audiobook folders.
+/// Command to export metadata files to audiobook folders.
+/// Supports multiple output formats including Audiobookshelf-compatible formats.
 /// </summary>
 public class ExportMetadataCommand : Command
 {
-    public ExportMetadataCommand() : base("export-metadata", "Export metadata.json files to audiobook folders")
+    public ExportMetadataCommand() : base("export-metadata", "Export metadata files to audiobook folders")
     {
         var sourceOption = new Option<string>("--source", "-s")
         {
@@ -22,9 +21,15 @@ public class ExportMetadataCommand : Command
             Required = true
         };
 
-        var forceOption = new Option<bool>("--force", "-f")
+        var formatOption = new Option<MetadataFormat>("--format", "-f")
         {
-            Description = "Overwrite existing metadata.json files"
+            Description = "Output format: bookorganizer (default), audiobookshelf, nfo, or all",
+            DefaultValueFactory = _ => MetadataFormat.BookOrganizer
+        };
+
+        var forceOption = new Option<bool>("--force")
+        {
+            Description = "Overwrite existing metadata files"
         };
 
         var verboseOption = new Option<bool>("--verbose", "-v")
@@ -33,25 +38,28 @@ public class ExportMetadataCommand : Command
         };
 
         Options.Add(sourceOption);
+        Options.Add(formatOption);
         Options.Add(forceOption);
         Options.Add(verboseOption);
 
         this.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
         {
             var source = parseResult.GetValue(sourceOption)!;
+            var format = parseResult.GetValue(formatOption);
             var force = parseResult.GetValue(forceOption);
             var verbose = parseResult.GetValue(verboseOption);
-            return await ExecuteAsync(source, force, verbose);
+            return await ExecuteAsync(source, format, force, verbose);
         });
     }
 
-    private static async Task<int> ExecuteAsync(string sourcePath, bool force, bool verbose)
+    private static async Task<int> ExecuteAsync(string sourcePath, MetadataFormat format, bool force, bool verbose)
     {
         try
         {
             // Get services from DI
             var scanner = Program.ServiceProvider.GetRequiredService<IDirectoryScanner>();
             var metadataExtractor = Program.ServiceProvider.GetRequiredService<IMetadataExtractor>();
+            var formatters = Program.ServiceProvider.GetServices<IMetadataFormatter>().ToList();
             var logger = Program.ServiceProvider.GetRequiredService<ILogger<ExportMetadataCommand>>();
 
             if (!Directory.Exists(sourcePath))
@@ -60,7 +68,16 @@ public class ExportMetadataCommand : Command
                 return 1;
             }
 
+            // Determine which formatters to use
+            var selectedFormatters = GetFormattersForFormat(formatters, format);
+            if (selectedFormatters.Count == 0)
+            {
+                AnsiConsole.MarkupLine("[red]Error:[/] No formatters available for format: {0}", format);
+                return 1;
+            }
+
             AnsiConsole.MarkupLine("[green]Scanning directory:[/] {0}", sourcePath);
+            AnsiConsole.MarkupLine("[dim]Output format(s):[/] {0}", string.Join(", ", selectedFormatters.Select(f => f.FormatName)));
             AnsiConsole.WriteLine();
 
             // Scan for audiobook folders
@@ -119,54 +136,56 @@ public class ExportMetadataCommand : Command
                     {
                         try
                         {
-                            var metadataFilePath = Path.Combine(folder.Path, "metadata.json");
-
-                            // Skip if file exists and force is not set
-                            if (System.IO.File.Exists(metadataFilePath) && !force)
-                            {
-                                skippedCount++;
-                                task.Description = $"[dim]Skipped:[/] {Path.GetFileName(folder.Path)}";
-                                task.Increment(1);
-                                continue;
-                            }
-
-                            task.Description = $"[yellow]Processing:[/] {Path.GetFileName(folder.Path)}";
+                            var bookName = Path.GetFileName(folder.Path);
+                            task.Description = $"[yellow]Processing:[/] {bookName}";
 
                             // Extract metadata
                             var metadata = await metadataExtractor.ExtractMetadataAsync(folder, null, CancellationToken.None);
 
-                            // Create metadata override from extracted data
-                            var metadataOverride = new MetadataOverride
+                            var folderExported = false;
+                            var folderSkipped = true;
+
+                            foreach (var formatter in selectedFormatters)
                             {
-                                Title = metadata.Title,
-                                Author = metadata.Author,
-                                Narrator = metadata.Narrator,
-                                Series = metadata.Series,
-                                SeriesNumber = metadata.SeriesNumber,
-                                Year = metadata.Year,
-                                Genre = metadata.Genre,
-                                Description = metadata.Description
-                            };
+                                var metadataFilePath = Path.Combine(folder.Path, formatter.FileName);
 
-                            // Serialize to JSON
-                            var options = new JsonSerializerOptions
+                                // Skip if file exists and force is not set
+                                if (File.Exists(metadataFilePath) && !force)
+                                {
+                                    if (verbose)
+                                    {
+                                        AnsiConsole.MarkupLine(
+                                            "[dim]Skipped:[/] {0} ({1})",
+                                            bookName,
+                                            formatter.FormatName);
+                                    }
+                                    continue;
+                                }
+
+                                folderSkipped = false;
+
+                                // Format and write metadata
+                                var formattedContent = await formatter.FormatAsync(metadata);
+                                await File.WriteAllTextAsync(metadataFilePath, formattedContent);
+
+                                folderExported = true;
+
+                                if (verbose)
+                                {
+                                    AnsiConsole.MarkupLine(
+                                        "[green]✓[/] Exported: [dim]{0}[/] ({1})",
+                                        metadataFilePath,
+                                        formatter.FormatName);
+                                }
+                            }
+
+                            if (folderExported)
                             {
-                                WriteIndented = true,
-                                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
-                            };
-
-                            var json = JsonSerializer.Serialize(metadataOverride, options);
-
-                            // Write to file
-                            await System.IO.File.WriteAllTextAsync(metadataFilePath, json);
-
-                            exportedCount++;
-
-                            if (verbose)
+                                exportedCount++;
+                            }
+                            else if (folderSkipped)
                             {
-                                AnsiConsole.MarkupLine(
-                                    "[green]✓[/] Exported: [dim]{0}[/]",
-                                    metadataFilePath);
+                                skippedCount++;
                             }
                         }
                         catch (Exception ex)
@@ -204,7 +223,7 @@ public class ExportMetadataCommand : Command
 
             if (skippedCount > 0)
             {
-                AnsiConsole.MarkupLine("[dim]Tip: Use --force to overwrite existing metadata.json files[/]");
+                AnsiConsole.MarkupLine("[dim]Tip: Use --force to overwrite existing metadata files[/]");
             }
 
             return errorCount > 0 ? 1 : 0;
@@ -218,5 +237,20 @@ public class ExportMetadataCommand : Command
             }
             return 1;
         }
+    }
+
+    /// <summary>
+    /// Gets the formatters for the specified format.
+    /// </summary>
+    private static List<IMetadataFormatter> GetFormattersForFormat(List<IMetadataFormatter> allFormatters, MetadataFormat format)
+    {
+        return format switch
+        {
+            MetadataFormat.BookOrganizer => allFormatters.Where(f => f is BookOrganizerFormatter).ToList(),
+            MetadataFormat.Audiobookshelf => allFormatters.Where(f => f is AudiobookshelfFormatter).ToList(),
+            MetadataFormat.Nfo => allFormatters.Where(f => f is NfoFormatter).ToList(),
+            MetadataFormat.All => allFormatters,
+            _ => []
+        };
     }
 }

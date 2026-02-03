@@ -40,12 +40,18 @@ public class VerifyCommand : Command
 
         var generateMetadataOption = new Option<bool>("--generate-metadata")
         {
-            Description = "Generate missing metadata.json files from folder structure"
+            Description = "Generate missing metadata files from folder structure"
+        };
+
+        var metadataFormatOption = new Option<MetadataFormat>("--metadata-format")
+        {
+            Description = "Metadata format for --generate-metadata: bookorganizer (default), audiobookshelf, nfo, or all",
+            DefaultValueFactory = _ => MetadataFormat.BookOrganizer
         };
 
         var forceOption = new Option<bool>("--force")
         {
-            Description = "Overwrite existing metadata.json files when generating"
+            Description = "Overwrite existing metadata files when generating"
         };
 
         Options.Add(libraryOption);
@@ -53,6 +59,7 @@ public class VerifyCommand : Command
         Options.Add(checkDuplicatesOption);
         Options.Add(duplicateThresholdOption);
         Options.Add(generateMetadataOption);
+        Options.Add(metadataFormatOption);
         Options.Add(forceOption);
 
         this.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
@@ -62,10 +69,11 @@ public class VerifyCommand : Command
             var checkDuplicates = parseResult.GetValue(checkDuplicatesOption);
             var duplicateThreshold = parseResult.GetValue(duplicateThresholdOption);
             var generateMetadata = parseResult.GetValue(generateMetadataOption);
+            var metadataFormat = parseResult.GetValue(metadataFormatOption);
             var force = parseResult.GetValue(forceOption);
 
             return await ExecuteAsync(library, verbose, checkDuplicates, duplicateThreshold,
-                generateMetadata, force);
+                generateMetadata, metadataFormat, force);
         });
     }
 
@@ -75,6 +83,7 @@ public class VerifyCommand : Command
         bool checkDuplicates,
         double duplicateThreshold,
         bool generateMetadata,
+        MetadataFormat metadataFormat,
         bool force)
     {
         try
@@ -163,6 +172,12 @@ public class VerifyCommand : Command
                     }
                 }
 
+                var formatDescription = metadataFormat == MetadataFormat.All
+                    ? "all formats"
+                    : metadataFormat.ToString().ToLowerInvariant();
+                AnsiConsole.MarkupLine("[dim]Output format:[/] {0}", formatDescription);
+                AnsiConsole.WriteLine();
+
                 await AnsiConsole.Progress()
                     .AutoRefresh(true)
                     .AutoClear(false)
@@ -173,7 +188,7 @@ public class VerifyCommand : Command
                         new SpinnerColumn())
                     .StartAsync(async ctx =>
                     {
-                        var task = ctx.AddTask("[yellow]Generating metadata.json files...[/]", maxValue: allFolders.Count);
+                        var task = ctx.AddTask("[yellow]Generating metadata files...[/]", maxValue: allFolders.Count);
 
                         foreach (var folderPath in allFolders)
                         {
@@ -185,6 +200,7 @@ public class VerifyCommand : Command
                                 var result = await metadataGenerator.GenerateMetadataFromStructureAsync(
                                     folderPath,
                                     libraryPath,
+                                    metadataFormat,
                                     force,
                                     CancellationToken.None);
 

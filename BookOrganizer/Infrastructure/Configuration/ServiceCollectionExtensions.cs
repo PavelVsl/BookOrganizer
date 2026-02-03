@@ -37,6 +37,11 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IMetadataValidator, MetadataValidator>();
         services.AddSingleton<IMetadataGenerator, FolderStructureMetadataGenerator>();
 
+        // Metadata formatters
+        services.AddSingleton<IMetadataFormatter, BookOrganizerFormatter>();
+        services.AddSingleton<IMetadataFormatter, AudiobookshelfFormatter>();
+        services.AddSingleton<IMetadataFormatter, NfoFormatter>();
+
         // Operation services
         services.AddSingleton<IPathGenerator, PathGenerator>();
         services.AddSingleton<IFilenameNormalizer, FilenameNormalizer>();

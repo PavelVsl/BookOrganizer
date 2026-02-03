@@ -3,21 +3,37 @@ using BookOrganizer.Models;
 namespace BookOrganizer.Services.Metadata;
 
 /// <summary>
-/// Service for generating metadata.json files from folder structure.
+/// Service for generating metadata files from folder structure.
 /// </summary>
 public interface IMetadataGenerator
 {
     /// <summary>
-    /// Generates metadata.json file from folder structure.
+    /// Generates metadata file from folder structure.
     /// </summary>
     /// <param name="bookFolderPath">Path to the book folder in library.</param>
     /// <param name="libraryRootPath">Root path of the library.</param>
-    /// <param name="force">If true, overwrites existing metadata.json files.</param>
+    /// <param name="force">If true, overwrites existing metadata files.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Result indicating success, the generated metadata, and any error message.</returns>
     Task<MetadataGenerationResult> GenerateMetadataFromStructureAsync(
         string bookFolderPath,
         string libraryRootPath,
+        bool force = false,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Generates metadata file from folder structure with specified format.
+    /// </summary>
+    /// <param name="bookFolderPath">Path to the book folder in library.</param>
+    /// <param name="libraryRootPath">Root path of the library.</param>
+    /// <param name="format">Metadata format to generate.</param>
+    /// <param name="force">If true, overwrites existing metadata files.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Result indicating success, the generated metadata, and any error message.</returns>
+    Task<MetadataGenerationResult> GenerateMetadataFromStructureAsync(
+        string bookFolderPath,
+        string libraryRootPath,
+        MetadataFormat format,
         bool force = false,
         CancellationToken cancellationToken = default);
 }
