@@ -572,8 +572,16 @@ public class FileOrganizer : IFileOrganizer
         }
     }
 
+    // Files that are considered generated metadata (safe to delete during cleanup)
+    private static readonly HashSet<string> MetadataFileNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "bookinfo.json",
+        "metadata.json",
+        "metadata.nfo"
+    };
+
     /// <summary>
-    /// Cleans up empty directories left after reorganization.
+    /// Cleans up directories left after reorganization that are empty or contain only metadata files.
     /// </summary>
     private async Task CleanupEmptyDirectoriesAsync(string libraryPath)
     {
@@ -589,11 +597,29 @@ public class FileOrganizer : IFileOrganizer
                 {
                     try
                     {
-                        // Check if directory is empty
-                        if (!Directory.EnumerateFileSystemEntries(directory).Any())
+                        // Skip if directory has subdirectories
+                        if (Directory.EnumerateDirectories(directory).Any())
+                            continue;
+
+                        var files = Directory.GetFiles(directory);
+
+                        // Empty directory - delete
+                        if (files.Length == 0)
                         {
                             Directory.Delete(directory);
                             _logger.LogDebug("Removed empty directory: {Path}", directory);
+                            continue;
+                        }
+
+                        // Directory with only metadata files - delete files then directory
+                        if (files.All(f => MetadataFileNames.Contains(Path.GetFileName(f))))
+                        {
+                            foreach (var file in files)
+                                File.Delete(file);
+
+                            Directory.Delete(directory);
+                            _logger.LogInformation(
+                                "Removed directory with only metadata files: {Path}", directory);
                         }
                     }
                     catch (Exception ex)
