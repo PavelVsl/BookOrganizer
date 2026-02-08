@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -237,6 +238,27 @@ public class MetadataExtractor : IMetadataExtractor
 
         var trimmed = value.Trim();
         return FixCzechEncoding(trimmed);
+    }
+
+    /// <summary>
+    /// Converts ALL CAPS text to title case (e.g., "ANDRZEJ SAPKOWSKI" → "Andrzej Sapkowski").
+    /// Returns original value if not all caps.
+    /// </summary>
+    private static string? FixAllCaps(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return value;
+
+        var letters = value.Where(char.IsLetter).ToList();
+        if (letters.Count <= 1)
+            return value;
+
+        var upperCount = letters.Count(char.IsUpper);
+        if ((double)upperCount / letters.Count < 0.7)
+            return value;
+
+        var culture = CultureInfo.CurrentCulture;
+        return culture.TextInfo.ToTitleCase(value.ToLower(culture));
     }
 
     /// <summary>
@@ -524,6 +546,12 @@ public class MetadataExtractor : IMetadataExtractor
         (var series, var seriesNumber, var cleanTitle) = ExtractSeriesInfo(title);
         if (cleanTitle != null)
             title = cleanTitle;
+
+        // Fix ALL CAPS values from ID3 tags
+        title = FixAllCaps(title);
+        author = FixAllCaps(author);
+        series = FixAllCaps(series);
+        narrator = FixAllCaps(narrator);
 
         // Calculate confidence score
         var confidence = CalculateConfidence(title, author, narrator, genre, year);
