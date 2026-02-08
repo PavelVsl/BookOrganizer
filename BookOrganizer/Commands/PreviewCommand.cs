@@ -578,18 +578,28 @@ public class PreviewCommand : Command
             var absLogger = Program.ServiceProvider.GetRequiredService<ILogger<AbsApiClient>>();
             using var client = new AbsApiClient(url, token, absLogger);
 
-            // Resolve library ID
-            var libraryId = absLibrary;
+            // Resolve library ID: CLI flag > env var > auto-detect
+            var libraryId = absLibrary ?? Environment.GetEnvironmentVariable("AUDIOBOOKSHELF_LIBRARY");
             if (string.IsNullOrWhiteSpace(libraryId))
             {
                 var libraries = await client.GetLibrariesAsync().ConfigureAwait(false);
-                var bookLibrary = libraries.FirstOrDefault(l =>
-                    l.MediaType.Equals("book", StringComparison.OrdinalIgnoreCase));
-                if (bookLibrary == null)
+                var bookLibraries = libraries
+                    .Where(l => l.MediaType.Equals("book", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                if (bookLibraries.Count == 0)
                 {
                     AnsiConsole.MarkupLine("[red]Error:[/] No book library found in ABS. Use --abs-library to specify.");
                     return null;
                 }
+
+                // Prefer library named "library" (case-insensitive), otherwise first non-test library
+                var bookLibrary = bookLibraries.FirstOrDefault(l =>
+                        l.Name.Equals("library", StringComparison.OrdinalIgnoreCase))
+                    ?? bookLibraries.FirstOrDefault(l =>
+                        !l.Name.Contains("test", StringComparison.OrdinalIgnoreCase))
+                    ?? bookLibraries[0];
+
                 libraryId = bookLibrary.Id;
                 AnsiConsole.MarkupLine("[dim]Using ABS library: {0} ({1})[/]", bookLibrary.Name, libraryId);
             }
