@@ -11,24 +11,6 @@ public class TextNormalizer : ITextNormalizer
 {
     private readonly ILogger<TextNormalizer> _logger;
 
-    // Czech diacritics mapping for normalization
-    private static readonly Dictionary<char, char> CzechDiacriticsMap = new()
-    {
-        {'á', 'a'}, {'Á', 'a'},
-        {'č', 'c'}, {'Č', 'c'},
-        {'ď', 'd'}, {'Ď', 'd'},
-        {'é', 'e'}, {'É', 'e'}, {'ě', 'e'}, {'Ě', 'e'},
-        {'í', 'i'}, {'Í', 'i'},
-        {'ň', 'n'}, {'Ň', 'n'},
-        {'ó', 'o'}, {'Ó', 'o'},
-        {'ř', 'r'}, {'Ř', 'r'},
-        {'š', 's'}, {'Š', 's'},
-        {'ť', 't'}, {'Ť', 't'},
-        {'ú', 'u'}, {'Ú', 'u'}, {'ů', 'u'}, {'Ů', 'u'},
-        {'ý', 'y'}, {'Ý', 'y'},
-        {'ž', 'z'}, {'Ž', 'z'}
-    };
-
     // Common mojibake patterns when Windows-1250 is read as UTF-8
     // These are Czech characters incorrectly decoded
     private static readonly Dictionary<string, string> MojibakePatterns = new()
@@ -223,24 +205,28 @@ public class TextNormalizer : ITextNormalizer
         return distance[sourceLength, targetLength];
     }
 
-    private static string RemoveDiacritics(string text)
+    /// <inheritdoc />
+    public string RemoveDiacritics(string? text)
     {
+        if (string.IsNullOrWhiteSpace(text))
+            return string.Empty;
+
+        // Use Unicode NFD decomposition to separate base characters from combining marks
+        var normalized = text.Normalize(NormalizationForm.FormD);
         var sb = new StringBuilder(text.Length);
 
-        foreach (var c in text)
+        foreach (var c in normalized)
         {
-            // Check our Czech diacritics map first
-            if (CzechDiacriticsMap.TryGetValue(c, out var replacement))
-            {
-                sb.Append(replacement);
-            }
-            else
+            // Keep only non-combining characters (skip combining diacritical marks)
+            var category = CharUnicodeInfo.GetUnicodeCategory(c);
+            if (category != UnicodeCategory.NonSpacingMark)
             {
                 sb.Append(c);
             }
         }
 
-        return sb.ToString();
+        // Re-compose to NFC for clean output
+        return sb.ToString().Normalize(NormalizationForm.FormC);
     }
 
     private static bool ContainsMojibake(string text)

@@ -49,7 +49,7 @@ public class PathGenerator : IPathGenerator
         // Normalize and format author name
         var rawAuthor = metadata.Author ?? "Unknown Author";
         var normalizedAuthor = NormalizeAuthorName(rawAuthor);
-        var authorFolder = SanitizePathComponent(normalizedAuthor);
+        var authorFolder = _textNormalizer.RemoveDiacritics(SanitizePathComponent(normalizedAuthor));
         pathComponents.Add(authorFolder);
 
         // Determine if this is part of a series
@@ -58,7 +58,7 @@ public class PathGenerator : IPathGenerator
         if (hasSeries)
         {
             // Series structure: /Author/Series Name/01 - Book Title/
-            var seriesFolder = SanitizePathComponent(metadata.Series!);
+            var seriesFolder = _textNormalizer.RemoveDiacritics(SanitizePathComponent(metadata.Series!));
             pathComponents.Add(seriesFolder);
 
             // Add book folder with series number prefix if available
@@ -68,7 +68,7 @@ public class PathGenerator : IPathGenerator
         else
         {
             // Standalone structure: /Author/Book Title/
-            var bookFolder = SanitizePathComponent(metadata.Title);
+            var bookFolder = _textNormalizer.RemoveDiacritics(SanitizePathComponent(metadata.Title));
             pathComponents.Add(bookFolder);
         }
 
@@ -159,18 +159,18 @@ public class PathGenerator : IPathGenerator
             if (int.TryParse(metadata.SeriesNumber, out var seriesNum))
             {
                 var bookName = string.Format(SeriesBookFormat, seriesNum, title);
-                return SanitizePathComponent(bookName);
+                return _textNormalizer.RemoveDiacritics(SanitizePathComponent(bookName));
             }
             else
             {
                 // Use series number as-is if it's not a simple integer (e.g., "2.5", "3a")
                 var bookName = $"{metadata.SeriesNumber} - {title}";
-                return SanitizePathComponent(bookName);
+                return _textNormalizer.RemoveDiacritics(SanitizePathComponent(bookName));
             }
         }
 
         // No series number, just use title
-        return SanitizePathComponent(title);
+        return _textNormalizer.RemoveDiacritics(SanitizePathComponent(title));
     }
 
     /// <summary>

@@ -43,4 +43,12 @@ public interface ITextNormalizer
     /// <param name="text2">Second text</param>
     /// <returns>Similarity score from 0.0 to 1.0</returns>
     double CalculateSimilarity(string? text1, string? text2);
+
+    /// <summary>
+    /// Removes diacritics from text while preserving case and other characters.
+    /// Uses Unicode NFD decomposition to handle all diacritical marks.
+    /// </summary>
+    /// <param name="text">Text with diacritics</param>
+    /// <returns>Text with diacritics removed, case preserved</returns>
+    string RemoveDiacritics(string? text);
 }

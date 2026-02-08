@@ -2,6 +2,7 @@ using BookOrganizer.Models;
 using BookOrganizer.Services.Library;
 using BookOrganizer.Services.Metadata;
 using BookOrganizer.Services.Scanning;
+using BookOrganizer.Services.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
@@ -140,6 +141,30 @@ public class VerifyCommand : Command
 
             AnsiConsole.MarkupLine("[green]Found {0} audiobook(s)[/]", totalBooks);
             AnsiConsole.WriteLine();
+
+            // Check for duplicate author folders (same author name with/without diacritics)
+            var textNormalizer = Program.ServiceProvider.GetRequiredService<ITextNormalizer>();
+            var duplicateAuthorGroups = CheckDuplicateAuthorFolders(libraryPath, textNormalizer);
+            if (duplicateAuthorGroups.Count > 0)
+            {
+                AnsiConsole.Write(new Rule("[bold yellow]Duplicate Author Folders[/]").RuleStyle("grey"));
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine("[yellow]Found {0} author name(s) with multiple folders (diacritics variants):[/]",
+                    duplicateAuthorGroups.Count);
+                AnsiConsole.WriteLine();
+
+                foreach (var group in duplicateAuthorGroups)
+                {
+                    AnsiConsole.MarkupLine("[yellow]  '{0}' has {1} folders:[/]", group.Key, group.Value.Count);
+                    foreach (var folder in group.Value)
+                    {
+                        AnsiConsole.MarkupLine("    - {0}", Path.GetFileName(folder));
+                    }
+                }
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine("[dim]Run 'reorganize' to merge these into single ASCII-named folders.[/]");
+                AnsiConsole.WriteLine();
+            }
 
             // Generate metadata.json files if requested
             var metadataGenerated = 0;
@@ -488,6 +513,11 @@ public class VerifyCommand : Command
                 structureIssues.ToString(),
                 structureIssues > 0 ? "[yellow]⚠[/]" : "[green]✓[/]");
 
+            summaryTable.AddRow(
+                "Duplicate Author Folders",
+                duplicateAuthorGroups.Count.ToString(),
+                duplicateAuthorGroups.Count > 0 ? "[yellow]⚠[/]" : "[green]✓[/]");
+
             if (checkDuplicates)
             {
                 summaryTable.AddRow(
@@ -578,6 +608,33 @@ public class VerifyCommand : Command
             }
             return 1;
         }
+    }
+
+    /// <summary>
+    /// Checks for author folders that are diacritics variants of the same name.
+    /// Groups top-level library folders by normalized comparison key.
+    /// </summary>
+    private static Dictionary<string, List<string>> CheckDuplicateAuthorFolders(
+        string libraryPath, ITextNormalizer textNormalizer)
+    {
+        var authorFolders = Directory.GetDirectories(libraryPath);
+        var groups = new Dictionary<string, List<string>>();
+
+        foreach (var folder in authorFolders)
+        {
+            var folderName = Path.GetFileName(folder);
+            var normalized = textNormalizer.NormalizeForComparison(folderName);
+
+            if (!groups.ContainsKey(normalized))
+                groups[normalized] = [];
+
+            groups[normalized].Add(folder);
+        }
+
+        // Return only groups with more than one folder
+        return groups
+            .Where(g => g.Value.Count > 1)
+            .ToDictionary(g => g.Key, g => g.Value);
     }
 
     /// <summary>
