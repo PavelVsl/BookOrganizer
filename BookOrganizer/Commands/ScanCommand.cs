@@ -13,10 +13,9 @@ public class ScanCommand : Command
 {
     public ScanCommand() : base("scan", "Scan directories for audiobook folders")
     {
-        var sourceOption = new Option<string>("--source", "-s")
+        var sourceOption = new Option<string?>("--source", "-s")
         {
-            Description = "Source directory to scan",
-            Required = true
+            Description = "Source directory to scan (or set BOOKORGANIZER_SOURCE env var)"
         };
 
         var verboseOption = new Option<bool>("--verbose", "-v")
@@ -29,8 +28,16 @@ public class ScanCommand : Command
 
         this.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
         {
-            var source = parseResult.GetValue(sourceOption)!;
+            var source = parseResult.GetValue(sourceOption)
+                ?? Environment.GetEnvironmentVariable("BOOKORGANIZER_SOURCE");
             var verbose = parseResult.GetValue(verboseOption);
+
+            if (string.IsNullOrWhiteSpace(source))
+            {
+                AnsiConsole.MarkupLine("[red]Error:[/] --source is required (or set BOOKORGANIZER_SOURCE env var)");
+                return 1;
+            }
+
             return await ExecuteAsync(source, verbose);
         });
     }

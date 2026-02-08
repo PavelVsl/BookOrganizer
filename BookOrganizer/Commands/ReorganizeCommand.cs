@@ -15,10 +15,9 @@ public class ReorganizeCommand : Command
 {
     public ReorganizeCommand() : base("reorganize", "Reorganize library based on updated metadata.json files")
     {
-        var libraryOption = new Option<string>("--library", "-l")
+        var libraryOption = new Option<string?>("--library", "-l")
         {
-            Description = "Library directory to reorganize",
-            Required = true
+            Description = "Library directory to reorganize (or set BOOKORGANIZER_LIBRARY env var)"
         };
 
         var noValidateOption = new Option<bool>("--no-validate")
@@ -38,7 +37,8 @@ public class ReorganizeCommand : Command
 
         var preserveDiacriticsOption = new Option<bool>("--preserve-diacritics")
         {
-            Description = "Preserve Czech diacritics in folder names (UTF-8) instead of ASCII-safe names"
+            Description = "Preserve Czech diacritics in folder names (UTF-8) instead of ASCII-safe names (or set BOOKORGANIZER_PRESERVE_DIACRITICS=true)",
+            DefaultValueFactory = _ => string.Equals(Environment.GetEnvironmentVariable("BOOKORGANIZER_PRESERVE_DIACRITICS"), "true", StringComparison.OrdinalIgnoreCase)
         };
 
         Options.Add(libraryOption);
@@ -49,11 +49,18 @@ public class ReorganizeCommand : Command
 
         this.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
         {
-            var library = parseResult.GetValue(libraryOption)!;
+            var library = parseResult.GetValue(libraryOption)
+                ?? Environment.GetEnvironmentVariable("BOOKORGANIZER_LIBRARY");
             var noValidate = parseResult.GetValue(noValidateOption);
             var verbose = parseResult.GetValue(verboseOption);
             var yes = parseResult.GetValue(yesOption);
             var preserveDiacritics = parseResult.GetValue(preserveDiacriticsOption);
+
+            if (string.IsNullOrWhiteSpace(library))
+            {
+                AnsiConsole.MarkupLine("[red]Error:[/] --library is required (or set BOOKORGANIZER_LIBRARY env var)");
+                return 1;
+            }
 
             return await ExecuteAsync(
                 library, !noValidate, verbose, yes, preserveDiacritics);

@@ -19,22 +19,20 @@ public class PreviewCommand : Command
 {
     public PreviewCommand() : base("preview", "Preview audiobook organization without executing")
     {
-        var sourceOption = new Option<string>("--source", "-s")
+        var sourceOption = new Option<string?>("--source", "-s")
         {
-            Description = "Source directory containing audiobooks",
-            Required = true
+            Description = "Source directory containing audiobooks (or set BOOKORGANIZER_SOURCE env var)"
         };
 
-        var destinationOption = new Option<string>("--destination", "-d", "--library", "-l")
+        var destinationOption = new Option<string?>("--destination", "-d", "--library", "-l")
         {
-            Description = "Target library directory for organized audiobooks",
-            Required = true
+            Description = "Target library directory for organized audiobooks (or set BOOKORGANIZER_LIBRARY env var)"
         };
 
         var operationOption = new Option<string>("--operation", "-o")
         {
-            Description = "Operation type: copy, move, hardlink, symlink",
-            DefaultValueFactory = _ => "copy"
+            Description = "Operation type: copy, move, hardlink, symlink (or set BOOKORGANIZER_OPERATION env var)",
+            DefaultValueFactory = _ => Environment.GetEnvironmentVariable("BOOKORGANIZER_OPERATION") ?? "copy"
         };
 
         var exportOption = new Option<string?>("--export", "-e")
@@ -95,8 +93,8 @@ public class PreviewCommand : Command
 
         var metadataSourceOption = new Option<string>("--metadata-source")
         {
-            Description = "Source for metadata extraction: 'mp3' (from ID3 tags) or 'folder' (from folder structure)",
-            DefaultValueFactory = _ => "mp3"
+            Description = "Source for metadata extraction: 'mp3' (from ID3 tags) or 'folder' (from folder structure) (or set BOOKORGANIZER_METADATA_SOURCE env var)",
+            DefaultValueFactory = _ => Environment.GetEnvironmentVariable("BOOKORGANIZER_METADATA_SOURCE") ?? "mp3"
         };
 
         var interactiveOption = new Option<bool>("--interactive", "-i")
@@ -106,7 +104,8 @@ public class PreviewCommand : Command
 
         var preserveDiacriticsOption = new Option<bool>("--preserve-diacritics")
         {
-            Description = "Preserve Czech diacritics in folder names (UTF-8) instead of ASCII-safe names"
+            Description = "Preserve Czech diacritics in folder names (UTF-8) instead of ASCII-safe names (or set BOOKORGANIZER_PRESERVE_DIACRITICS=true)",
+            DefaultValueFactory = _ => string.Equals(Environment.GetEnvironmentVariable("BOOKORGANIZER_PRESERVE_DIACRITICS"), "true", StringComparison.OrdinalIgnoreCase)
         };
 
         var checkAbsOption = new Option<bool>("--check-abs")
@@ -153,8 +152,10 @@ public class PreviewCommand : Command
 
         this.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
         {
-            var source = parseResult.GetValue(sourceOption)!;
-            var destination = parseResult.GetValue(destinationOption)!;
+            var source = parseResult.GetValue(sourceOption)
+                ?? Environment.GetEnvironmentVariable("BOOKORGANIZER_SOURCE");
+            var destination = parseResult.GetValue(destinationOption)
+                ?? Environment.GetEnvironmentVariable("BOOKORGANIZER_LIBRARY");
             var operation = parseResult.GetValue(operationOption)!;
             var export = parseResult.GetValue(exportOption);
             var authorFilter = parseResult.GetValue(authorOption);
@@ -174,6 +175,17 @@ public class PreviewCommand : Command
             var absUrl = parseResult.GetValue(absUrlOption);
             var absToken = parseResult.GetValue(absTokenOption);
             var absLibrary = parseResult.GetValue(absLibraryOption);
+
+            if (string.IsNullOrWhiteSpace(source))
+            {
+                AnsiConsole.MarkupLine("[red]Error:[/] --source is required (or set BOOKORGANIZER_SOURCE env var)");
+                return 1;
+            }
+            if (string.IsNullOrWhiteSpace(destination))
+            {
+                AnsiConsole.MarkupLine("[red]Error:[/] --destination is required (or set BOOKORGANIZER_LIBRARY env var)");
+                return 1;
+            }
 
             return await ExecuteAsync(
                 source, destination, operation, export,

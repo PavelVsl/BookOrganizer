@@ -229,16 +229,60 @@ bookorganizer verify -l ~/library --generate-metadata --metadata-format nfo --fo
 
 ## Environment Variables
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `BOOKORGANIZER_LOG_LEVEL` | Logging verbosity | `Debug`, `Information`, `Warning` (default), `Error` |
-| `AUDIOBOOKSHELF_URL` | Audiobookshelf server URL | `http://192.168.1.100:13378` |
-| `AUDIOBOOKSHELF_TOKEN` | Audiobookshelf API key | `eyJhbGci...` |
-| `AUDIOBOOKSHELF_LIBRARY` | Audiobookshelf library ID (skips auto-detection) | `c7023f78-3d44-...` |
+All options can be set via CLI flags or environment variables. CLI flags always take precedence.
+
+### Paths
+
+| Variable | Description | Used by | Example |
+|----------|-------------|---------|---------|
+| `BOOKORGANIZER_SOURCE` | Default source directory | scan, preview, organize, export-metadata | `~/audiobooks` |
+| `BOOKORGANIZER_LIBRARY` | Default library/destination directory | preview, organize, verify, reorganize | `~/library` |
+
+### Defaults
+
+| Variable | Description | Used by | Default |
+|----------|-------------|---------|---------|
+| `BOOKORGANIZER_OPERATION` | Default operation type (`copy`, `move`, `hardlink`, `symlink`) | preview, organize | `copy` |
+| `BOOKORGANIZER_PRESERVE_DIACRITICS` | Preserve Czech diacritics in folder names (`true`/`false`) | preview, organize, reorganize | `false` |
+| `BOOKORGANIZER_METADATA_SOURCE` | Metadata extraction source (`mp3` or `folder`) | preview | `mp3` |
+| `BOOKORGANIZER_EXPORT_FORMAT` | Default export format (`bookorganizer`, `audiobookshelf`, `nfo`, `all`) | export-metadata | `bookorganizer` |
+| `BOOKORGANIZER_LOG_LEVEL` | Logging verbosity | all | `Warning` |
+
+### Audiobookshelf
+
+| Variable | Description | Used by | Example |
+|----------|-------------|---------|---------|
+| `AUDIOBOOKSHELF_URL` | Audiobookshelf server URL | preview, organize | `http://192.168.1.100:13378` |
+| `AUDIOBOOKSHELF_TOKEN` | Audiobookshelf API key | preview, organize | `eyJhbGci...` |
+| `AUDIOBOOKSHELF_LIBRARY` | Audiobookshelf library ID (skips auto-detection) | preview, organize | `c7023f78-3d44-...` |
 
 Get your API key from Audiobookshelf: Settings > Users > your user > API Token.
 
 When `AUDIOBOOKSHELF_LIBRARY` is not set, auto-detection prefers a library named "library" and skips libraries with "test" in the name.
+
+### Example .env setup
+
+```bash
+export BOOKORGANIZER_SOURCE=~/audiobooks
+export BOOKORGANIZER_LIBRARY=~/library
+export BOOKORGANIZER_OPERATION=copy
+export BOOKORGANIZER_PRESERVE_DIACRITICS=true
+export AUDIOBOOKSHELF_URL=http://192.168.1.100:13378
+export AUDIOBOOKSHELF_TOKEN=eyJhbGci...
+```
+
+With env vars configured, commands become shorter:
+
+```bash
+# Instead of: bookorganizer preview -s ~/audiobooks -d ~/library --preserve-diacritics
+bookorganizer preview
+
+# Instead of: bookorganizer organize -s ~/audiobooks -d ~/library --yes
+bookorganizer organize --yes
+
+# Instead of: bookorganizer verify -l ~/library
+bookorganizer verify
+```
 
 ## MP3 Tag Caching
 

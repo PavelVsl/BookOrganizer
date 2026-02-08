@@ -17,10 +17,9 @@ public class VerifyCommand : Command
 {
     public VerifyCommand() : base("verify", "Verify library integrity and metadata consistency")
     {
-        var libraryOption = new Option<string>("--library", "-l")
+        var libraryOption = new Option<string?>("--library", "-l")
         {
-            Description = "Library directory to verify",
-            Required = true
+            Description = "Library directory to verify (or set BOOKORGANIZER_LIBRARY env var)"
         };
 
         var verboseOption = new Option<bool>("--verbose", "-v")
@@ -65,13 +64,20 @@ public class VerifyCommand : Command
 
         this.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
         {
-            var library = parseResult.GetValue(libraryOption)!;
+            var library = parseResult.GetValue(libraryOption)
+                ?? Environment.GetEnvironmentVariable("BOOKORGANIZER_LIBRARY");
             var verbose = parseResult.GetValue(verboseOption);
             var checkDuplicates = parseResult.GetValue(checkDuplicatesOption);
             var duplicateThreshold = parseResult.GetValue(duplicateThresholdOption);
             var generateMetadata = parseResult.GetValue(generateMetadataOption);
             var metadataFormat = parseResult.GetValue(metadataFormatOption);
             var force = parseResult.GetValue(forceOption);
+
+            if (string.IsNullOrWhiteSpace(library))
+            {
+                AnsiConsole.MarkupLine("[red]Error:[/] --library is required (or set BOOKORGANIZER_LIBRARY env var)");
+                return 1;
+            }
 
             return await ExecuteAsync(library, verbose, checkDuplicates, duplicateThreshold,
                 generateMetadata, metadataFormat, force);

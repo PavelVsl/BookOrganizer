@@ -16,16 +16,21 @@ public class ExportMetadataCommand : Command
 {
     public ExportMetadataCommand() : base("export-metadata", "Export metadata files to audiobook folders")
     {
-        var sourceOption = new Option<string>("--source", "-s")
+        var sourceOption = new Option<string?>("--source", "-s")
         {
-            Description = "Source directory to scan for audiobooks",
-            Required = true
+            Description = "Source directory to scan for audiobooks (or set BOOKORGANIZER_SOURCE env var)"
         };
 
         var formatOption = new Option<MetadataFormat>("--format", "-f")
         {
-            Description = "Output format: bookorganizer (default), audiobookshelf, nfo, or all",
-            DefaultValueFactory = _ => MetadataFormat.BookOrganizer
+            Description = "Output format: bookorganizer, audiobookshelf, nfo, or all (or set BOOKORGANIZER_EXPORT_FORMAT env var)",
+            DefaultValueFactory = _ =>
+            {
+                var envFormat = Environment.GetEnvironmentVariable("BOOKORGANIZER_EXPORT_FORMAT");
+                if (envFormat != null && Enum.TryParse<MetadataFormat>(envFormat, ignoreCase: true, out var format))
+                    return format;
+                return MetadataFormat.BookOrganizer;
+            }
         };
 
         var forceOption = new Option<bool>("--force")
@@ -45,10 +50,18 @@ public class ExportMetadataCommand : Command
 
         this.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
         {
-            var source = parseResult.GetValue(sourceOption)!;
+            var source = parseResult.GetValue(sourceOption)
+                ?? Environment.GetEnvironmentVariable("BOOKORGANIZER_SOURCE");
             var format = parseResult.GetValue(formatOption);
             var force = parseResult.GetValue(forceOption);
             var verbose = parseResult.GetValue(verboseOption);
+
+            if (string.IsNullOrWhiteSpace(source))
+            {
+                AnsiConsole.MarkupLine("[red]Error:[/] --source is required (or set BOOKORGANIZER_SOURCE env var)");
+                return 1;
+            }
+
             return await ExecuteAsync(source, format, force, verbose);
         });
     }
