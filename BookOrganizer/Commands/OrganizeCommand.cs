@@ -1,5 +1,6 @@
 using BookOrganizer.Models;
 using BookOrganizer.Services.Operations;
+using BookOrganizer.Services.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
@@ -99,6 +100,10 @@ public class OrganizeCommand : Command
             // Get services from DI
             var organizer = Program.ServiceProvider.GetRequiredService<IFileOrganizer>();
             var logger = Program.ServiceProvider.GetRequiredService<ILogger<OrganizeCommand>>();
+            var nameDictionary = Program.ServiceProvider.GetRequiredService<INameDictionary>();
+
+            // Load name dictionary for diacritics restoration
+            await nameDictionary.LoadAsync(destinationPath);
 
             // Validate directories
             if (!Directory.Exists(sourcePath))

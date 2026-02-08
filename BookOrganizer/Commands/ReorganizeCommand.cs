@@ -1,5 +1,6 @@
 using BookOrganizer.Models;
 using BookOrganizer.Services.Operations;
+using BookOrganizer.Services.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
@@ -63,6 +64,10 @@ public class ReorganizeCommand : Command
             // Get services from DI
             var organizer = Program.ServiceProvider.GetRequiredService<IFileOrganizer>();
             var logger = Program.ServiceProvider.GetRequiredService<ILogger<ReorganizeCommand>>();
+            var nameDictionary = Program.ServiceProvider.GetRequiredService<INameDictionary>();
+
+            // Load name dictionary for diacritics restoration
+            await nameDictionary.LoadAsync(libraryPath);
 
             // Validate library path
             if (!Directory.Exists(libraryPath))

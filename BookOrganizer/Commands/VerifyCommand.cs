@@ -94,6 +94,10 @@ public class VerifyCommand : Command
             var metadataExtractor = Program.ServiceProvider.GetRequiredService<IMetadataExtractor>();
             var metadataGenerator = Program.ServiceProvider.GetRequiredService<IMetadataGenerator>();
             var logger = Program.ServiceProvider.GetRequiredService<ILogger<VerifyCommand>>();
+            var nameDictionary = Program.ServiceProvider.GetRequiredService<INameDictionary>();
+
+            // Load name dictionary for diacritics restoration
+            await nameDictionary.LoadAsync(libraryPath);
 
             // Validate library directory
             if (!Directory.Exists(libraryPath))

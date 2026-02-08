@@ -11,6 +11,7 @@ public class MetadataConsolidator : IMetadataConsolidator
 {
     private readonly ILogger<MetadataConsolidator> _logger;
     private readonly ITextNormalizer _textNormalizer;
+    private readonly INameDictionary _nameDictionary;
 
     // Source reliability weights (higher = more reliable)
     // Hierarchical metadata.json files have HIGHEST priority (explicit user overrides)
@@ -19,10 +20,11 @@ public class MetadataConsolidator : IMetadataConsolidator
     private const double FilenameWeight = 0.6;
     private const double FolderStructureWeight = 0.4;
 
-    public MetadataConsolidator(ILogger<MetadataConsolidator> logger, ITextNormalizer textNormalizer)
+    public MetadataConsolidator(ILogger<MetadataConsolidator> logger, ITextNormalizer textNormalizer, INameDictionary nameDictionary)
     {
         _logger = logger;
         _textNormalizer = textNormalizer;
+        _nameDictionary = nameDictionary;
     }
 
     /// <inheritdoc />
@@ -63,7 +65,8 @@ public class MetadataConsolidator : IMetadataConsolidator
                 sourcesList,
                 m => m.Author,
                 out var authorConf,
-                out var authorSource),
+                out var authorSource,
+                "Author"),
             AuthorConfidence = authorConf,
             AuthorSource = authorSource,
 
@@ -87,7 +90,8 @@ public class MetadataConsolidator : IMetadataConsolidator
                 sourcesList,
                 m => m.Narrator,
                 out var narratorConf,
-                out var narratorSource),
+                out var narratorSource,
+                "Narrator"),
             NarratorConfidence = narratorConf,
             NarratorSource = narratorSource,
 
@@ -137,7 +141,8 @@ public class MetadataConsolidator : IMetadataConsolidator
         List<BookMetadata> sources,
         Func<BookMetadata, string?> fieldSelector,
         out double confidence,
-        out string? source)
+        out string? source,
+        string? fieldName = null)
     {
         // Get all non-null values with their sources and base confidence
         var candidates = sources
@@ -165,7 +170,10 @@ public class MetadataConsolidator : IMetadataConsolidator
             var single = candidates[0];
             confidence = single.BaseConfidence * single.Weight;
             source = single.Source;
-            return single.Value!;
+            var singleResult = _textNormalizer.NormalizeForDisplay(single.Value!);
+            if (fieldName is "Author" or "Narrator" && _nameDictionary.IsLoaded)
+                singleResult = _nameDictionary.Lookup(singleResult);
+            return singleResult;
         }
 
         // Multiple values - prefer higher weighted sources with higher base confidence
@@ -185,7 +193,13 @@ public class MetadataConsolidator : IMetadataConsolidator
         source = best.Source;
 
         // Normalize the best value for display (fix encoding but preserve case/diacritics)
-        return _textNormalizer.NormalizeForDisplay(best.Value!);
+        var result = _textNormalizer.NormalizeForDisplay(best.Value!);
+
+        // Apply name dictionary lookup for Author and Narrator fields
+        if (fieldName is "Author" or "Narrator" && _nameDictionary.IsLoaded)
+            result = _nameDictionary.Lookup(result);
+
+        return result;
     }
 
     private int? ConsolidateYearField(

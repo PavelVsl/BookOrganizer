@@ -1,6 +1,7 @@
 using System.CommandLine;
 using BookOrganizer.Services.Metadata;
 using BookOrganizer.Services.Scanning;
+using BookOrganizer.Services.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
@@ -61,6 +62,10 @@ public class ExportMetadataCommand : Command
             var metadataExtractor = Program.ServiceProvider.GetRequiredService<IMetadataExtractor>();
             var formatters = Program.ServiceProvider.GetServices<IMetadataFormatter>().ToList();
             var logger = Program.ServiceProvider.GetRequiredService<ILogger<ExportMetadataCommand>>();
+            var nameDictionary = Program.ServiceProvider.GetRequiredService<INameDictionary>();
+
+            // Load name dictionary for diacritics restoration
+            await nameDictionary.LoadAsync(sourcePath);
 
             if (!Directory.Exists(sourcePath))
             {

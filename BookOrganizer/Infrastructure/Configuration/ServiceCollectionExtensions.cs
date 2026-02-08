@@ -24,6 +24,7 @@ public static class ServiceCollectionExtensions
     {
         // Text normalization services
         services.AddSingleton<ITextNormalizer, TextNormalizer>();
+        services.AddSingleton<INameDictionary, NameDictionary>();
 
         // Scanning services
         services.AddSingleton<IDirectoryScanner, DirectoryScanner>();
