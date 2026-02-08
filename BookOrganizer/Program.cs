@@ -4,6 +4,10 @@ using BookOrganizer.Infrastructure.Exceptions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.CommandLine;
+using System.Text;
+
+// Register Windows-1250 and other code page encodings
+Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
 // Display version at startup
 Console.WriteLine($"BookOrganizer v{ThisAssembly.AssemblyInformationalVersion}");

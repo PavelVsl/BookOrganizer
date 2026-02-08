@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using BookOrganizer.Infrastructure.Exceptions;
 using BookOrganizer.Models;
@@ -230,7 +231,83 @@ public class MetadataExtractor : IMetadataExtractor
 
     private static string? GetStringValue(string? value)
     {
-        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        var trimmed = value.Trim();
+        return FixCzechEncoding(trimmed);
+    }
+
+    /// <summary>
+    /// Detects and fixes Windows-1250 Czech text that was incorrectly read as Latin-1 (ISO 8859-1).
+    /// Old Czech MP3 files often have ID3 tags written in Windows-1250 but TagLib reads them as Latin-1,
+    /// producing garbled text (e.g., 'è' instead of 'č', 'ø' instead of 'ř').
+    /// </summary>
+    private static string FixCzechEncoding(string text)
+    {
+        // If text already contains Czech-specific diacritics, it's correctly encoded
+        if (ContainsCzechSpecificChars(text))
+            return text;
+
+        // Check if text contains characters that suggest Windows-1250 misread as Latin-1
+        if (!LooksLikeMisencodedCzech(text))
+            return text;
+
+        try
+        {
+            // Re-encode: treat the string as Latin-1 bytes, then decode as Windows-1250
+            var latin1 = Encoding.GetEncoding("iso-8859-1");
+            var win1250 = Encoding.GetEncoding("windows-1250");
+
+            var bytes = latin1.GetBytes(text);
+            var reencoded = win1250.GetString(bytes);
+
+            // Only use the result if it actually contains Czech characters
+            if (ContainsCzechSpecificChars(reencoded))
+                return reencoded;
+        }
+        catch
+        {
+            // If conversion fails, return original
+        }
+
+        return text;
+    }
+
+    /// <summary>
+    /// Checks if text contains Czech-specific diacritical characters
+    /// that differ between Windows-1250 and Latin-1 encodings.
+    /// Characters like á, é, í are the same in both encodings so they don't help detect misencoding.
+    /// </summary>
+    private static bool ContainsCzechSpecificChars(string text)
+    {
+        foreach (var c in text)
+        {
+            if (c is 'č' or 'ď' or 'ě' or 'ň' or 'ř' or 'š' or 'ť' or 'ů' or 'ž'
+                or 'Č' or 'Ď' or 'Ě' or 'Ň' or 'Ř' or 'Š' or 'Ť' or 'Ů' or 'Ž')
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Detects if text looks like Windows-1250 Czech text misread as Latin-1.
+    /// When Windows-1250 bytes are interpreted as Latin-1:
+    ///   č(0xE8)→è, ě(0xEC)→ì, ď(0xEF)→ï, ň(0xF2)→ò, ř(0xF8)→ø, ů(0xF9)→ù
+    ///   š(0x9A)→C1 control, ť(0x9D)→C1 control, ž(0x9E)→C1 control
+    /// </summary>
+    private static bool LooksLikeMisencodedCzech(string text)
+    {
+        foreach (var c in text)
+        {
+            // Latin-1 chars that are actually Czech Windows-1250 chars
+            if (c is 'è' or 'ì' or 'ï' or 'ò' or 'ø' or 'ù'        // č, ě, ď, ň, ř, ů
+                or 'È' or 'Ì' or 'Ï' or 'Ò' or 'Ø' or 'Ù'          // Č, Ě, Ď, Ň, Ř, Ů
+                or '\u008A' or '\u008E'                                // Š, Ž (C1 control area)
+                or '\u009A' or '\u009D' or '\u009E')                   // š, ť, ž (C1 control area)
+                return true;
+        }
+        return false;
     }
 
     /// <summary>
