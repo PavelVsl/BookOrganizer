@@ -59,9 +59,15 @@ public class FolderStructureMetadataGenerator : IMetadataGenerator
             var metadata = metadataResult.Metadata!;
 
             // Convert to BookMetadata for formatters
+            // Only use folder name as title fallback for actual audiobook folders (with audio files)
+            var hasAudioFiles = Directory.GetFiles(folderPath, "*.mp3", SearchOption.TopDirectoryOnly).Any() ||
+                                Directory.GetFiles(folderPath, "*.m4a", SearchOption.TopDirectoryOnly).Any() ||
+                                Directory.GetFiles(folderPath, "*.m4b", SearchOption.TopDirectoryOnly).Any();
+            var titleFallback = hasAudioFiles ? Path.GetFileName(folderPath) : string.Empty;
+
             var bookMetadata = new BookMetadata
             {
-                Title = metadata.Title ?? Path.GetFileName(folderPath),
+                Title = metadata.Title ?? titleFallback,
                 Author = metadata.Author,
                 Series = metadata.Series,
                 SeriesNumber = metadata.SeriesNumber,

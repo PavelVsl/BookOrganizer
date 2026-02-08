@@ -501,6 +501,13 @@ public class MetadataExtractor : IMetadataExtractor
         // Parse Czech audiobook format: "Author / cte Narrator" or "Author / ucinkuji Narrators"
         var (author, narrator) = ParseCzechAuthorNarrator(rawArtist);
 
+        // If narrator not found in Artist field, try Comment field (e.g., "Čte: Martin Stránský")
+        if (string.IsNullOrWhiteSpace(narrator))
+        {
+            var comment = GetMostCommonValue(fileMetadataList.Select(m => m.Comment).Where(v => v != null));
+            narrator = ParseNarratorFromComment(comment);
+        }
+
         // Year: use the most common non-zero year
         var years = fileMetadataList.Select(m => m.Year).Where(y => y > 0).ToList();
         var year = years.Count > 0 ? (uint?)GetMostCommonValue(years) : null;
@@ -593,7 +600,7 @@ public class MetadataExtractor : IMetadataExtractor
         {
             // Try to find patterns like "/ cte", "; cte", "/cte", ";cte" with flexible whitespace
             var separatorIndex = -1;
-            var keywordIndex = artistField.IndexOf(keyword, StringComparison.OrdinalIgnoreCase);
+            var keywordIndex = artistField.IndexOf(keyword, StringComparison.CurrentCultureIgnoreCase);
 
             if (keywordIndex > 0)
             {
@@ -619,6 +626,38 @@ public class MetadataExtractor : IMetadataExtractor
 
         // No narrator pattern found - the whole string is likely just the author
         return (artistField, null);
+    }
+
+    /// <summary>
+    /// Parses narrator name from the Comment field.
+    /// Supports formats like:
+    /// - "Čte: Martin Stránský"
+    /// - "Cte: Martin Stránský"
+    /// - "čte Martin Stránský"
+    /// - "Účinkují: Narrator1, Narrator2"
+    /// </summary>
+    private static string? ParseNarratorFromComment(string? comment)
+    {
+        if (string.IsNullOrWhiteSpace(comment))
+            return null;
+
+        string[] narratorKeywords = ["čte:", "cte:", "čte", "cte", "čtou:", "ctou:", "čtou", "ctou",
+            "účinkují:", "ucinkuji:", "účinkuje:", "ucinkuje:", "účinkují", "ucinkuji", "účinkuje", "ucinkuje"];
+
+        foreach (var keyword in narratorKeywords)
+        {
+            var index = comment.IndexOf(keyword, StringComparison.CurrentCultureIgnoreCase);
+            if (index >= 0)
+            {
+                var narrator = comment[(index + keyword.Length)..].Trim();
+                narrator = narrator.TrimEnd('.', ',', ';');
+
+                if (!string.IsNullOrWhiteSpace(narrator))
+                    return narrator;
+            }
+        }
+
+        return null;
     }
 
     private static double CalculateConfidence(
