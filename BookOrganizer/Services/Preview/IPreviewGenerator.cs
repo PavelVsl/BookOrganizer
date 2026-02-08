@@ -3,6 +3,17 @@ using BookOrganizer.Models;
 namespace BookOrganizer.Services.Preview;
 
 /// <summary>
+/// Configuration for Audiobookshelf deduplication during preview/organize.
+/// </summary>
+public record AbsCheckConfig
+{
+    /// <summary>
+    /// Pre-fetched ABS library items to check against.
+    /// </summary>
+    public required IReadOnlyList<AbsLibraryItem> AbsItems { get; init; }
+}
+
+/// <summary>
 /// Service for generating previews of organization operations without executing them.
 /// </summary>
 public interface IPreviewGenerator
@@ -28,7 +39,8 @@ public interface IPreviewGenerator
         double duplicateThreshold = 0.7,
         bool rebuildCache = false,
         CancellationToken cancellationToken = default,
-        OrganizationOptions? options = null);
+        OrganizationOptions? options = null,
+        AbsCheckConfig? absCheckConfig = null);
 
     /// <summary>
     /// Generates a preview for specific organization plans.

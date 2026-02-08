@@ -20,19 +20,22 @@ public class MetadataExtractor : IMetadataExtractor
     private readonly IMetadataConsolidator _consolidator;
     private readonly IMetadataJsonProcessor _metadataJsonProcessor;
     private readonly IFolderHierarchyAnalyzer _folderHierarchyAnalyzer;
+    private readonly Mp3TagsCacheService _tagsCacheService;
 
     public MetadataExtractor(
         ILogger<MetadataExtractor> logger,
         IFilenameParser filenameParser,
         IMetadataConsolidator consolidator,
         IMetadataJsonProcessor metadataJsonProcessor,
-        IFolderHierarchyAnalyzer folderHierarchyAnalyzer)
+        IFolderHierarchyAnalyzer folderHierarchyAnalyzer,
+        Mp3TagsCacheService tagsCacheService)
     {
         _logger = logger;
         _filenameParser = filenameParser;
         _consolidator = consolidator;
         _metadataJsonProcessor = metadataJsonProcessor;
         _folderHierarchyAnalyzer = folderHierarchyAnalyzer;
+        _tagsCacheService = tagsCacheService;
     }
 
     /// <inheritdoc />
@@ -67,19 +70,9 @@ public class MetadataExtractor : IMetadataExtractor
         // Try bookinfo.json (BookOrganizer format) first, then metadata.json (Audiobookshelf or legacy)
         var overrideMetadata = await LoadMetadataOverrideAsync(audiobookFolder.Path, cancellationToken);
 
-        // Extract metadata from all files
-        var fileMetadataList = new List<FileMetadata>();
-
-        foreach (var audioFile in audiobookFolder.AudioFiles)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var fileMetadata = await ExtractFileMetadataAsync(audioFile);
-            if (fileMetadata != null)
-            {
-                fileMetadataList.Add(fileMetadata);
-            }
-        }
+        // Extract metadata from all files (with tag cache support)
+        var fileMetadataList = await ExtractAllFileMetadataAsync(
+            audiobookFolder, cancellationToken).ConfigureAwait(false);
 
         if (fileMetadataList.Count == 0)
         {
@@ -187,6 +180,107 @@ public class MetadataExtractor : IMetadataExtractor
             consolidated.Confidence);
 
         return consolidated;
+    }
+
+    /// <summary>
+    /// Extracts metadata from all audio files, using mp3tags.json cache when available.
+    /// </summary>
+    private async Task<List<FileMetadata>> ExtractAllFileMetadataAsync(
+        AudiobookFolder audiobookFolder,
+        CancellationToken cancellationToken)
+    {
+        var folderPath = audiobookFolder.Path;
+        var fileMetadataList = new List<FileMetadata>();
+
+        // Try to load existing cache
+        var cache = await _tagsCacheService.LoadCacheAsync(folderPath, cancellationToken).ConfigureAwait(false);
+        var cacheLookup = cache != null
+            ? Mp3TagsCacheService.BuildCacheLookup(cache)
+            : new Dictionary<string, CachedFileTag>();
+
+        var cacheHits = 0;
+        var cacheMisses = 0;
+        var newCacheEntries = new List<CachedFileTag>();
+
+        foreach (var audioFile in audiobookFolder.AudioFiles)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var relativePath = Path.GetRelativePath(folderPath, audioFile);
+
+            // Check cache first
+            if (cacheLookup.TryGetValue(relativePath, out var cachedEntry) &&
+                Mp3TagsCacheService.IsCacheEntryValid(cachedEntry, audioFile))
+            {
+                // Use cached data
+                var tags = cachedEntry.Tags;
+                fileMetadataList.Add(new FileMetadata
+                {
+                    FilePath = audioFile,
+                    Title = tags.Title,
+                    Album = tags.Album,
+                    Artist = tags.Artist,
+                    AlbumArtist = tags.AlbumArtist,
+                    Composer = tags.Composer,
+                    Genre = tags.Genre,
+                    Year = tags.Year,
+                    Comment = tags.Comment,
+                    Duration = TimeSpan.FromSeconds(tags.DurationSeconds),
+                    Bitrate = tags.Bitrate
+                });
+                newCacheEntries.Add(cachedEntry);
+                cacheHits++;
+                continue;
+            }
+
+            // Extract fresh from file
+            var fileMetadata = await ExtractFileMetadataAsync(audioFile).ConfigureAwait(false);
+            if (fileMetadata != null)
+            {
+                fileMetadataList.Add(fileMetadata);
+
+                // Build cache entry for this file
+                var fileInfo = new FileInfo(audioFile);
+                newCacheEntries.Add(new CachedFileTag
+                {
+                    RelativePath = relativePath,
+                    LastModifiedUtc = fileInfo.LastWriteTimeUtc,
+                    FileSizeBytes = fileInfo.Length,
+                    Tags = new CachedTagData
+                    {
+                        Title = fileMetadata.Title,
+                        Album = fileMetadata.Album,
+                        Artist = fileMetadata.Artist,
+                        AlbumArtist = fileMetadata.AlbumArtist,
+                        Composer = fileMetadata.Composer,
+                        Genre = fileMetadata.Genre,
+                        Year = fileMetadata.Year,
+                        Comment = fileMetadata.Comment,
+                        DurationSeconds = fileMetadata.Duration.TotalSeconds,
+                        Bitrate = fileMetadata.Bitrate
+                    }
+                });
+                cacheMisses++;
+            }
+        }
+
+        // Write updated cache if we had any misses (new or changed files)
+        if (cacheMisses > 0)
+        {
+            var newCache = Mp3TagsCacheService.CreateCache(folderPath, newCacheEntries);
+            await _tagsCacheService.SaveCacheAsync(folderPath, newCache, cancellationToken).ConfigureAwait(false);
+            _logger.LogInformation(
+                "Tag cache for {Path}: {Hits} hits, {Misses} fresh extractions",
+                Path.GetFileName(folderPath), cacheHits, cacheMisses);
+        }
+        else if (cacheHits > 0)
+        {
+            _logger.LogInformation(
+                "Tag cache hit for {Path}: all {Count} files from cache",
+                Path.GetFileName(folderPath), cacheHits);
+        }
+
+        return fileMetadataList;
     }
 
     private async Task<FileMetadata?> ExtractFileMetadataAsync(string filePath)

@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using BookOrganizer.Models;
+using BookOrganizer.Services.Audiobookshelf;
 using BookOrganizer.Services.Deduplication;
 using BookOrganizer.Services.Metadata;
 using BookOrganizer.Services.Operations;
@@ -22,6 +23,7 @@ public class PreviewGenerator : IPreviewGenerator
     private readonly IPathGenerator _pathGenerator;
     private readonly IFileOperator _fileOperator;
     private readonly IDeduplicationDetector _deduplicationDetector;
+    private readonly AbsDeduplicationService _absDeduplicationService;
 
     // Platform-specific path length limits
     private const int WindowsMaxPathLength = 260;
@@ -36,7 +38,8 @@ public class PreviewGenerator : IPreviewGenerator
         IMetadataExtractor metadataExtractor,
         IPathGenerator pathGenerator,
         IFileOperator fileOperator,
-        IDeduplicationDetector deduplicationDetector)
+        IDeduplicationDetector deduplicationDetector,
+        AbsDeduplicationService absDeduplicationService)
     {
         _logger = logger;
         _directoryScanner = directoryScanner;
@@ -44,6 +47,7 @@ public class PreviewGenerator : IPreviewGenerator
         _pathGenerator = pathGenerator;
         _fileOperator = fileOperator;
         _deduplicationDetector = deduplicationDetector;
+        _absDeduplicationService = absDeduplicationService;
     }
 
     public async Task<PreviewResult> GeneratePreviewAsync(
@@ -55,7 +59,8 @@ public class PreviewGenerator : IPreviewGenerator
         double duplicateThreshold = 0.7,
         bool rebuildCache = false,
         CancellationToken cancellationToken = default,
-        OrganizationOptions? options = null)
+        OrganizationOptions? options = null,
+        AbsCheckConfig? absCheckConfig = null)
     {
         var effectiveOptions = options ?? new OrganizationOptions();
         _logger.LogInformation(
@@ -141,11 +146,21 @@ public class PreviewGenerator : IPreviewGenerator
             _logger.LogInformation("Found {Count} total potential duplicates", duplicates.Count);
         }
 
+        // ABS deduplication check
+        List<AbsDuplicateMatch> absDuplicates = [];
+        if (absCheckConfig != null)
+        {
+            var sourceBooks = plans
+                .Select(p => (p.SourceFolder.Path, p.Metadata))
+                .ToList();
+            absDuplicates = _absDeduplicationService.FindDuplicates(sourceBooks, absCheckConfig.AbsItems);
+        }
+
         stopwatch.Stop();
         _logger.LogDebug("Preview generation took {Duration}ms", stopwatch.ElapsedMilliseconds);
 
         // Generate preview from plans with filtering and duplicates
-        return await GeneratePreviewFromPlansAsync(plans, duplicates, filter, cancellationToken)
+        return await GeneratePreviewFromPlansAsync(plans, duplicates, absDuplicates, filter, cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -153,12 +168,13 @@ public class PreviewGenerator : IPreviewGenerator
         IEnumerable<OrganizationPlan> plans,
         CancellationToken cancellationToken = default)
     {
-        return GeneratePreviewFromPlansAsync(plans, new List<DuplicationCandidate>(), null, cancellationToken);
+        return GeneratePreviewFromPlansAsync(plans, new List<DuplicationCandidate>(), [], null, cancellationToken);
     }
 
     private async Task<PreviewResult> GeneratePreviewFromPlansAsync(
         IEnumerable<OrganizationPlan> plans,
         List<DuplicationCandidate> duplicates,
+        List<AbsDuplicateMatch> absDuplicates,
         PreviewFilter? filter,
         CancellationToken cancellationToken)
     {
@@ -276,6 +292,7 @@ public class PreviewGenerator : IPreviewGenerator
             Statistics = statistics,
             Issues = allIssues,
             PotentialDuplicates = duplicates,
+            AbsDuplicates = absDuplicates,
             GeneratedAt = DateTime.UtcNow
         });
     }

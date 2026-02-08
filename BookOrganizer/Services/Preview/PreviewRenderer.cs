@@ -50,6 +50,13 @@ public class PreviewRenderer : IPreviewRenderer
             AnsiConsole.WriteLine();
         }
 
+        // Show ABS duplicates
+        if (preview.AbsDuplicates.Count > 0)
+        {
+            RenderAbsDuplicates(preview.AbsDuplicates);
+            AnsiConsole.WriteLine();
+        }
+
         // Show detailed issues
         if (options.ShowIssues && preview.Issues.Count > 0)
         {
@@ -329,6 +336,42 @@ public class PreviewRenderer : IPreviewRenderer
             bookNode.AddNode($"[dim]Source:[/] {Markup.Escape(sourcePath)}");
             bookNode.AddNode($"[dim]To:[/] {Markup.Escape(destPath)}");
         }
+    }
+
+    /// <summary>
+    /// Renders a table of audiobooks already present in Audiobookshelf.
+    /// </summary>
+    private void RenderAbsDuplicates(IReadOnlyList<AbsDuplicateMatch> duplicates)
+    {
+        AnsiConsole.Write(new Panel(
+            $"[yellow]{duplicates.Count} audiobook(s) already exist in Audiobookshelf[/]")
+            .Header("[bold yellow]Audiobookshelf Duplicates[/]")
+            .BorderColor(Color.Yellow));
+
+        var table = new Table()
+            .Border(TableBorder.Rounded)
+            .BorderColor(Color.Yellow)
+            .AddColumn("Source Title")
+            .AddColumn("Source Author")
+            .AddColumn("ABS Title")
+            .AddColumn("ABS Author")
+            .AddColumn("Match");
+
+        foreach (var dup in duplicates)
+        {
+            var matchInfo = new List<string>();
+            if (dup.TitleMatch) matchInfo.Add("title");
+            if (dup.AuthorMatch) matchInfo.Add("author");
+
+            table.AddRow(
+                Markup.Escape(dup.SourceTitle),
+                Markup.Escape(dup.SourceAuthor ?? "—"),
+                Markup.Escape(dup.AbsTitle ?? "—"),
+                Markup.Escape(dup.AbsAuthor ?? "—"),
+                $"[green]{string.Join("+", matchInfo)}[/]");
+        }
+
+        AnsiConsole.Write(table);
     }
 
     /// <summary>

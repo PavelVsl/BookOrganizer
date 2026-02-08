@@ -1,4 +1,5 @@
 using BookOrganizer.Models;
+using BookOrganizer.Services.Audiobookshelf;
 using BookOrganizer.Services.Preview;
 using BookOrganizer.Services.Metadata;
 using BookOrganizer.Services.Scanning;
@@ -108,6 +109,26 @@ public class PreviewCommand : Command
             Description = "Preserve Czech diacritics in folder names (UTF-8) instead of ASCII-safe names"
         };
 
+        var checkAbsOption = new Option<bool>("--check-abs")
+        {
+            Description = "Check for duplicates against Audiobookshelf server"
+        };
+
+        var absUrlOption = new Option<string?>("--abs-url")
+        {
+            Description = "Audiobookshelf server URL (or set AUDIOBOOKSHELF_URL env var)"
+        };
+
+        var absTokenOption = new Option<string?>("--abs-token")
+        {
+            Description = "Audiobookshelf API token (or set AUDIOBOOKSHELF_TOKEN env var)"
+        };
+
+        var absLibraryOption = new Option<string?>("--abs-library")
+        {
+            Description = "Audiobookshelf library ID (auto-detects first library if omitted)"
+        };
+
         Options.Add(sourceOption);
         Options.Add(destinationOption);
         Options.Add(operationOption);
@@ -125,6 +146,10 @@ public class PreviewCommand : Command
         Options.Add(metadataSourceOption);
         Options.Add(interactiveOption);
         Options.Add(preserveDiacriticsOption);
+        Options.Add(checkAbsOption);
+        Options.Add(absUrlOption);
+        Options.Add(absTokenOption);
+        Options.Add(absLibraryOption);
 
         this.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
         {
@@ -145,13 +170,18 @@ public class PreviewCommand : Command
             var metadataSource = parseResult.GetValue(metadataSourceOption)!;
             var interactive = parseResult.GetValue(interactiveOption);
             var preserveDiacritics = parseResult.GetValue(preserveDiacriticsOption);
+            var checkAbs = parseResult.GetValue(checkAbsOption);
+            var absUrl = parseResult.GetValue(absUrlOption);
+            var absToken = parseResult.GetValue(absTokenOption);
+            var absLibrary = parseResult.GetValue(absLibraryOption);
 
             return await ExecuteAsync(
                 source, destination, operation, export,
                 authorFilter, seriesFilter, maxItemsFilter,
                 compactMode, noTreeMode, verboseMode,
                 detectDuplicates, duplicateThreshold, rebuildCache,
-                exportMetadata, metadataSource, interactive, preserveDiacritics);
+                exportMetadata, metadataSource, interactive, preserveDiacritics,
+                checkAbs, absUrl, absToken, absLibrary);
         });
     }
 
@@ -172,7 +202,11 @@ public class PreviewCommand : Command
         bool exportMetadata,
         string metadataSource,
         bool interactive,
-        bool preserveDiacritics)
+        bool preserveDiacritics,
+        bool checkAbs = false,
+        string? absUrl = null,
+        string? absToken = null,
+        string? absLibrary = null)
     {
         try
         {
@@ -204,6 +238,15 @@ public class PreviewCommand : Command
             AnsiConsole.MarkupLine("[green]Generating preview...[/]");
             AnsiConsole.WriteLine();
 
+            // Fetch ABS library items if --check-abs is set
+            AbsCheckConfig? absCheckConfig = null;
+            if (checkAbs)
+            {
+                absCheckConfig = await FetchAbsItemsAsync(absUrl, absToken, absLibrary, logger);
+                if (absCheckConfig == null)
+                    return 1; // Error already logged
+            }
+
             // Build filter
             var filter = new PreviewFilter
             {
@@ -228,7 +271,8 @@ public class PreviewCommand : Command
                         duplicateThreshold,
                         rebuildCache,
                         CancellationToken.None,
-                        organizationOptions);
+                        organizationOptions,
+                        absCheckConfig);
                 });
 
             AnsiConsole.WriteLine();
@@ -506,6 +550,65 @@ public class PreviewCommand : Command
         if (exportedCount > 0 || skippedCount > 0)
         {
             AnsiConsole.MarkupLine("[dim]Tip: Edit the bookinfo.json files, then run preview again to see changes[/]");
+        }
+    }
+
+    /// <summary>
+    /// Fetches ABS library items for deduplication, resolving URL/token from CLI flags or env vars.
+    /// </summary>
+    internal static async Task<AbsCheckConfig?> FetchAbsItemsAsync(
+        string? absUrl,
+        string? absToken,
+        string? absLibrary,
+        ILogger logger)
+    {
+        var url = absUrl ?? Environment.GetEnvironmentVariable("AUDIOBOOKSHELF_URL");
+        var token = absToken ?? Environment.GetEnvironmentVariable("AUDIOBOOKSHELF_TOKEN");
+
+        if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(token))
+        {
+            AnsiConsole.MarkupLine(
+                "[red]Error:[/] --check-abs requires ABS URL and token. " +
+                "Use --abs-url/--abs-token or set AUDIOBOOKSHELF_URL/AUDIOBOOKSHELF_TOKEN env vars.");
+            return null;
+        }
+
+        try
+        {
+            var absLogger = Program.ServiceProvider.GetRequiredService<ILogger<AbsApiClient>>();
+            using var client = new AbsApiClient(url, token, absLogger);
+
+            // Resolve library ID
+            var libraryId = absLibrary;
+            if (string.IsNullOrWhiteSpace(libraryId))
+            {
+                var libraries = await client.GetLibrariesAsync().ConfigureAwait(false);
+                var bookLibrary = libraries.FirstOrDefault(l =>
+                    l.MediaType.Equals("book", StringComparison.OrdinalIgnoreCase));
+                if (bookLibrary == null)
+                {
+                    AnsiConsole.MarkupLine("[red]Error:[/] No book library found in ABS. Use --abs-library to specify.");
+                    return null;
+                }
+                libraryId = bookLibrary.Id;
+                AnsiConsole.MarkupLine("[dim]Using ABS library: {0} ({1})[/]", bookLibrary.Name, libraryId);
+            }
+
+            var items = await AnsiConsole.Status()
+                .StartAsync("[yellow]Fetching Audiobookshelf library...[/]", async ctx =>
+                {
+                    ctx.Spinner(Spinner.Known.Dots);
+                    return await client.GetLibraryItemsAsync(libraryId).ConfigureAwait(false);
+                });
+
+            AnsiConsole.MarkupLine("[green]Loaded {0} items from Audiobookshelf[/]", items.Count);
+            return new AbsCheckConfig { AbsItems = items };
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine("[red]Error connecting to Audiobookshelf:[/] {0}", ex.Message);
+            logger.LogError(ex, "Failed to connect to Audiobookshelf at {Url}", url);
+            return null;
         }
     }
 

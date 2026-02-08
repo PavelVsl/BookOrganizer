@@ -1,5 +1,7 @@
 using BookOrganizer.Models;
+using BookOrganizer.Services.Audiobookshelf;
 using BookOrganizer.Services.Operations;
+using BookOrganizer.Services.Preview;
 using BookOrganizer.Services.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -64,6 +66,32 @@ public class OrganizeCommand : Command
             Description = "Preserve Czech diacritics in folder names (UTF-8) instead of ASCII-safe names"
         };
 
+        var checkAbsOption = new Option<bool>("--check-abs")
+        {
+            Description = "Check for duplicates against Audiobookshelf server before organizing"
+        };
+
+        var absUrlOption = new Option<string?>("--abs-url")
+        {
+            Description = "Audiobookshelf server URL (or set AUDIOBOOKSHELF_URL env var)"
+        };
+
+        var absTokenOption = new Option<string?>("--abs-token")
+        {
+            Description = "Audiobookshelf API token (or set AUDIOBOOKSHELF_TOKEN env var)"
+        };
+
+        var absLibraryOption = new Option<string?>("--abs-library")
+        {
+            Description = "Audiobookshelf library ID (auto-detects first library if omitted)"
+        };
+
+        var duplicateActionOption = new Option<string>("--duplicate-action")
+        {
+            Description = "Action for ABS duplicates: skip (default), rename, move, delete",
+            DefaultValueFactory = _ => "skip"
+        };
+
         Options.Add(sourceOption);
         Options.Add(destinationOption);
         Options.Add(operationOption);
@@ -73,6 +101,11 @@ public class OrganizeCommand : Command
         Options.Add(detectDuplicatesOption);
         Options.Add(duplicateThresholdOption);
         Options.Add(preserveDiacriticsOption);
+        Options.Add(checkAbsOption);
+        Options.Add(absUrlOption);
+        Options.Add(absTokenOption);
+        Options.Add(absLibraryOption);
+        Options.Add(duplicateActionOption);
 
         this.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
         {
@@ -85,10 +118,16 @@ public class OrganizeCommand : Command
             var detectDuplicates = parseResult.GetValue(detectDuplicatesOption);
             var duplicateThreshold = parseResult.GetValue(duplicateThresholdOption);
             var preserveDiacritics = parseResult.GetValue(preserveDiacriticsOption);
+            var checkAbs = parseResult.GetValue(checkAbsOption);
+            var absUrl = parseResult.GetValue(absUrlOption);
+            var absToken = parseResult.GetValue(absTokenOption);
+            var absLibrary = parseResult.GetValue(absLibraryOption);
+            var duplicateAction = parseResult.GetValue(duplicateActionOption)!;
 
             return await ExecuteAsync(
                 source, destination, operation, !noValidate, verbose, yes,
-                detectDuplicates, duplicateThreshold, preserveDiacritics);
+                detectDuplicates, duplicateThreshold, preserveDiacritics,
+                checkAbs, absUrl, absToken, absLibrary, duplicateAction);
         });
     }
 
@@ -101,7 +140,12 @@ public class OrganizeCommand : Command
         bool autoConfirm,
         bool detectDuplicates,
         double duplicateThreshold,
-        bool preserveDiacritics)
+        bool preserveDiacritics,
+        bool checkAbs = false,
+        string? absUrl = null,
+        string? absToken = null,
+        string? absLibrary = null,
+        string duplicateAction = "skip")
     {
         try
         {
@@ -129,6 +173,64 @@ public class OrganizeCommand : Command
                 return 1;
             }
 
+            // Parse duplicate action
+            if (!Enum.TryParse<AbsDuplicateAction>(duplicateAction, ignoreCase: true, out var dupAction))
+            {
+                AnsiConsole.MarkupLine(
+                    "[red]Error:[/] Invalid duplicate action '{0}'. Valid options: skip, rename, move, delete",
+                    duplicateAction);
+                return 1;
+            }
+
+            // ABS dedup: fetch items and run preview to find duplicates
+            AbsCheckConfig? absCheckConfig = null;
+            List<AbsDuplicateMatch> absDuplicates = [];
+            if (checkAbs)
+            {
+                absCheckConfig = await PreviewCommand.FetchAbsItemsAsync(absUrl, absToken, absLibrary, logger);
+                if (absCheckConfig == null)
+                    return 1;
+
+                // Run a quick preview to get ABS duplicates
+                var previewGenerator = Program.ServiceProvider.GetRequiredService<IPreviewGenerator>();
+                var organizationOptions = new OrganizationOptions { PreserveDiacritics = preserveDiacritics };
+                var preview = await previewGenerator.GeneratePreviewAsync(
+                    sourcePath, destinationPath, opType,
+                    cancellationToken: CancellationToken.None,
+                    options: organizationOptions,
+                    absCheckConfig: absCheckConfig);
+
+                absDuplicates = preview.AbsDuplicates.ToList();
+
+                if (absDuplicates.Count > 0)
+                {
+                    // Render duplicates table
+                    var previewRenderer = Program.ServiceProvider.GetRequiredService<IPreviewRenderer>();
+                    previewRenderer.RenderPreview(preview, new PreviewRenderOptions
+                    {
+                        ShowTree = false,
+                        ShowStatistics = false,
+                        ShowIssues = false
+                    });
+
+                    AnsiConsole.MarkupLine(
+                        "[yellow]{0} audiobook(s) already exist in Audiobookshelf (action: {1})[/]",
+                        absDuplicates.Count, dupAction);
+                    AnsiConsole.WriteLine();
+
+                    if (dupAction == AbsDuplicateAction.Delete && !autoConfirm)
+                    {
+                        if (!AnsiConsole.Confirm(
+                            "[red]Delete duplicate source folders? This cannot be undone.[/]",
+                            defaultValue: false))
+                        {
+                            AnsiConsole.MarkupLine("[yellow]Organization cancelled.[/]");
+                            return 0;
+                        }
+                    }
+                }
+            }
+
             // Confirm with user
             AnsiConsole.WriteLine();
             AnsiConsole.Write(new Rule("[bold yellow]Audiobook Organization[/]").RuleStyle("grey"));
@@ -145,6 +247,14 @@ public class OrganizeCommand : Command
             table.AddRow("Operation", $"[{GetOperationColor(opType)}]{opType}[/]");
             table.AddRow("Validate Integrity", validateIntegrity ? "[green]Yes[/]" : "[yellow]No[/]");
             table.AddRow("Preserve Diacritics", preserveDiacritics ? "[green]Yes[/]" : "[dim]No[/]");
+            if (checkAbs)
+            {
+                table.AddRow("ABS Check", "[green]Enabled[/]");
+                table.AddRow("Duplicate Action", dupAction.ToString());
+                table.AddRow("ABS Duplicates Found", absDuplicates.Count > 0
+                    ? $"[yellow]{absDuplicates.Count}[/]"
+                    : "[green]0[/]");
+            }
 
             AnsiConsole.Write(table);
             AnsiConsole.WriteLine();
@@ -229,6 +339,16 @@ public class OrganizeCommand : Command
                 });
 
             AnsiConsole.WriteLine();
+
+            // Apply ABS duplicate actions after successful organization
+            if (absDuplicates.Count > 0 && dupAction != AbsDuplicateAction.Skip)
+            {
+                var absDedup = Program.ServiceProvider.GetRequiredService<AbsDeduplicationService>();
+                absDedup.ApplyDuplicateAction(absDuplicates, sourcePath, dupAction);
+                AnsiConsole.MarkupLine(
+                    "[yellow]Applied '{0}' action to {1} ABS duplicate(s)[/]",
+                    dupAction, absDuplicates.Count);
+            }
 
             // Display results
             if (result != null)

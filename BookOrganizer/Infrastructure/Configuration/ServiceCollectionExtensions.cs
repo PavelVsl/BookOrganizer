@@ -1,4 +1,5 @@
 using BookOrganizer.Infrastructure.Database;
+using BookOrganizer.Services.Audiobookshelf;
 using BookOrganizer.Services.Deduplication;
 using BookOrganizer.Services.Library;
 using BookOrganizer.Services.Metadata;
@@ -32,6 +33,7 @@ public static class ServiceCollectionExtensions
         // Metadata services
         services.AddSingleton<IMetadataJsonProcessor, MetadataJsonProcessor>();
         services.AddSingleton<IFolderHierarchyAnalyzer, FolderHierarchyAnalyzer>();
+        services.AddSingleton<Mp3TagsCacheService>();
         services.AddSingleton<IMetadataExtractor, MetadataExtractor>();
         services.AddSingleton<IFilenameParser, FilenameParser>();
         services.AddSingleton<IMetadataConsolidator, MetadataConsolidator>();
@@ -76,6 +78,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IDeduplicationDetector, DeduplicationDetector>();
         services.AddSingleton<IDeduplicationResolver, DeduplicationResolver>();
         services.AddSingleton<IDeduplicationCache, InMemoryDeduplicationCache>();
+
+        // Audiobookshelf services
+        services.AddSingleton<AbsDeduplicationService>();
 
         // Library tree services
         // Note: ILibraryDatabase and ILibraryTree are created per-operation in commands

@@ -26,6 +26,11 @@ public record PreviewResult
     public IReadOnlyList<DuplicationCandidate> PotentialDuplicates { get; init; } = Array.Empty<DuplicationCandidate>();
 
     /// <summary>
+    /// List of audiobooks already present in the Audiobookshelf server.
+    /// </summary>
+    public IReadOnlyList<AbsDuplicateMatch> AbsDuplicates { get; init; } = Array.Empty<AbsDuplicateMatch>();
+
+    /// <summary>
     /// Time when the preview was generated.
     /// </summary>
     public DateTime GeneratedAt { get; init; } = DateTime.UtcNow;
