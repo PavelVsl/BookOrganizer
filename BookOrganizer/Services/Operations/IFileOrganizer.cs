@@ -18,6 +18,7 @@ public interface IFileOrganizer
     /// <param name="duplicateThreshold">Minimum confidence for duplicate detection (0.0-1.0).</param>
     /// <param name="progress">Optional progress reporter.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="options">Organization options controlling path generation behavior.</param>
     /// <returns>Result of the organization operation.</returns>
     Task<OrganizationResult> OrganizeAsync(
         string sourcePath,
@@ -27,7 +28,8 @@ public interface IFileOrganizer
         bool detectDuplicates = false,
         double duplicateThreshold = 0.7,
         IProgress<OrganizationProgress>? progress = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        OrganizationOptions? options = null);
 
     /// <summary>
     /// Organizes audiobooks from a preview/plan.
@@ -50,12 +52,14 @@ public interface IFileOrganizer
     /// <param name="validateIntegrity">Whether to validate file integrity with checksums.</param>
     /// <param name="progress">Optional progress reporter.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="options">Organization options controlling path generation behavior.</param>
     /// <returns>Result of the reorganization operation.</returns>
     Task<OrganizationResult> ReorganizeLibraryAsync(
         string libraryPath,
         bool validateIntegrity = true,
         IProgress<OrganizationProgress>? progress = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        OrganizationOptions? options = null);
 }
 
 /// <summary>

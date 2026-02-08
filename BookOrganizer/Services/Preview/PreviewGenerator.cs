@@ -54,8 +54,10 @@ public class PreviewGenerator : IPreviewGenerator
         bool detectDuplicates = false,
         double duplicateThreshold = 0.7,
         bool rebuildCache = false,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        OrganizationOptions? options = null)
     {
+        var effectiveOptions = options ?? new OrganizationOptions();
         _logger.LogInformation(
             "Generating preview: {Source} -> {Destination} ({OperationType})",
             sourcePath,
@@ -86,7 +88,8 @@ public class PreviewGenerator : IPreviewGenerator
             // Generate target path
             var targetPath = _pathGenerator.GenerateTargetPath(
                 metadata,
-                destinationPath);
+                destinationPath,
+                effectiveOptions);
 
             plans.Add(new OrganizationPlan
             {

@@ -3,18 +3,28 @@ using BookOrganizer.Models;
 namespace BookOrganizer.Services.Operations;
 
 /// <summary>
-/// Service for generating Jellyfin-compatible folder paths for audiobooks.
+/// Service for generating Audiobookshelf-compatible folder paths for audiobooks.
 /// </summary>
 public interface IPathGenerator
 {
     /// <summary>
     /// Generates a target directory path based on audiobook metadata.
-    /// Format follows Jellyfin convention: Audiobooks/{Author}/{Series or Title}/
+    /// Format: {Author}/{Series or Title}/
+    /// Diacritics are removed by default for ASCII-safe paths.
     /// </summary>
     /// <param name="metadata">Book metadata.</param>
     /// <param name="destinationRoot">Root destination directory.</param>
     /// <returns>Full target directory path.</returns>
     string GenerateTargetPath(BookMetadata metadata, string destinationRoot);
+
+    /// <summary>
+    /// Generates a target directory path based on audiobook metadata with organization options.
+    /// </summary>
+    /// <param name="metadata">Book metadata.</param>
+    /// <param name="destinationRoot">Root destination directory.</param>
+    /// <param name="options">Organization options controlling path generation behavior.</param>
+    /// <returns>Full target directory path.</returns>
+    string GenerateTargetPath(BookMetadata metadata, string destinationRoot, OrganizationOptions options);
 
     /// <summary>
     /// Sanitizes a filename or path component for filesystem compatibility.

@@ -103,6 +103,11 @@ public class PreviewCommand : Command
             Description = "Prompt to organize immediately after successful preview"
         };
 
+        var preserveDiacriticsOption = new Option<bool>("--preserve-diacritics")
+        {
+            Description = "Preserve Czech diacritics in folder names (UTF-8) instead of ASCII-safe names"
+        };
+
         Options.Add(sourceOption);
         Options.Add(destinationOption);
         Options.Add(operationOption);
@@ -119,6 +124,7 @@ public class PreviewCommand : Command
         Options.Add(exportMetadataOption);
         Options.Add(metadataSourceOption);
         Options.Add(interactiveOption);
+        Options.Add(preserveDiacriticsOption);
 
         this.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
         {
@@ -138,13 +144,14 @@ public class PreviewCommand : Command
             var exportMetadata = parseResult.GetValue(exportMetadataOption);
             var metadataSource = parseResult.GetValue(metadataSourceOption)!;
             var interactive = parseResult.GetValue(interactiveOption);
+            var preserveDiacritics = parseResult.GetValue(preserveDiacriticsOption);
 
             return await ExecuteAsync(
                 source, destination, operation, export,
                 authorFilter, seriesFilter, maxItemsFilter,
                 compactMode, noTreeMode, verboseMode,
                 detectDuplicates, duplicateThreshold, rebuildCache,
-                exportMetadata, metadataSource, interactive);
+                exportMetadata, metadataSource, interactive, preserveDiacritics);
         });
     }
 
@@ -164,10 +171,15 @@ public class PreviewCommand : Command
         bool rebuildCache,
         bool exportMetadata,
         string metadataSource,
-        bool interactive)
+        bool interactive,
+        bool preserveDiacritics)
     {
         try
         {
+            var organizationOptions = new Models.OrganizationOptions
+            {
+                PreserveDiacritics = preserveDiacritics
+            };
             // Get services from DI
             var previewGenerator = Program.ServiceProvider.GetRequiredService<IPreviewGenerator>();
             var previewRenderer = Program.ServiceProvider.GetRequiredService<IPreviewRenderer>();
@@ -215,7 +227,8 @@ public class PreviewCommand : Command
                         detectDuplicates,
                         duplicateThreshold,
                         rebuildCache,
-                        CancellationToken.None);
+                        CancellationToken.None,
+                        organizationOptions);
                 });
 
             AnsiConsole.WriteLine();

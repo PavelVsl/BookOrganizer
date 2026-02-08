@@ -36,10 +36,16 @@ public class ReorganizeCommand : Command
             Description = "Skip confirmation prompt (auto-confirm)"
         };
 
+        var preserveDiacriticsOption = new Option<bool>("--preserve-diacritics")
+        {
+            Description = "Preserve Czech diacritics in folder names (UTF-8) instead of ASCII-safe names"
+        };
+
         Options.Add(libraryOption);
         Options.Add(noValidateOption);
         Options.Add(verboseOption);
         Options.Add(yesOption);
+        Options.Add(preserveDiacriticsOption);
 
         this.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
         {
@@ -47,9 +53,10 @@ public class ReorganizeCommand : Command
             var noValidate = parseResult.GetValue(noValidateOption);
             var verbose = parseResult.GetValue(verboseOption);
             var yes = parseResult.GetValue(yesOption);
+            var preserveDiacritics = parseResult.GetValue(preserveDiacriticsOption);
 
             return await ExecuteAsync(
-                library, !noValidate, verbose, yes);
+                library, !noValidate, verbose, yes, preserveDiacritics);
         });
     }
 
@@ -57,7 +64,8 @@ public class ReorganizeCommand : Command
         string libraryPath,
         bool validateIntegrity,
         bool verbose,
-        bool autoConfirm)
+        bool autoConfirm,
+        bool preserveDiacritics)
     {
         try
         {
@@ -89,6 +97,7 @@ public class ReorganizeCommand : Command
             table.AddRow("Library Path", libraryPath);
             table.AddRow("Operation", "[yellow]Move (within library)[/]");
             table.AddRow("Validate Integrity", validateIntegrity ? "[green]Yes[/]" : "[yellow]No[/]");
+            table.AddRow("Preserve Diacritics", preserveDiacritics ? "[green]Yes[/]" : "[dim]No[/]");
 
             AnsiConsole.Write(table);
             AnsiConsole.WriteLine();
@@ -154,11 +163,17 @@ public class ReorganizeCommand : Command
                         }
                     });
 
+                    var organizationOptions = new Models.OrganizationOptions
+                    {
+                        PreserveDiacritics = preserveDiacritics
+                    };
+
                     result = await organizer.ReorganizeLibraryAsync(
                         libraryPath,
                         validateIntegrity,
                         progress,
-                        CancellationToken.None);
+                        CancellationToken.None,
+                        organizationOptions);
 
                     overallTask.StopTask();
                     currentTask.StopTask();

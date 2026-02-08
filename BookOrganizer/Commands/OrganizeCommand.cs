@@ -59,6 +59,11 @@ public class OrganizeCommand : Command
             DefaultValueFactory = _ => 0.7
         };
 
+        var preserveDiacriticsOption = new Option<bool>("--preserve-diacritics")
+        {
+            Description = "Preserve Czech diacritics in folder names (UTF-8) instead of ASCII-safe names"
+        };
+
         Options.Add(sourceOption);
         Options.Add(destinationOption);
         Options.Add(operationOption);
@@ -67,6 +72,7 @@ public class OrganizeCommand : Command
         Options.Add(yesOption);
         Options.Add(detectDuplicatesOption);
         Options.Add(duplicateThresholdOption);
+        Options.Add(preserveDiacriticsOption);
 
         this.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
         {
@@ -78,10 +84,11 @@ public class OrganizeCommand : Command
             var yes = parseResult.GetValue(yesOption);
             var detectDuplicates = parseResult.GetValue(detectDuplicatesOption);
             var duplicateThreshold = parseResult.GetValue(duplicateThresholdOption);
+            var preserveDiacritics = parseResult.GetValue(preserveDiacriticsOption);
 
             return await ExecuteAsync(
                 source, destination, operation, !noValidate, verbose, yes,
-                detectDuplicates, duplicateThreshold);
+                detectDuplicates, duplicateThreshold, preserveDiacritics);
         });
     }
 
@@ -93,7 +100,8 @@ public class OrganizeCommand : Command
         bool verbose,
         bool autoConfirm,
         bool detectDuplicates,
-        double duplicateThreshold)
+        double duplicateThreshold,
+        bool preserveDiacritics)
     {
         try
         {
@@ -136,6 +144,7 @@ public class OrganizeCommand : Command
             table.AddRow("Destination", destinationPath);
             table.AddRow("Operation", $"[{GetOperationColor(opType)}]{opType}[/]");
             table.AddRow("Validate Integrity", validateIntegrity ? "[green]Yes[/]" : "[yellow]No[/]");
+            table.AddRow("Preserve Diacritics", preserveDiacritics ? "[green]Yes[/]" : "[dim]No[/]");
 
             AnsiConsole.Write(table);
             AnsiConsole.WriteLine();
@@ -199,6 +208,11 @@ public class OrganizeCommand : Command
                         }
                     });
 
+                    var organizationOptions = new Models.OrganizationOptions
+                    {
+                        PreserveDiacritics = preserveDiacritics
+                    };
+
                     result = await organizer.OrganizeAsync(
                         sourcePath,
                         destinationPath,
@@ -207,7 +221,8 @@ public class OrganizeCommand : Command
                         detectDuplicates,
                         duplicateThreshold,
                         progress,
-                        CancellationToken.None);
+                        CancellationToken.None,
+                        organizationOptions);
 
                     overallTask.StopTask();
                     currentTask.StopTask();

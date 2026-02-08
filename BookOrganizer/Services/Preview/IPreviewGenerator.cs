@@ -27,7 +27,8 @@ public interface IPreviewGenerator
         bool detectDuplicates = false,
         double duplicateThreshold = 0.7,
         bool rebuildCache = false,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        OrganizationOptions? options = null);
 
     /// <summary>
     /// Generates a preview for specific organization plans.

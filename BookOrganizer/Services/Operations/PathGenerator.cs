@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 namespace BookOrganizer.Services.Operations;
 
 /// <summary>
-/// Generates Jellyfin-compatible folder paths for audiobooks.
+/// Generates Audiobookshelf-compatible folder paths for audiobooks.
 /// </summary>
 public class PathGenerator : IPathGenerator
 {
@@ -33,6 +33,12 @@ public class PathGenerator : IPathGenerator
     /// <inheritdoc />
     public string GenerateTargetPath(BookMetadata metadata, string destinationRoot)
     {
+        return GenerateTargetPath(metadata, destinationRoot, new OrganizationOptions());
+    }
+
+    /// <inheritdoc />
+    public string GenerateTargetPath(BookMetadata metadata, string destinationRoot, OrganizationOptions options)
+    {
         if (string.IsNullOrWhiteSpace(destinationRoot))
         {
             throw new ArgumentException("Destination root cannot be null or empty", nameof(destinationRoot));
@@ -43,13 +49,15 @@ public class PathGenerator : IPathGenerator
             throw new ArgumentException("Book title cannot be null or empty", nameof(metadata));
         }
 
+        var preserveDiacritics = options.PreserveDiacritics;
+
         // Start with destination root
         var pathComponents = new List<string> { destinationRoot };
 
         // Normalize and format author name
         var rawAuthor = metadata.Author ?? "Unknown Author";
         var normalizedAuthor = NormalizeAuthorName(rawAuthor);
-        var authorFolder = _textNormalizer.RemoveDiacritics(SanitizePathComponent(normalizedAuthor));
+        var authorFolder = MaybeRemoveDiacritics(SanitizePathComponent(normalizedAuthor), preserveDiacritics);
         pathComponents.Add(authorFolder);
 
         // Determine if this is part of a series
@@ -58,17 +66,17 @@ public class PathGenerator : IPathGenerator
         if (hasSeries)
         {
             // Series structure: /Author/Series Name/01 - Book Title/
-            var seriesFolder = _textNormalizer.RemoveDiacritics(SanitizePathComponent(metadata.Series!));
+            var seriesFolder = MaybeRemoveDiacritics(SanitizePathComponent(metadata.Series!), preserveDiacritics);
             pathComponents.Add(seriesFolder);
 
             // Add book folder with series number prefix if available
-            var bookFolder = GenerateBookFolderName(metadata);
+            var bookFolder = GenerateBookFolderName(metadata, preserveDiacritics);
             pathComponents.Add(bookFolder);
         }
         else
         {
             // Standalone structure: /Author/Book Title/
-            var bookFolder = _textNormalizer.RemoveDiacritics(SanitizePathComponent(metadata.Title));
+            var bookFolder = MaybeRemoveDiacritics(SanitizePathComponent(metadata.Title), preserveDiacritics);
             pathComponents.Add(bookFolder);
         }
 
@@ -95,6 +103,14 @@ public class PathGenerator : IPathGenerator
             metadata.Title);
 
         return targetPath;
+    }
+
+    /// <summary>
+    /// Returns the input as-is when preserveDiacritics is true, otherwise removes diacritics.
+    /// </summary>
+    private string MaybeRemoveDiacritics(string input, bool preserveDiacritics)
+    {
+        return preserveDiacritics ? input : _textNormalizer.RemoveDiacritics(input);
     }
 
     /// <inheritdoc />
@@ -148,7 +164,7 @@ public class PathGenerator : IPathGenerator
     /// <summary>
     /// Generates the book folder name, including series number if available.
     /// </summary>
-    private string GenerateBookFolderName(BookMetadata metadata)
+    private string GenerateBookFolderName(BookMetadata metadata, bool preserveDiacritics)
     {
         var title = metadata.Title;
 
@@ -159,18 +175,18 @@ public class PathGenerator : IPathGenerator
             if (int.TryParse(metadata.SeriesNumber, out var seriesNum))
             {
                 var bookName = string.Format(SeriesBookFormat, seriesNum, title);
-                return _textNormalizer.RemoveDiacritics(SanitizePathComponent(bookName));
+                return MaybeRemoveDiacritics(SanitizePathComponent(bookName), preserveDiacritics);
             }
             else
             {
                 // Use series number as-is if it's not a simple integer (e.g., "2.5", "3a")
                 var bookName = $"{metadata.SeriesNumber} - {title}";
-                return _textNormalizer.RemoveDiacritics(SanitizePathComponent(bookName));
+                return MaybeRemoveDiacritics(SanitizePathComponent(bookName), preserveDiacritics);
             }
         }
 
         // No series number, just use title
-        return _textNormalizer.RemoveDiacritics(SanitizePathComponent(title));
+        return MaybeRemoveDiacritics(SanitizePathComponent(title), preserveDiacritics);
     }
 
     /// <summary>

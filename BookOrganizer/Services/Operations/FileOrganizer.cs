@@ -46,13 +46,17 @@ public class FileOrganizer : IFileOrganizer
         bool detectDuplicates = false,
         double duplicateThreshold = 0.7,
         IProgress<OrganizationProgress>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        OrganizationOptions? options = null)
     {
+        var effectiveOptions = options ?? new OrganizationOptions();
+
         _logger.LogInformation(
-            "Starting organization: {Source} -> {Destination} ({OperationType})",
+            "Starting organization: {Source} -> {Destination} ({OperationType}, PreserveDiacritics={PreserveDiacritics})",
             sourcePath,
             destinationPath,
-            operationType);
+            operationType,
+            effectiveOptions.PreserveDiacritics);
 
         var stopwatch = Stopwatch.StartNew();
 
@@ -76,7 +80,7 @@ public class FileOrganizer : IFileOrganizer
                     .ConfigureAwait(false);
 
                 // Generate target path
-                var targetPath = _pathGenerator.GenerateTargetPath(metadata, destinationPath);
+                var targetPath = _pathGenerator.GenerateTargetPath(metadata, destinationPath, effectiveOptions);
 
                 plans.Add(new OrganizationPlan
                 {
@@ -446,9 +450,13 @@ public class FileOrganizer : IFileOrganizer
         string libraryPath,
         bool validateIntegrity = true,
         IProgress<OrganizationProgress>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        OrganizationOptions? options = null)
     {
-        _logger.LogInformation("Starting library reorganization: {LibraryPath}", libraryPath);
+        var effectiveOptions = options ?? new OrganizationOptions();
+
+        _logger.LogInformation("Starting library reorganization: {LibraryPath} (PreserveDiacritics={PreserveDiacritics})",
+            libraryPath, effectiveOptions.PreserveDiacritics);
 
         var stopwatch = Stopwatch.StartNew();
 
@@ -473,7 +481,7 @@ public class FileOrganizer : IFileOrganizer
                     cancellationToken).ConfigureAwait(false);
 
                 // Generate what the path SHOULD be based on current metadata
-                var expectedPath = _pathGenerator.GenerateTargetPath(metadata, libraryPath);
+                var expectedPath = _pathGenerator.GenerateTargetPath(metadata, libraryPath, effectiveOptions);
 
                 // If path differs from current location, needs reorganization
                 if (!string.Equals(audiobook.Path, expectedPath, StringComparison.OrdinalIgnoreCase))
