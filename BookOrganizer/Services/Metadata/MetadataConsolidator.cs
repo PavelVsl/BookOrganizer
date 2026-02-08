@@ -118,6 +118,12 @@ public class MetadataConsolidator : IMetadataConsolidator
             DescriptionConfidence = descConf,
             DescriptionSource = descSource,
 
+            Language = ConsolidateField(
+                sourcesList,
+                m => m.Language,
+                out _,
+                out _),
+
             ContributingSources = sourcesList.Select(s => s.Source).Distinct().ToList()
         };
 

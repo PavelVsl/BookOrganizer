@@ -126,6 +126,11 @@ public record ConsolidatedMetadata
     public string? DescriptionSource { get; init; }
 
     /// <summary>
+    /// Language code (e.g., "cs" for Czech, "en" for English).
+    /// </summary>
+    public string? Language { get; init; }
+
+    /// <summary>
     /// Overall confidence score calculated from all field confidences (0.0 to 1.0).
     /// Represents the weighted average of all field confidence scores.
     /// </summary>
@@ -155,6 +160,7 @@ public record ConsolidatedMetadata
             Year = Year,
             Genre = Genre,
             Description = Description,
+            Language = Language,
             Confidence = OverallConfidence,
             Source = primarySource
         };

@@ -64,6 +64,12 @@ public class NfoFormatter : IMetadataFormatter
             sb.AppendLine($"copyright: {metadata.Year.Value}");
         }
 
+        // Language
+        if (!string.IsNullOrWhiteSpace(metadata.Language))
+        {
+            sb.AppendLine($"language: {metadata.Language}");
+        }
+
         // Description (multi-line section)
         if (!string.IsNullOrWhiteSpace(metadata.Description))
         {

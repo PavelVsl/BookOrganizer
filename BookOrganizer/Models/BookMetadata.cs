@@ -51,6 +51,11 @@ public record BookMetadata
     public string? Description { get; init; }
 
     /// <summary>
+    /// Language code (e.g., "cs" for Czech, "en" for English).
+    /// </summary>
+    public string? Language { get; init; }
+
+    /// <summary>
     /// Confidence score for this metadata (0.0 to 1.0).
     /// Higher values indicate more reliable metadata.
     /// </summary>

@@ -52,6 +52,11 @@ public record MetadataOverride
     public string? Description { get; init; }
 
     /// <summary>
+    /// Language code (e.g., "cs" for Czech, "en" for English).
+    /// </summary>
+    public string? Language { get; init; }
+
+    /// <summary>
     /// Additional notes or comments.
     /// </summary>
     public string? Notes { get; init; }

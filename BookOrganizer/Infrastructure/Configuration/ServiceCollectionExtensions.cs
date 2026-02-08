@@ -41,7 +41,8 @@ public static class ServiceCollectionExtensions
         // Metadata formatters
         services.AddSingleton<IMetadataFormatter, BookOrganizerFormatter>();
         services.AddSingleton<IMetadataFormatter, AudiobookshelfFormatter>();
-        services.AddSingleton<IMetadataFormatter, NfoFormatter>();
+        services.AddSingleton<NfoFormatter>();
+        services.AddSingleton<IMetadataFormatter>(sp => sp.GetRequiredService<NfoFormatter>());
 
         // Operation services
         services.AddSingleton<IPathGenerator, PathGenerator>();

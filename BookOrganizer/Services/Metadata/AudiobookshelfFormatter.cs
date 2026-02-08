@@ -60,7 +60,7 @@ public class AudiobookshelfFormatter : IMetadataFormatter
             Description = metadata.Description,
             Genres = genres,
             Tags = null, // Not available in BookMetadata
-            Language = null, // Not available in BookMetadata
+            Language = metadata.Language,
             Isbn = null, // Not available in BookMetadata
             Asin = null, // Not available in BookMetadata
             Series = series

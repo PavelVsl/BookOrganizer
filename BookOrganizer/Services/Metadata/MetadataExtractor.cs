@@ -132,6 +132,7 @@ public class MetadataExtractor : IMetadataExtractor
                 Year = effectiveMetadata.Year,
                 Genre = effectiveMetadata.Genre,
                 Description = effectiveMetadata.Description,
+                Language = effectiveMetadata.Language,
                 Confidence = 0.95 // High confidence for explicit metadata.json
             };
 
@@ -413,6 +414,7 @@ public class MetadataExtractor : IMetadataExtractor
         string? genre = null;
         string? publisher = null;
         string? description = null;
+        string? language = null;
 
         if (root.TryGetProperty("title", out var titleEl))
             title = titleEl.GetString();
@@ -428,6 +430,9 @@ public class MetadataExtractor : IMetadataExtractor
 
         if (root.TryGetProperty("description", out var descEl))
             description = descEl.GetString();
+
+        if (root.TryGetProperty("language", out var langEl))
+            language = langEl.GetString();
 
         // Parse publishedYear (string in Audiobookshelf format)
         if (root.TryGetProperty("publishedYear", out var yearEl))
@@ -479,6 +484,7 @@ public class MetadataExtractor : IMetadataExtractor
             Genre = genre,
             Publisher = publisher,
             Description = description,
+            Language = language,
             Source = "Audiobookshelf"
         };
     }
@@ -499,6 +505,7 @@ public class MetadataExtractor : IMetadataExtractor
             Year = overrides.Year ?? metadata.Year,
             Genre = overrides.Genre ?? metadata.Genre,
             Description = overrides.Description ?? metadata.Description,
+            Language = overrides.Language ?? metadata.Language,
             // Set confidence to 1.0 for manual overrides
             Confidence = 1.0,
             Source = "metadata.json"

@@ -51,7 +51,8 @@ public record HierarchicalMetadata
                 SeriesNumber = parentMetadata.SeriesNumber,
                 Year = parentMetadata.Year,
                 Genre = parentMetadata.Genre,
-                Description = parentMetadata.Description
+                Description = parentMetadata.Description,
+                Language = parentMetadata.Language
             };
         }
 
@@ -67,7 +68,8 @@ public record HierarchicalMetadata
                 SeriesNumber = !string.IsNullOrWhiteSpace(Metadata.SeriesNumber) ? Metadata.SeriesNumber : effective.SeriesNumber,
                 Year = Metadata.Year ?? effective.Year,
                 Genre = !string.IsNullOrWhiteSpace(Metadata.Genre) ? Metadata.Genre : effective.Genre,
-                Description = !string.IsNullOrWhiteSpace(Metadata.Description) ? Metadata.Description : effective.Description
+                Description = !string.IsNullOrWhiteSpace(Metadata.Description) ? Metadata.Description : effective.Description,
+                Language = !string.IsNullOrWhiteSpace(Metadata.Language) ? Metadata.Language : effective.Language
             };
         }
 

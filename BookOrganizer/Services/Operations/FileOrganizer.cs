@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using BookOrganizer.Models;
 using BookOrganizer.Services.Deduplication;
 using BookOrganizer.Services.Metadata;
@@ -19,6 +20,7 @@ public class FileOrganizer : IFileOrganizer
     private readonly IFileOperator _fileOperator;
     private readonly IFilenameNormalizer _filenameNormalizer;
     private readonly IDeduplicationDetector _deduplicationDetector;
+    private readonly NfoFormatter _nfoFormatter;
 
     public FileOrganizer(
         ILogger<FileOrganizer> logger,
@@ -27,7 +29,8 @@ public class FileOrganizer : IFileOrganizer
         IPathGenerator pathGenerator,
         IFileOperator fileOperator,
         IFilenameNormalizer filenameNormalizer,
-        IDeduplicationDetector deduplicationDetector)
+        IDeduplicationDetector deduplicationDetector,
+        NfoFormatter nfoFormatter)
     {
         _logger = logger;
         _directoryScanner = directoryScanner;
@@ -36,6 +39,7 @@ public class FileOrganizer : IFileOrganizer
         _fileOperator = fileOperator;
         _filenameNormalizer = filenameNormalizer;
         _deduplicationDetector = deduplicationDetector;
+        _nfoFormatter = nfoFormatter;
     }
 
     public async Task<OrganizationResult> OrganizeAsync(
@@ -350,6 +354,12 @@ public class FileOrganizer : IFileOrganizer
             }
         }
 
+        // Auto-write metadata.nfo if no files failed and it doesn't already exist
+        if (filesFailed == 0)
+        {
+            await WriteNfoIfNeededAsync(plan.TargetPath, plan.Metadata);
+        }
+
         var success = filesFailed == 0;
 
         return new AudiobookOperationResult
@@ -364,6 +374,32 @@ public class FileOrganizer : IFileOrganizer
                 ? $"{filesFailed} file(s) failed to process"
                 : null
         };
+    }
+
+    /// <summary>
+    /// Writes metadata.nfo to the target folder if one doesn't already exist.
+    /// Does not overwrite existing NFO files (they may be manually curated).
+    /// </summary>
+    private async Task WriteNfoIfNeededAsync(string targetPath, BookMetadata metadata)
+    {
+        var nfoPath = Path.Combine(targetPath, _nfoFormatter.FileName);
+
+        if (System.IO.File.Exists(nfoPath))
+        {
+            _logger.LogDebug("Skipping NFO write - file already exists: {Path}", nfoPath);
+            return;
+        }
+
+        try
+        {
+            var nfoContent = await _nfoFormatter.FormatAsync(metadata);
+            await System.IO.File.WriteAllTextAsync(nfoPath, nfoContent, Encoding.UTF8);
+            _logger.LogInformation("Wrote metadata.nfo: {Path}", nfoPath);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to write metadata.nfo: {Path}", nfoPath);
+        }
     }
 
     /// <summary>
