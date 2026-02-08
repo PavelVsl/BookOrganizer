@@ -80,8 +80,8 @@ public class MetadataJsonProcessor : IMetadataJsonProcessor
             return null;
         }
 
-        // Walk up from audiobook folder to source root, building hierarchy
-        HierarchicalMetadata? currentMetadata = null;
+        // Collect metadata from each folder level (deepest first)
+        var nodes = new List<(string Path, int Level, MetadataOverride? Metadata)>();
         var currentPath = normalizedAudiobookPath;
         var level = pathComponents.Count - 1; // Start at deepest level (book)
 
@@ -89,26 +89,7 @@ public class MetadataJsonProcessor : IMetadataJsonProcessor
                !string.Equals(currentPath, normalizedSourceRoot, StringComparison.OrdinalIgnoreCase))
         {
             var metadata = await LoadMetadataJsonAsync(currentPath, cancellationToken);
-
-            if (metadata != null || currentMetadata != null)
-            {
-                // Create hierarchical metadata node
-                var hierarchicalNode = new HierarchicalMetadata
-                {
-                    FolderPath = currentPath,
-                    Level = Math.Min(level, 2), // Cap at book level (2)
-                    Metadata = metadata,
-                    Parent = currentMetadata
-                };
-
-                currentMetadata = hierarchicalNode;
-
-                _logger.LogInformation(
-                    "Found metadata at level {Level} ({LevelName}) in {Path}",
-                    hierarchicalNode.Level,
-                    GetLevelName(hierarchicalNode.Level),
-                    Path.GetFileName(currentPath));
-            }
+            nodes.Add((currentPath, Math.Min(level, 2), metadata));
 
             // Move up one directory
             var parentPath = Path.GetDirectoryName(currentPath);
@@ -117,6 +98,31 @@ public class MetadataJsonProcessor : IMetadataJsonProcessor
 
             currentPath = parentPath;
             level--;
+        }
+
+        // Reverse to build hierarchy top-down (shallowest=root, deepest=leaf)
+        // so that book-level metadata overrides author-level metadata
+        nodes.Reverse();
+
+        HierarchicalMetadata? currentMetadata = null;
+        foreach (var (nodePath, nodeLevel, metadata) in nodes)
+        {
+            if (metadata != null || currentMetadata != null)
+            {
+                currentMetadata = new HierarchicalMetadata
+                {
+                    FolderPath = nodePath,
+                    Level = nodeLevel,
+                    Metadata = metadata,
+                    Parent = currentMetadata
+                };
+
+                _logger.LogInformation(
+                    "Found metadata at level {Level} ({LevelName}) in {Path}",
+                    nodeLevel,
+                    GetLevelName(nodeLevel),
+                    Path.GetFileName(nodePath));
+            }
         }
 
         return currentMetadata;
