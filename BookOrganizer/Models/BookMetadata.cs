@@ -36,6 +36,11 @@ public record BookMetadata
     public int? Year { get; init; }
 
     /// <summary>
+    /// Composer from MP3 tags. Often contains the book author in Czech audiobooks.
+    /// </summary>
+    public string? Composer { get; init; }
+
+    /// <summary>
     /// Genre(s). Multiple genres separated by semicolon.
     /// </summary>
     public string? Genre { get; init; }

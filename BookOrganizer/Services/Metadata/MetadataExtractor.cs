@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using BookOrganizer.Infrastructure.Exceptions;
 using BookOrganizer.Models;
 using Microsoft.Extensions.Logging;
@@ -520,7 +521,9 @@ public class MetadataExtractor : IMetadataExtractor
         }
 
         // Try to extract series information from title/album
-        (var series, var seriesNumber) = ExtractSeriesInfo(title);
+        (var series, var seriesNumber, var cleanTitle) = ExtractSeriesInfo(title);
+        if (cleanTitle != null)
+            title = cleanTitle;
 
         // Calculate confidence score
         var confidence = CalculateConfidence(title, author, narrator, genre, year);
@@ -551,31 +554,94 @@ public class MetadataExtractor : IMetadataExtractor
             .Key;
     }
 
-    private static (string? series, string? seriesNumber) ExtractSeriesInfo(string? title)
+    /// <summary>
+    /// Extracts series info from a title like "Legie 5 - Aga", "LEGIE VII: Mrtvá schránka",
+    /// or "Legie - Operace Petragun". Returns (series, seriesNumber, cleanTitle).
+    /// Series number can be arabic (5) or roman (VII).
+    /// </summary>
+    private static (string? series, string? seriesNumber, string? cleanTitle) ExtractSeriesInfo(string? title)
     {
         if (string.IsNullOrWhiteSpace(title))
-            return (null, null);
+            return (null, null, null);
 
-        // Try to find patterns like "Series Name 01", "Series - 02", "Series Name, Díl 1", etc.
-        // This is a simple implementation - can be enhanced with regex in Task 4
-        var parts = title.Split(new[] { '-', ':', ',', '/' }, StringSplitOptions.TrimEntries);
+        // Pattern 1: "{Series} {Number} {separator} {Title}" with arabic or roman numbers
+        // e.g., "LEGIE VII: Mrtvá schránka", "Legie 5 - Aga", "Zaklínač 2 - Meč osudu"
+        var matchWithNumber = Regex.Match(title,
+            @"^(.+?)\s+(\d+|[IVXLCDM]+)\s*[:\-–—]\s*(.+)$",
+            RegexOptions.IgnoreCase);
 
-        if (parts.Length >= 2)
+        if (matchWithNumber.Success)
         {
-            // Check if last part looks like a number
-            var lastPart = parts[^1].Trim();
-            if (int.TryParse(lastPart, out _) ||
-                lastPart.StartsWith("Díl", StringComparison.OrdinalIgnoreCase) ||
-                lastPart.StartsWith("Part", StringComparison.OrdinalIgnoreCase) ||
-                lastPart.StartsWith("Book", StringComparison.OrdinalIgnoreCase))
+            var numberStr = matchWithNumber.Groups[2].Value.Trim();
+
+            // Validate it's actually a number (arabic or roman)
+            if (int.TryParse(numberStr, out _) || TryParseRomanNumeral(numberStr, out _))
             {
-                var series = string.Join(" ", parts[..^1]).Trim();
-                var number = lastPart.Split(' ', StringSplitOptions.TrimEntries).LastOrDefault();
-                return (series, number);
+                var seriesPart = matchWithNumber.Groups[1].Value.Trim();
+                var titlePart = matchWithNumber.Groups[3].Value.Trim();
+
+                var seriesNumber = TryParseRomanNumeral(numberStr, out var arabic)
+                    ? arabic.ToString()
+                    : numberStr;
+
+                return (seriesPart, seriesNumber, titlePart);
             }
         }
 
-        return (null, null);
+        // Pattern 2: "{Series} {separator} {Title}" without number (single-word series name)
+        // e.g., "Legie - Operace Petragun"
+        // Requires whitespace before separator to avoid splitting compound words like "SCI-FI"
+        var matchNoNumber = Regex.Match(title, @"^(\S+)\s+[:\-–—]\s*(.+)$");
+        if (matchNoNumber.Success)
+        {
+            var seriesPart = matchNoNumber.Groups[1].Value.Trim();
+            var titlePart = matchNoNumber.Groups[2].Value.Trim();
+
+            if (!string.IsNullOrWhiteSpace(seriesPart) && !string.IsNullOrWhiteSpace(titlePart))
+            {
+                return (seriesPart, null, titlePart);
+            }
+        }
+
+        return (null, null, null);
+    }
+
+    /// <summary>
+    /// Tries to parse a roman numeral string (e.g., "VII") to an integer.
+    /// </summary>
+    private static bool TryParseRomanNumeral(string input, out int result)
+    {
+        result = 0;
+        if (string.IsNullOrWhiteSpace(input))
+            return false;
+
+        var upper = input.ToUpperInvariant();
+
+        var romanValues = new Dictionary<char, int>
+        {
+            ['I'] = 1, ['V'] = 5, ['X'] = 10,
+            ['L'] = 50, ['C'] = 100, ['D'] = 500, ['M'] = 1000
+        };
+
+        var total = 0;
+        for (int i = 0; i < upper.Length; i++)
+        {
+            if (!romanValues.TryGetValue(upper[i], out var current))
+                return false;
+
+            var next = (i + 1 < upper.Length && romanValues.TryGetValue(upper[i + 1], out var n)) ? n : 0;
+
+            if (current < next)
+                total -= current;
+            else
+                total += current;
+        }
+
+        if (total <= 0)
+            return false;
+
+        result = total;
+        return true;
     }
 
     /// <summary>
