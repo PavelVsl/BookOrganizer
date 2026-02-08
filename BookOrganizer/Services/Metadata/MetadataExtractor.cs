@@ -526,23 +526,36 @@ public class MetadataExtractor : IMetadataExtractor
         var title = GetMostCommonValue(fileMetadataList.Select(m => m.Album).Where(v => v != null));
         var genre = GetMostCommonValue(fileMetadataList.Select(m => m.Genre).Where(v => v != null));
 
-        // For author/narrator, prefer Artist field as it often contains "Author / cte Narrator" format
-        // Fall back to AlbumArtist or Composer if Artist is empty
+        // Determine author and narrator from ID3 tags
+        // When Composer is present, it's the book author and Artist is the narrator
+        var composer = GetMostCommonValue(fileMetadataList.Select(m => m.Composer).Where(v => v != null));
         var rawArtist = GetMostCommonValue(fileMetadataList.Select(m => m.Artist).Where(v => v != null));
         if (string.IsNullOrWhiteSpace(rawArtist))
         {
-            rawArtist = GetMostCommonValue(fileMetadataList.Select(m => m.AlbumArtist ?? m.Composer).Where(v => v != null));
+            rawArtist = GetMostCommonValue(fileMetadataList.Select(m => m.AlbumArtist).Where(v => v != null));
         }
 
-        _logger.LogDebug("Raw artist field: {RawArtist}", rawArtist);
+        _logger.LogDebug("Raw artist field: {RawArtist}, Composer: {Composer}", rawArtist, composer);
 
-        // Parse Czech audiobook format: "Author / cte Narrator" or "Author / ucinkuji Narrators"
-        var (author, narrator) = ParseCzechAuthorNarrator(rawArtist);
+        string? author;
+        string? narrator;
+
+        if (!string.IsNullOrWhiteSpace(composer))
+        {
+            // Composer = author, Artist = narrator
+            author = composer;
+            narrator = rawArtist;
+        }
+        else
+        {
+            // Parse Czech audiobook format: "Author / cte Narrator" or "Author / ucinkuji Narrators"
+            (author, narrator) = ParseCzechAuthorNarrator(rawArtist);
+        }
 
         // Get raw comment value
         var comment = GetMostCommonValue(fileMetadataList.Select(m => m.Comment).Where(v => v != null));
 
-        // If narrator not found in Artist field, try Comment field (e.g., "Čte: Martin Stránský")
+        // If narrator not found yet, try Comment field (e.g., "Čte: Martin Stránský")
         if (string.IsNullOrWhiteSpace(narrator))
         {
             narrator = ParseNarratorFromComment(comment);
