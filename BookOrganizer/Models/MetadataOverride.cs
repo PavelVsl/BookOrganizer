@@ -62,6 +62,11 @@ public record MetadataOverride
     public string? Language { get; init; }
 
     /// <summary>
+    /// Raw comment from MP3 tags.
+    /// </summary>
+    public string? Comment { get; init; }
+
+    /// <summary>
     /// Additional notes or comments.
     /// </summary>
     public string? Notes { get; init; }

@@ -51,6 +51,11 @@ public record BookMetadata
     public string? Description { get; init; }
 
     /// <summary>
+    /// Raw comment from MP3 tags (often contains narrator info in Czech audiobooks).
+    /// </summary>
+    public string? Comment { get; init; }
+
+    /// <summary>
     /// Language code (e.g., "cs" for Czech, "en" for English).
     /// </summary>
     public string? Language { get; init; }

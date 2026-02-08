@@ -35,6 +35,7 @@ public class BookOrganizerFormatter : IMetadataFormatter
             SeriesNumber = metadata.SeriesNumber ?? string.Empty,
             Year = metadata.Year,
             Genre = metadata.Genre,
+            Comment = metadata.Comment,
             Description = metadata.Description,
             Source = metadata.Source
         };

@@ -151,10 +151,18 @@ public class MetadataExtractor : IMetadataExtractor
         var consolidatedResult = await _consolidator.ConsolidateAsync(metadataSources, cancellationToken);
         var consolidated = consolidatedResult.ToBookMetadata();
 
-        // Apply metadata overrides if present (immediate folder only - already handled by hierarchical)
-        if (overrideMetadata != null && hierarchicalMetadata == null)
+        // Carry Comment from ID3 tags (not part of consolidation)
+        if (!string.IsNullOrWhiteSpace(id3Metadata.Comment))
         {
-            _logger.LogInformation("Applying metadata overrides from {Path}", audiobookFolder.Path);
+            consolidated = consolidated with { Comment = id3Metadata.Comment };
+        }
+
+        // Apply metadata overrides only from manually-edited files (source=manual)
+        // Auto-generated files should not override fresh extraction (circular dependency)
+        if (overrideMetadata != null && hierarchicalMetadata == null &&
+            string.Equals(overrideMetadata.Source, MetadataOverride.ManualSource, StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogInformation("Applying manual metadata overrides from {Path}", audiobookFolder.Path);
             consolidated = ApplyOverrides(consolidated, overrideMetadata);
         }
 
@@ -531,10 +539,12 @@ public class MetadataExtractor : IMetadataExtractor
         // Parse Czech audiobook format: "Author / cte Narrator" or "Author / ucinkuji Narrators"
         var (author, narrator) = ParseCzechAuthorNarrator(rawArtist);
 
+        // Get raw comment value
+        var comment = GetMostCommonValue(fileMetadataList.Select(m => m.Comment).Where(v => v != null));
+
         // If narrator not found in Artist field, try Comment field (e.g., "Čte: Martin Stránský")
         if (string.IsNullOrWhiteSpace(narrator))
         {
-            var comment = GetMostCommonValue(fileMetadataList.Select(m => m.Comment).Where(v => v != null));
             narrator = ParseNarratorFromComment(comment);
         }
 
@@ -570,6 +580,7 @@ public class MetadataExtractor : IMetadataExtractor
             Series = series,
             SeriesNumber = seriesNumber,
             Narrator = narrator,
+            Comment = comment,
             Year = (int?)year,
             Genre = genre,
             Confidence = confidence,
