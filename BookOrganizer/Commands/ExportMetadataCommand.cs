@@ -154,6 +154,16 @@ public class ExportMetadataCommand : Command
                             {
                                 var metadataFilePath = Path.Combine(folder.Path, formatter.FileName);
 
+                                // Protect manually-edited bookinfo.json files (source=manual)
+                                if (formatter is BookOrganizerFormatter &&
+                                    await MetadataJsonProcessor.IsManuallyEditedAsync(metadataFilePath))
+                                {
+                                    AnsiConsole.MarkupLine(
+                                        "[yellow]Protected:[/] {0} (source=manual)",
+                                        bookName);
+                                    continue;
+                                }
+
                                 // Skip if file exists and force is not set
                                 if (File.Exists(metadataFilePath) && !force)
                                 {

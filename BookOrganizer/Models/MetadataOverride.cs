@@ -7,6 +7,11 @@ namespace BookOrganizer.Models;
 public record MetadataOverride
 {
     /// <summary>
+    /// Value for Source field indicating the file was manually edited and should not be overwritten.
+    /// </summary>
+    public const string ManualSource = "manual";
+
+    /// <summary>
     /// Book title (overrides ID3 tags and filename parsing).
     /// </summary>
     public string? Title { get; init; }

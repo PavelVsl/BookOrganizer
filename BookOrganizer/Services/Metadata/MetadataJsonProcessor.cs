@@ -22,6 +22,35 @@ public class MetadataJsonProcessor : IMetadataJsonProcessor
         _logger = logger;
     }
 
+    /// <summary>
+    /// Checks if a bookinfo.json file has source set to "manual", indicating it should not be overwritten.
+    /// Returns false if the file doesn't exist or cannot be parsed (fail-safe: don't block operations).
+    /// </summary>
+    public static async Task<bool> IsManuallyEditedAsync(string filePath)
+    {
+        try
+        {
+            if (!File.Exists(filePath))
+                return false;
+
+            var json = await File.ReadAllTextAsync(filePath);
+            using var doc = JsonDocument.Parse(json);
+
+            if (doc.RootElement.TryGetProperty("source", out var sourceEl) &&
+                sourceEl.ValueKind == JsonValueKind.String &&
+                string.Equals(sourceEl.GetString(), MetadataOverride.ManualSource, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public async Task<HierarchicalMetadata?> LoadHierarchicalMetadataAsync(
         string audiobookFolderPath,
         string sourceRootPath,

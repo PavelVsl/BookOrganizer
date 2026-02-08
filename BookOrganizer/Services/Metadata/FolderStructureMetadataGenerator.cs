@@ -96,6 +96,14 @@ public class FolderStructureMetadataGenerator : IMetadataGenerator
             {
                 var metadataFilePath = Path.Combine(folderPath, formatter.FileName);
 
+                // Protect manually-edited bookinfo.json files (source=manual)
+                if (formatter is BookOrganizerFormatter &&
+                    await MetadataJsonProcessor.IsManuallyEditedAsync(metadataFilePath))
+                {
+                    _logger.LogInformation("Protected manually-edited {FileName} at {Path}", formatter.FileName, folderPath);
+                    continue;
+                }
+
                 // Check if file already exists
                 if (File.Exists(metadataFilePath) && !force)
                 {
