@@ -24,7 +24,7 @@ Program.ServiceProvider = services.BuildServiceProvider();
 try
 {
     // Create root command
-    var rootCommand = new RootCommand("BookOrganizer - Organize your audiobook library for Jellyfin");
+    var rootCommand = new RootCommand("BookOrganizer - Organize your audiobook library for Audiobookshelf");
 
     // Add commands
     rootCommand.Subcommands.Add(new ScanCommand());

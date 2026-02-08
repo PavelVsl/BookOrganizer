@@ -12,8 +12,8 @@
         <ToolCommandName>bookorganizer</ToolCommandName>
         <PackageId>BookOrganizer</PackageId>
         <Authors>Pavel</Authors>
-        <Description>CLI tool for organizing audiobook libraries for Jellyfin with metadata extraction, duplicate detection, and Czech language support</Description>
-        <PackageTags>audiobook;jellyfin;organizer;metadata;mp3;cli;tool</PackageTags>
+        <Description>CLI tool for organizing audiobook libraries for Audiobookshelf with metadata extraction, duplicate detection, and Czech language support</Description>
+        <PackageTags>audiobook;audiobookshelf;organizer;metadata;mp3;cli;tool</PackageTags>
         <PackageProjectUrl>https://github.com/yourusername/BookOrganizer</PackageProjectUrl>
         <RepositoryUrl>https://github.com/yourusername/BookOrganizer</RepositoryUrl>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
