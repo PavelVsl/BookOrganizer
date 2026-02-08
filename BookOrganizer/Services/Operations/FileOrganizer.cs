@@ -497,6 +497,9 @@ public class FileOrganizer : IFileOrganizer
             {
                 _logger.LogInformation("No reorganization needed - all books are already in correct locations");
 
+                // Still clean up orphaned directories even when no books need moving
+                await CleanupEmptyDirectoriesAsync(libraryPath);
+
                 return new OrganizationResult
                 {
                     Success = true,
@@ -572,16 +575,20 @@ public class FileOrganizer : IFileOrganizer
         }
     }
 
-    // Files that are considered generated metadata (safe to delete during cleanup)
-    private static readonly HashSet<string> MetadataFileNames = new(StringComparer.OrdinalIgnoreCase)
+    // Files considered expendable during cleanup (generated metadata + OS junk)
+    private static readonly HashSet<string> ExpendableFileNames = new(StringComparer.OrdinalIgnoreCase)
     {
         "bookinfo.json",
         "metadata.json",
-        "metadata.nfo"
+        "metadata.nfo",
+        ".DS_Store",
+        "Thumbs.db",
+        "desktop.ini"
     };
 
     /// <summary>
     /// Cleans up directories left after reorganization that are empty or contain only metadata files.
+    /// Repeats until no more directories can be removed (handles nested cleanup).
     /// </summary>
     private async Task CleanupEmptyDirectoriesAsync(string libraryPath)
     {
@@ -589,44 +596,55 @@ public class FileOrganizer : IFileOrganizer
         {
             try
             {
-                // Get all directories in library
-                var directories = Directory.GetDirectories(libraryPath, "*", SearchOption.AllDirectories)
-                    .OrderByDescending(d => d.Length); // Process deepest first
-
-                foreach (var directory in directories)
+                bool removedAny;
+                do
                 {
-                    try
+                    removedAny = false;
+
+                    // Re-scan each pass since parent dirs may become removable after children are deleted
+                    var directories = Directory.GetDirectories(libraryPath, "*", SearchOption.AllDirectories)
+                        .OrderByDescending(d => d.Length); // Process deepest first
+
+                    foreach (var directory in directories)
                     {
-                        // Skip if directory has subdirectories
-                        if (Directory.EnumerateDirectories(directory).Any())
-                            continue;
-
-                        var files = Directory.GetFiles(directory);
-
-                        // Empty directory - delete
-                        if (files.Length == 0)
+                        try
                         {
-                            Directory.Delete(directory);
-                            _logger.LogDebug("Removed empty directory: {Path}", directory);
-                            continue;
+                            if (!Directory.Exists(directory))
+                                continue;
+
+                            // Skip if directory has subdirectories
+                            if (Directory.EnumerateDirectories(directory).Any())
+                                continue;
+
+                            var files = Directory.GetFiles(directory);
+
+                            // Empty directory - delete
+                            if (files.Length == 0)
+                            {
+                                Directory.Delete(directory);
+                                _logger.LogDebug("Removed empty directory: {Path}", directory);
+                                removedAny = true;
+                                continue;
+                            }
+
+                            // Directory with only metadata files - delete files then directory
+                            if (files.All(f => ExpendableFileNames.Contains(Path.GetFileName(f))))
+                            {
+                                foreach (var file in files)
+                                    File.Delete(file);
+
+                                Directory.Delete(directory);
+                                _logger.LogInformation(
+                                    "Removed orphaned directory: {Path}", directory);
+                                removedAny = true;
+                            }
                         }
-
-                        // Directory with only metadata files - delete files then directory
-                        if (files.All(f => MetadataFileNames.Contains(Path.GetFileName(f))))
+                        catch (Exception ex)
                         {
-                            foreach (var file in files)
-                                File.Delete(file);
-
-                            Directory.Delete(directory);
-                            _logger.LogInformation(
-                                "Removed directory with only metadata files: {Path}", directory);
+                            _logger.LogWarning(ex, "Failed to remove directory: {Path}", directory);
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Failed to remove directory: {Path}", directory);
-                    }
-                }
+                } while (removedAny);
             }
             catch (Exception ex)
             {
