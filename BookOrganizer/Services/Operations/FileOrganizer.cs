@@ -290,6 +290,7 @@ public class FileOrganizer : IFileOrganizer
 
     /// <summary>
     /// Organizes a single audiobook by copying/moving all its files.
+    /// For multi-disc audiobooks, preserves disc subfolder structure.
     /// </summary>
     private async Task<AudiobookOperationResult> OrganizeSingleAudiobookAsync(
         OrganizationPlan plan,
@@ -302,6 +303,7 @@ public class FileOrganizer : IFileOrganizer
 
         var filesProcessed = 0;
         var filesFailed = 0;
+        var isMultiDisc = plan.SourceFolder.IsMultiDisc;
 
         // Process all files (audio + cover images/metadata)
         foreach (var sourceFile in plan.SourceFolder.AllFiles)
@@ -310,11 +312,28 @@ public class FileOrganizer : IFileOrganizer
 
             try
             {
-                var fileName = Path.GetFileName(sourceFile);
+                string destinationFile;
 
-                // Normalize filename for multi-disk audiobooks
-                var normalizedFileName = _filenameNormalizer.NormalizeFilename(fileName);
-                var destinationFile = Path.Combine(plan.TargetPath, normalizedFileName);
+                if (isMultiDisc)
+                {
+                    // Preserve relative path (disc subfolder structure)
+                    var relativePath = Path.GetRelativePath(plan.SourceFolder.Path, sourceFile);
+                    destinationFile = Path.Combine(plan.TargetPath, relativePath);
+
+                    // Ensure the subdirectory exists
+                    var destDir = Path.GetDirectoryName(destinationFile);
+                    if (destDir != null)
+                    {
+                        Directory.CreateDirectory(destDir);
+                    }
+                }
+                else
+                {
+                    // Flatten into target directory with filename normalization
+                    var fileName = Path.GetFileName(sourceFile);
+                    var normalizedFileName = _filenameNormalizer.NormalizeFilename(fileName);
+                    destinationFile = Path.Combine(plan.TargetPath, normalizedFileName);
+                }
 
                 _logger.LogDebug(
                     "Processing file: {Source} -> {Destination}",

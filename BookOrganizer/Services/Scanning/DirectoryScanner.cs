@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using BookOrganizer.Infrastructure.Exceptions;
 using BookOrganizer.Models;
 using Microsoft.Extensions.Logging;
@@ -14,6 +15,9 @@ public class DirectoryScanner : IDirectoryScanner
     {
         ".mp3", ".m4a", ".m4b", ".flac", ".aac", ".ogg", ".opus", ".wma"
     };
+
+    private static readonly Regex DiscFolderPattern = new(
+        @"^(?:Disc|CD|Disk)\s*\d+$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     public DirectoryScanner(ILogger<DirectoryScanner> logger)
     {
@@ -127,15 +131,80 @@ public class DirectoryScanner : IDirectoryScanner
             var audioFiles = allFiles.Where(file => IsAudioFile(file)).ToList();
             var otherFiles = allFiles.Where(file => !IsAudioFile(file)).ToList();
 
-            // If this directory contains audio files, treat it as an audiobook folder
-            if (audioFiles.Count > 0)
+            // Check subdirectories for disc folder pattern
+            var subdirectories = Directory.EnumerateDirectories(currentPath).ToList();
+            var discSubdirs = subdirectories
+                .Where(d => DiscFolderPattern.IsMatch(Path.GetFileName(d)))
+                .ToList();
+            var nonDiscSubdirs = subdirectories
+                .Where(d => !DiscFolderPattern.IsMatch(Path.GetFileName(d)))
+                .ToList();
+
+            // Check if disc subfolders contain audio files
+            var discFolderNames = new List<string>();
+            var discAudioFiles = new List<string>();
+            var discOtherFiles = new List<string>();
+
+            foreach (var discDir in discSubdirs)
             {
+                var discFiles = Directory.EnumerateFiles(discDir).ToList();
+                var discAudio = discFiles.Where(IsAudioFile).ToList();
+
+                if (discAudio.Count > 0)
+                {
+                    discFolderNames.Add(Path.GetFileName(discDir));
+                    discAudioFiles.AddRange(discAudio);
+                    discOtherFiles.AddRange(discFiles.Where(f => !IsAudioFile(f)));
+                    directoriesScanned++;
+                }
+                else
+                {
+                    // No audio files in disc subfolder - treat as regular subdirectory
+                    nonDiscSubdirs.Add(discDir);
+                }
+            }
+
+            // If we found disc subfolders with audio, create a single multi-disc AudiobookFolder
+            if (discFolderNames.Count > 0)
+            {
+                // Include root-level audio files first, then disc subfolder files
+                var allAudioFiles = audioFiles.Concat(discAudioFiles).ToList();
+                var allOtherFiles = otherFiles.Concat(discOtherFiles).ToList();
+
+                var totalSize = allAudioFiles.Sum(file =>
+                {
+                    try { return new FileInfo(file).Length; }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to get file size: {FilePath}", file);
+                        return 0L;
+                    }
+                });
+
+                var audiobookFolder = new AudiobookFolder
+                {
+                    Path = currentPath,
+                    AudioFiles = allAudioFiles,
+                    OtherFiles = allOtherFiles,
+                    TotalSizeBytes = totalSize,
+                    DiscSubfolders = discFolderNames.OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList()
+                };
+
+                results.Add(audiobookFolder);
+
+                _logger.LogDebug(
+                    "Found multi-disc audiobook: {Path} ({DiscCount} discs, {FileCount} files, {SizeMB:F2} MB)",
+                    currentPath,
+                    discFolderNames.Count,
+                    allAudioFiles.Count,
+                    totalSize / 1024.0 / 1024.0);
+            }
+            else if (audioFiles.Count > 0)
+            {
+                // Single-disc audiobook (original behavior)
                 var totalSize = audioFiles.Sum(file =>
                 {
-                    try
-                    {
-                        return new FileInfo(file).Length;
-                    }
+                    try { return new FileInfo(file).Length; }
                     catch (Exception ex)
                     {
                         _logger.LogWarning(ex, "Failed to get file size: {FilePath}", file);
@@ -160,10 +229,8 @@ public class DirectoryScanner : IDirectoryScanner
                     totalSize / 1024.0 / 1024.0);
             }
 
-            // Recursively scan subdirectories
-            var subdirectories = Directory.EnumerateDirectories(currentPath);
-
-            foreach (var subdirectory in subdirectories)
+            // Recursively scan non-disc subdirectories
+            foreach (var subdirectory in nonDiscSubdirs)
             {
                 directoriesScanned = await ScanDirectoryRecursiveAsync(
                     subdirectory,
@@ -176,17 +243,14 @@ public class DirectoryScanner : IDirectoryScanner
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Access denied to directory: {Path}", currentPath);
-            // Continue scanning other directories
         }
         catch (DirectoryNotFoundException ex)
         {
             _logger.LogWarning(ex, "Directory not found: {Path}", currentPath);
-            // Continue scanning other directories
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error scanning directory: {Path}", currentPath);
-            // Continue scanning other directories
         }
 
         // Make this actually async to allow for cooperative cancellation

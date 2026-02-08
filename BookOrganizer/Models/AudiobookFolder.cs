@@ -26,6 +26,17 @@ public record AudiobookFolder
     public long TotalSizeBytes { get; init; }
 
     /// <summary>
+    /// Names of disc subfolders (e.g., "Disc 1", "CD 2") detected within this audiobook.
+    /// Empty if the audiobook has a flat structure.
+    /// </summary>
+    public IReadOnlyList<string> DiscSubfolders { get; init; } = Array.Empty<string>();
+
+    /// <summary>
+    /// Whether this audiobook has a multi-disc structure.
+    /// </summary>
+    public bool IsMultiDisc => DiscSubfolders.Count > 0;
+
+    /// <summary>
     /// Number of audio files detected.
     /// </summary>
     public int FileCount => AudioFiles.Count;
