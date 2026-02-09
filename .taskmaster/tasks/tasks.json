@@ -1311,7 +1311,7 @@
         "description": "Create a ReorganizeCommand that allows users to modify metadata.json files in an organized library and reorganize based on updated metadata, with interactive preview, confirmation, cache rebuild, and collision handling.",
         "details": "Implement ReorganizeCommand in Commands/ReorganizeCommand.cs that enables post-organization metadata updates and reorganization. The command should: 1) **Library scanning and metadata export** - Accept --library/-l parameter pointing to organized library root, use ILibraryMetadataCache to load existing metadata from cache, scan library structure using IDirectoryScanner to detect all audiobooks, export current metadata to metadata.json files in each book folder using MetadataInfo model, preserve normalized author/series data from NormalizedAuthors and NormalizedSeries tables. 2) **Interactive editing workflow** - Prompt user to edit metadata.json files with clear instructions, wait for user confirmation to proceed (press Enter when ready), re-scan library and load updated metadata.json files, use MetadataConsolidator to validate and consolidate edited metadata with confidence scoring. 3) **Preview generation and confirmation** - Use IPreviewGenerator to show before/after structure comparison, display metadata changes (author/title/series modifications), highlight path changes and potential collisions, calculate disk space impact and estimated time, show interactive preview with Spectre.Console tree view, prompt for user confirmation before execution (Yes/No/Cancel). 4) **Reorganization execution** - Use IFileOperator to move books to new paths based on updated metadata, use IPathGenerator to generate new folder structures with collision handling (append -2, -3, etc.), preserve MP3 files and update ID3 tags if metadata changed, create operation manifest for rollback capability, show progress bars using Spectre.Console for long operations. 5) **Cache rebuild and verification** - Clear and rebuild ILibraryMetadataCache with new metadata and paths, update NormalizedAuthors and NormalizedSeries tables with TextNormalizer, run post-reorganization verification to detect issues, display summary report with statistics (books moved, metadata updated, collisions resolved). 6) **Parameter consistency** - Add --library/-l as alias to --destination/-d in OrganizeCommand and PreviewCommand for consistent terminology, ensure all commands accept both parameters interchangeably, update help text and documentation to reflect library terminology. 7) **Error handling** - Validate library path exists and contains organized books, handle missing or malformed metadata.json files gracefully, detect and resolve path collisions automatically with user notification, support --dry-run mode for testing without execution, allow cancellation at any stage with rollback support. Implementation should reuse existing services: IDirectoryScanner for library scanning, IMetadataExtractor for reading metadata.json, MetadataConsolidator for validation, IPreviewGenerator for preview, IFileOperator for moves, IPathGenerator for new paths, ILibraryMetadataCache for cache management, TextNormalizer for author/series normalization, IDeduplicationService to detect if reorganization creates duplicates. Use System.Text.Json for metadata.json serialization with proper Czech UTF-8 encoding. Command signature: 'bookorganizer reorganize --library <path> [--dry-run] [--yes] [--verbose]'.",
         "testStrategy": "Create integration tests with sample organized library structure containing multiple books with various metadata scenarios. Test workflow: 1) Export metadata to JSON files and verify format/completeness, 2) Modify metadata.json files programmatically (change author names, add series, update titles), 3) Run reorganize with preview and verify correct before/after comparison, 4) Execute reorganization and verify files moved to correct paths, 5) Verify cache rebuilt with updated metadata and NormalizedAuthors/NormalizedSeries tables updated, 6) Test path collision handling by creating metadata changes that would result in duplicate paths, 7) Test cancellation at various stages and verify rollback works correctly, 8) Test with missing/malformed metadata.json files and verify graceful error handling, 9) Verify --library/-l parameter works in reorganize, organize, and preview commands interchangeably with --destination/-d, 10) Test with Czech diacritics in metadata changes to ensure proper TextNormalizer integration. Create test fixtures with organized library containing 10-20 books with known metadata that can be systematically modified. Verify operation manifest created correctly for rollback. Test dry-run mode shows preview without executing changes.",
-        "status": "in-progress",
+        "status": "done",
         "dependencies": [
           "3",
           "6",
@@ -1343,9 +1343,10 @@
               1
             ],
             "details": "Use IDirectoryScanner to recursively scan --library path and identify all audiobook folders (folders containing MP3 files). For each detected audiobook folder, load existing metadata from ILibraryMetadataCache using LibraryTree. Query NormalizedAuthors and NormalizedSeries tables to retrieve normalized author/series data. Create MetadataInfo objects with complete metadata including author, title, series, narrator, year, publisher. Serialize to metadata.json using System.Text.Json with JsonSerializerOptions configured for UTF-8 encoding and Czech character support (WriteIndented=true for readability). Write metadata.json to each book's root folder. Handle missing cache entries gracefully by falling back to IMetadataExtractor for direct MP3 tag reading. Display progress using Spectre.Console progress bar for large libraries.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Create test organized library with 5-10 sample audiobooks containing Czech characters in metadata. Run export and verify metadata.json files are created in each folder with correct UTF-8 encoding. Validate JSON structure matches MetadataInfo model. Test handling of books missing from cache.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-02-09T08:41:23.455Z"
           },
           {
             "id": 3,
@@ -1355,9 +1356,10 @@
               2
             ],
             "details": "After metadata export completes, display clear instructions to user using Spectre.Console markup: 'Metadata exported to metadata.json files in each audiobook folder. Please edit the files as needed and press Enter to continue.' Wait for user input (Console.ReadLine() or Spectre.Console prompt). After confirmation, re-scan library using IDirectoryScanner to locate all metadata.json files. For each file, deserialize using System.Text.Json into MetadataInfo objects. Use MetadataConsolidator to validate and consolidate edited metadata with confidence scoring - compare original cached metadata vs edited metadata to detect changes. Build a collection of metadata changes (before/after pairs) for preview generation. Handle malformed JSON gracefully with clear error messages pointing to specific files. Support --yes flag to skip interactive wait for automation scenarios.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test interactive workflow: export metadata, programmatically modify metadata.json files (change author name, add series), simulate user Enter key press, verify updated metadata is loaded correctly. Test malformed JSON handling with invalid JSON syntax. Test --yes flag skips interactive wait.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-02-09T08:41:23.499Z"
           },
           {
             "id": 4,
@@ -1367,9 +1369,10 @@
               3
             ],
             "details": "Use IPreviewGenerator to create before/after structure comparison. For each audiobook with metadata changes, use IPathGenerator to calculate new destination path based on updated metadata (author/series/title). Detect potential path collisions by checking if new path already exists or if multiple books would map to same path. Calculate disk space impact (no change for moves) and estimate time based on file counts. Display preview using Spectre.Console: render tree view showing old path → new path for each changed book, highlight metadata changes (author: 'Old' → 'New'), show collision warnings in yellow/red, display summary statistics (X books to move, Y metadata changes, Z collisions). Integrate IDeduplicationService to check if reorganization would create duplicates. Prompt user for confirmation using Spectre.Console.Confirm: 'Proceed with reorganization? (Yes/No)'. Support --dry-run flag to show preview and exit without execution.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Create test scenarios: 1) Simple metadata change with no collisions, 2) Multiple books changing to same author/series causing collision, 3) Metadata change creating duplicate detection. Verify preview displays correctly with tree view, collision warnings appear in proper color. Test --dry-run exits without making changes.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-02-09T08:41:23.505Z"
           },
           {
             "id": 5,
@@ -1379,19 +1382,20 @@
               4
             ],
             "details": "After user confirmation, iterate through all books requiring reorganization. For each book: 1) Use IPathGenerator to generate new destination path with collision handling - if path exists, append '-2', '-3', etc. until unique path found. 2) Use IFileOperator to move entire audiobook folder to new location (preserve all MP3 files and metadata.json). 3) If metadata changed (author/title/series/narrator), update ID3 tags in all MP3 files using TagLib-Sharp. 4) Log operation to manifest file for potential rollback (old path, new path, timestamp). Display progress using Spectre.Console progress bar for long operations. After all moves complete: 1) Clear ILibraryMetadataCache completely. 2) Re-scan library using IDirectoryScanner and rebuild cache with new paths and updated metadata. 3) Use TextNormalizer to update NormalizedAuthors and NormalizedSeries tables with new normalized values. 4) Display summary report using Spectre.Console table: books moved (count), metadata updated (count), collisions resolved (count and method), total time elapsed. Handle errors gracefully - if move fails, log error, continue with remaining books, report failures in summary.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Create integration test with organized library containing books requiring reorganization: 1) Book with author name change, 2) Book with series addition causing path change, 3) Two books with metadata changes causing collision. Execute reorganization and verify: files moved to correct paths with collision suffixes, ID3 tags updated in MP3 files, cache rebuilt with new paths, NormalizedAuthors/NormalizedSeries tables updated, operation manifest created. Test cancellation mid-operation and verify partial rollback capability.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-02-09T08:41:23.508Z"
           }
         ],
-        "updatedAt": "2025-11-17T12:49:35.677Z"
+        "updatedAt": "2026-02-09T08:41:23.508Z"
       }
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-11-17T12:49:35.679Z",
+      "lastModified": "2026-02-09T08:41:23.508Z",
       "taskCount": 22,
-      "completedCount": 19,
+      "completedCount": 20,
       "tags": [
         "master"
       ]

@@ -181,12 +181,6 @@ public class PreviewCommand : Command
                 AnsiConsole.MarkupLine("[red]Error:[/] --source is required (or set BOOKORGANIZER_SOURCE env var)");
                 return 1;
             }
-            if (string.IsNullOrWhiteSpace(destination))
-            {
-                AnsiConsole.MarkupLine("[red]Error:[/] --destination is required (or set BOOKORGANIZER_LIBRARY env var)");
-                return 1;
-            }
-
             return await ExecuteAsync(
                 source, destination, operation, export,
                 authorFilter, seriesFilter, maxItemsFilter,
@@ -199,7 +193,7 @@ public class PreviewCommand : Command
 
     private static async Task<int> ExecuteAsync(
         string sourcePath,
-        string destinationPath,
+        string? destinationPath,
         string operationType,
         string? exportPath,
         string? author,
@@ -247,7 +241,17 @@ public class PreviewCommand : Command
                 return 1;
             }
 
-            AnsiConsole.MarkupLine("[green]Generating preview...[/]");
+            // When no destination specified, use source path to show metadata-only preview
+            var sourceOnlyMode = string.IsNullOrWhiteSpace(destinationPath);
+            if (sourceOnlyMode)
+            {
+                destinationPath = sourcePath;
+                AnsiConsole.MarkupLine("[yellow]No destination specified — showing source metadata only[/]");
+            }
+            else
+            {
+                AnsiConsole.MarkupLine("[green]Generating preview...[/]");
+            }
             AnsiConsole.WriteLine();
 
             // Fetch ABS library items if --check-abs is set
@@ -341,8 +345,8 @@ public class PreviewCommand : Command
                 AnsiConsole.MarkupLine("[green]✓ No issues detected - ready to organize![/]");
             }
 
-            // Interactive mode - prompt to organize if no errors
-            if (interactive && !hasErrors && preview.Operations.Count > 0)
+            // Interactive mode - prompt to organize if no errors (skip in source-only mode)
+            if (interactive && !sourceOnlyMode && !hasErrors && preview.Operations.Count > 0)
             {
                 AnsiConsole.WriteLine();
 
