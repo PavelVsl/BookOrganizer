@@ -188,8 +188,9 @@ bookorganizer export-metadata -s ~/audiobooks -f all --force
 
 | Option | Short | Description | Default |
 |--------|-------|-------------|---------|
-| `--source` | `-s` | Source directory to scan for audiobooks (required) | |
+| `--source` | `-s` | Source directory to scan for audiobooks | |
 | `--format` | `-f` | Output format: `bookorganizer`, `audiobookshelf`, `nfo`, `all` | `bookorganizer` |
+| `--metadata-source` | | Source for metadata: `mp3` (ID3 tags) or `folder` (folder structure, auto-sets `source=manual`) | `mp3` |
 | `--force` | | Overwrite existing metadata files | `false` |
 | `--verbose` | `-v` | Show detailed output | `false` |
 
