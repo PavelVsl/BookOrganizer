@@ -302,6 +302,86 @@ public class ExportMetadataCommand : Command
                     }
                 });
 
+            // Generate bookinfo.json for parent folders (author/series levels)
+            var metadataGenerator = Program.ServiceProvider.GetRequiredService<IMetadataGenerator>();
+            var audiobookPaths = new HashSet<string>(
+                folders.Select(f => f.Path), StringComparer.OrdinalIgnoreCase);
+
+            // Collect all intermediate directories (author, series) up to 3 levels
+            var parentFolders = new List<string>();
+            foreach (var topDir in Directory.GetDirectories(sourcePath))
+            {
+                parentFolders.Add(topDir);
+                foreach (var subDir in Directory.GetDirectories(topDir))
+                {
+                    parentFolders.Add(subDir);
+                    foreach (var deepDir in Directory.GetDirectories(subDir))
+                    {
+                        parentFolders.Add(deepDir);
+                    }
+                }
+            }
+
+            // Filter to non-audiobook folders only
+            var intermediateFolders = parentFolders
+                .Where(p => !audiobookPaths.Contains(p))
+                .ToList();
+
+            if (intermediateFolders.Count > 0)
+            {
+                var parentExported = 0;
+                var parentSkipped = 0;
+
+                await AnsiConsole.Progress()
+                    .AutoRefresh(true)
+                    .AutoClear(false)
+                    .Columns(
+                        new TaskDescriptionColumn(),
+                        new ProgressBarColumn(),
+                        new PercentageColumn(),
+                        new SpinnerColumn())
+                    .StartAsync(async ctx =>
+                    {
+                        var task = ctx.AddTask("[yellow]Generating parent folder metadata...[/]", maxValue: intermediateFolders.Count);
+
+                        foreach (var folderPath in intermediateFolders)
+                        {
+                            try
+                            {
+                                task.Description = $"[yellow]Processing:[/] {Path.GetFileName(folderPath)}";
+
+                                var result = await metadataGenerator.GenerateMetadataFromStructureAsync(
+                                    folderPath, sourcePath, format, force, CancellationToken.None);
+
+                                if (result.Success)
+                                {
+                                    if (result.Skipped)
+                                        parentSkipped++;
+                                    else
+                                    {
+                                        parentExported++;
+                                        if (verbose)
+                                            AnsiConsole.MarkupLine("[green]✓[/] Parent: [dim]{0}[/]", result.FilePath);
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                errorCount++;
+                                logger.LogError(ex, "Failed to generate parent metadata for {Path}", folderPath);
+                            }
+
+                            task.Increment(1);
+                        }
+                    });
+
+                exportedCount += parentExported;
+                skippedCount += parentSkipped;
+
+                AnsiConsole.MarkupLine("[dim]Parent folders:[/] {0} exported, {1} skipped",
+                    parentExported, parentSkipped);
+            }
+
             // Display summary
             AnsiConsole.WriteLine();
             var table = new Table();
@@ -312,7 +392,7 @@ public class ExportMetadataCommand : Command
             table.AddRow("[green]Exported[/]", exportedCount.ToString());
             table.AddRow("[dim]Skipped[/]", skippedCount.ToString());
             table.AddRow("[red]Errors[/]", errorCount.ToString());
-            table.AddRow("[bold]Total[/]", folders.Count.ToString());
+            table.AddRow("[bold]Total[/]", (folders.Count + intermediateFolders.Count).ToString());
 
             AnsiConsole.Write(table);
             AnsiConsole.WriteLine();
