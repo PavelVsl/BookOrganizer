@@ -458,8 +458,8 @@ public class PreviewCommand : Command
                     {
                         var metadataFilePath = Path.Combine(folder.Path, "bookinfo.json");
 
-                        // Skip if bookinfo.json or metadata.json exists (no force option in preview)
-                        if (File.Exists(metadataFilePath) || File.Exists(Path.Combine(folder.Path, "metadata.json")))
+                        // Skip if bookinfo.json already exists (no force option in preview)
+                        if (File.Exists(metadataFilePath))
                         {
                             skippedCount++;
                             task.Description = $"[dim]Skipped:[/] {Path.GetFileName(folder.Path)}";

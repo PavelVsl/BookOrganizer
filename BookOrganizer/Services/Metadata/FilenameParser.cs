@@ -116,8 +116,9 @@ public partial class FilenameParser : IFilenameParser
         number = null;
         title = null;
 
-        // Pattern 1: "01 Pohled šelmy", "1 Amanda"
-        var match1 = NumberedBookPattern1().Match(input);
+        // Pattern 1: "2 - Amanda", "11 - Mirská ruleta", "1 - Pistolník"
+        // (must be checked before space-only pattern to avoid capturing "- title")
+        var match1 = NumberedBookPattern3().Match(input);
         if (match1.Success)
         {
             number = match1.Groups["number"].Value;
@@ -134,8 +135,8 @@ public partial class FilenameParser : IFilenameParser
             return true;
         }
 
-        // Pattern 3: "2 - Amanda", "11 - Mirská ruleta"
-        var match3 = NumberedBookPattern3().Match(input);
+        // Pattern 3: "01 Pohled šelmy", "1 Amanda"
+        var match3 = NumberedBookPattern1().Match(input);
         if (match3.Success)
         {
             number = match3.Groups["number"].Value;
