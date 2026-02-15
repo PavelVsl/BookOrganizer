@@ -52,6 +52,13 @@ public partial class LibraryViewModel : ObservableObject
     [ObservableProperty]
     private ObservableCollection<BookNode> _allBooks = [];
 
+    // Filter: show only misplaced books
+    [ObservableProperty]
+    private bool _filterMisplacedOnly;
+
+    [ObservableProperty]
+    private int _misplacedCount;
+
     // Reorganize properties
     [ObservableProperty]
     private string _destinationPath = "";
@@ -160,11 +167,27 @@ public partial class LibraryViewModel : ObservableObject
     {
         SelectedDetail = value switch
         {
-            BookNode book => new BookDetailViewModel(book, _metadataProcessor, _logger),
-            AuthorNode author => new AuthorDetailViewModel(author, LibraryPath, _metadataProcessor, _logger),
+            BookNode book => new BookDetailViewModel(book, _metadataProcessor, _fileOrganizer, _pathGenerator, LibraryPath, ReloadAndReselectAsync, _logger),
+            AuthorNode author => new AuthorDetailViewModel(author, LibraryPath, _metadataProcessor, _fileOrganizer, _pathGenerator, ReloadAndReselectAsync, _logger),
             SeriesNode series => new SeriesDetailViewModel(series, LibraryPath, _metadataProcessor, _logger),
             _ => null
         };
+    }
+
+    /// <summary>
+    /// Reloads the library and re-selects the book at the given path (its new location after move).
+    /// </summary>
+    private async Task ReloadAndReselectAsync(string? reselectPath)
+    {
+        await ScanLibraryInternalAsync(cacheOnly: true, CancellationToken.None);
+
+        if (reselectPath != null)
+        {
+            var book = AllBooks.FirstOrDefault(b =>
+                string.Equals(b.Path, reselectPath, StringComparison.OrdinalIgnoreCase));
+            if (book != null)
+                SelectedItem = book;
+        }
     }
 
     /// <summary>
@@ -283,10 +306,11 @@ public partial class LibraryViewModel : ObservableObject
                 authorNodes.Add(authorNode);
             }
 
-            Authors = authorNodes;
+            _allAuthors = authorNodes;
             RebuildFlatBookList();
             var mode = cacheOnly ? "Loaded" : "Scanned";
-            StatusText = $"{mode} {AllBooks.Count} book(s) from {Authors.Count} author(s).";
+            var misplacedInfo = MisplacedCount > 0 ? $" ({MisplacedCount} misplaced)" : "";
+            StatusText = $"{mode} {AllBooks.Count} book(s) from {Authors.Count} author(s).{misplacedInfo}";
         }
         catch (OperationCanceledException)
         {
@@ -514,6 +538,11 @@ public partial class LibraryViewModel : ObservableObject
     private BookNode CreateBookNodeFromMetadata(BookMetadata meta, AudiobookFolder folder)
     {
         var bookinfoPath = System.IO.Path.Combine(folder.Path, "bookinfo.json");
+        var expectedPath = _pathGenerator.GenerateTargetPath(meta, LibraryPath);
+        var needsReorganize = !string.Equals(
+            folder.Path.TrimEnd(System.IO.Path.DirectorySeparatorChar),
+            expectedPath.TrimEnd(System.IO.Path.DirectorySeparatorChar),
+            StringComparison.OrdinalIgnoreCase);
 
         return new BookNode
         {
@@ -537,31 +566,90 @@ public partial class LibraryViewModel : ObservableObject
             HasNfo = File.Exists(System.IO.Path.Combine(folder.Path, "metadata.nfo")),
             IsMultiDisc = folder.IsMultiDisc,
             DiscCount = folder.DiscSubfolders.Count,
-            SourceFolder = folder
+            SourceFolder = folder,
+            NeedsReorganize = needsReorganize,
+            ExpectedPath = expectedPath
         };
     }
 
+    // Unfiltered backing store
+    private ObservableCollection<AuthorNode> _allAuthors = [];
+    private ObservableCollection<BookNode> _allBooksUnfiltered = [];
+
+    partial void OnFilterMisplacedOnlyChanged(bool value) => ApplyFilter();
+
     private void RebuildFlatBookList()
     {
+        _allBooksUnfiltered = CollectAllBooks(_allAuthors);
+        MisplacedCount = _allBooksUnfiltered.Count(b => b.NeedsReorganize);
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        if (!FilterMisplacedOnly)
+        {
+            Authors = _allAuthors;
+            AllBooks = _allBooksUnfiltered;
+            return;
+        }
+
+        // Filter: only books with NeedsReorganize
+        var filteredAuthors = new ObservableCollection<AuthorNode>();
+        var filteredBooks = new ObservableCollection<BookNode>();
+
+        foreach (var author in _allAuthors)
+        {
+            var filteredAuthor = new AuthorNode { Name = author.Name, Path = author.Path };
+
+            foreach (var child in author.Children)
+            {
+                if (child is BookNode book && book.NeedsReorganize)
+                {
+                    filteredAuthor.Children.Add(book);
+                    filteredBooks.Add(book);
+                }
+                else if (child is SeriesNode series)
+                {
+                    var misplaced = series.Books.Where(b => b.NeedsReorganize).ToList();
+                    if (misplaced.Count > 0)
+                    {
+                        var filteredSeries = new SeriesNode { Name = series.Name, Path = series.Path };
+                        foreach (var b in misplaced)
+                        {
+                            filteredSeries.Books.Add(b);
+                            filteredBooks.Add(b);
+                        }
+                        filteredAuthor.Children.Add(filteredSeries);
+                    }
+                }
+            }
+
+            if (filteredAuthor.Children.Count > 0)
+                filteredAuthors.Add(filteredAuthor);
+        }
+
+        Authors = filteredAuthors;
+        AllBooks = filteredBooks;
+    }
+
+    private static ObservableCollection<BookNode> CollectAllBooks(ObservableCollection<AuthorNode> authors)
+    {
         var books = new ObservableCollection<BookNode>();
-        foreach (var author in Authors)
+        foreach (var author in authors)
         {
             foreach (var child in author.Children)
             {
                 if (child is BookNode book)
-                {
                     books.Add(book);
-                }
                 else if (child is SeriesNode series)
                 {
                     foreach (var b in series.Books)
-                    {
                         books.Add(b);
-                    }
                 }
             }
         }
-        AllBooks = books;
+        return books;
     }
 
 }
@@ -604,6 +692,8 @@ public partial class BookNode : ObservableObject
 
     [ObservableProperty] private bool _isMultiDisc;
     [ObservableProperty] private int _discCount;
+    [ObservableProperty] private bool _needsReorganize;
+    [ObservableProperty] private string? _expectedPath;
 
     /// <summary>The scanned AudiobookFolder, if loaded via metadata scan.</summary>
     public AudiobookFolder? SourceFolder { get; set; }

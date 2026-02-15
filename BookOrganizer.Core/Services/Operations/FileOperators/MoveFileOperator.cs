@@ -32,6 +32,13 @@ public class MoveFileOperator : ISpecificFileOperator
             throw new FileNotFoundException($"Source file not found: {sourcePath}", sourcePath);
         }
 
+        // Skip if source and destination are the same path
+        if (string.Equals(Path.GetFullPath(sourcePath), Path.GetFullPath(destinationPath), StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogDebug("Source and destination are the same, skipping: {Path}", sourcePath);
+            return;
+        }
+
         _logger.LogDebug(
             "Moving file: {Source} -> {Destination}",
             sourcePath,
@@ -47,7 +54,7 @@ public class MoveFileOperator : ISpecificFileOperator
         try
         {
             // Try fast move first (works only on same volume)
-            File.Move(sourcePath, destinationPath, overwrite: false);
+            File.Move(sourcePath, destinationPath, overwrite: true);
 
             _logger.LogInformation(
                 "Successfully moved file (fast): {Source} -> {Destination}",

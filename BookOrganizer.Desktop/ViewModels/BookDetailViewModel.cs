@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BookOrganizer.Models;
 using BookOrganizer.Services.Metadata;
+using BookOrganizer.Services.Operations;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -18,6 +19,10 @@ public partial class BookDetailViewModel : ObservableObject
 {
     private readonly BookNode _bookNode;
     private readonly IMetadataJsonProcessor _metadataProcessor;
+    private readonly IFileOrganizer _fileOrganizer;
+    private readonly IPathGenerator _pathGenerator;
+    private readonly string _libraryPath;
+    private readonly Func<string?, Task> _reloadCallback;
     private readonly ILogger _logger;
 
     // Editable fields
@@ -36,6 +41,8 @@ public partial class BookDetailViewModel : ObservableObject
     [ObservableProperty] private string _saveStatus = "";
     [ObservableProperty] private string _folderPath = "";
     [ObservableProperty] private int _audioFileCount;
+    [ObservableProperty] private bool _needsReorganize;
+    [ObservableProperty] private string? _expectedPath;
 
     // Metadata source display
     [ObservableProperty] private string _mp3TagsSummary = "";
@@ -45,14 +52,22 @@ public partial class BookDetailViewModel : ObservableObject
     [ObservableProperty] private bool _hasBookinfo;
     [ObservableProperty] private bool _hasNfo;
 
-    public BookDetailViewModel(BookNode bookNode, IMetadataJsonProcessor metadataProcessor, ILogger logger)
+    public BookDetailViewModel(BookNode bookNode, IMetadataJsonProcessor metadataProcessor,
+        IFileOrganizer fileOrganizer, IPathGenerator pathGenerator,
+        string libraryPath, Func<string?, Task> reloadCallback, ILogger logger)
     {
         _bookNode = bookNode;
         _metadataProcessor = metadataProcessor;
+        _fileOrganizer = fileOrganizer;
+        _pathGenerator = pathGenerator;
+        _libraryPath = libraryPath;
+        _reloadCallback = reloadCallback;
         _logger = logger;
 
         FolderPath = bookNode.Path;
         AudioFileCount = bookNode.AudioFileCount;
+        NeedsReorganize = bookNode.NeedsReorganize;
+        ExpectedPath = bookNode.ExpectedPath;
 
         // Load current values
         LoadFromBookNode();
@@ -247,6 +262,58 @@ public partial class BookDetailViewModel : ObservableObject
     private void Revert()
     {
         LoadFromBookNode();
+    }
+
+    [RelayCommand]
+    private async Task ReorganizeBookAsync(CancellationToken ct)
+    {
+        if (!NeedsReorganize || string.IsNullOrEmpty(ExpectedPath) || _bookNode.SourceFolder == null)
+            return;
+
+        try
+        {
+            SaveStatus = "Moving...";
+
+            var metadata = new BookMetadata
+            {
+                Title = _bookNode.Title,
+                Author = _bookNode.Author,
+                Series = _bookNode.Series,
+                SeriesNumber = _bookNode.SeriesNumber,
+                Narrator = _bookNode.Narrator,
+                Year = _bookNode.Year,
+                Genre = _bookNode.Genre,
+                Description = _bookNode.Description,
+                Language = _bookNode.Language,
+                Confidence = _bookNode.Confidence,
+                Source = "GUI"
+            };
+
+            var plan = new OrganizationPlan
+            {
+                SourceFolder = _bookNode.SourceFolder,
+                Metadata = metadata,
+                TargetPath = ExpectedPath,
+                OperationType = FileOperationType.Move
+            };
+
+            var result = await _fileOrganizer.OrganizeFromPlansAsync([plan], false, null, ct);
+            if (result.Success)
+            {
+                await _fileOrganizer.CleanupEmptyDirectoriesAsync(_libraryPath);
+                SaveStatus = "Moved. Reloading...";
+                await _reloadCallback(ExpectedPath);
+            }
+            else
+            {
+                SaveStatus = $"Move failed: {result.ErrorMessage}";
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to reorganize book {Path}", _bookNode.Path);
+            SaveStatus = $"Error: {ex.Message}";
+        }
     }
 
     private static string? NullIfEmpty(string? value) =>

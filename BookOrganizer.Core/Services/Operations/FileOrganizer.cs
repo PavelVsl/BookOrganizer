@@ -653,7 +653,7 @@ public class FileOrganizer : IFileOrganizer
     /// Cleans up directories left after reorganization that are empty or contain only metadata files.
     /// Repeats until no more directories can be removed (handles nested cleanup).
     /// </summary>
-    private async Task CleanupEmptyDirectoriesAsync(string libraryPath)
+    public async Task CleanupEmptyDirectoriesAsync(string libraryPath)
     {
         await Task.Run(() =>
         {

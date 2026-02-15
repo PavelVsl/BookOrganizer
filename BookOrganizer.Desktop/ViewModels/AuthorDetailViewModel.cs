@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BookOrganizer.Models;
 using BookOrganizer.Services.Metadata;
+using BookOrganizer.Services.Operations;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -14,6 +16,9 @@ public partial class AuthorDetailViewModel : ObservableObject
 {
     private readonly AuthorNode _authorNode;
     private readonly IMetadataJsonProcessor _metadataProcessor;
+    private readonly IFileOrganizer _fileOrganizer;
+    private readonly IPathGenerator _pathGenerator;
+    private readonly Func<string?, Task> _reloadCallback;
     private readonly ILogger _logger;
     private readonly string _libraryPath;
 
@@ -23,15 +28,24 @@ public partial class AuthorDetailViewModel : ObservableObject
     [ObservableProperty] private string _folderPath;
     [ObservableProperty] private int _bookCount;
     [ObservableProperty] private int _seriesCount;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasBooksNeedingReorganize))]
+    private int _booksNeedingReorganize;
+
+    public bool HasBooksNeedingReorganize => BooksNeedingReorganize > 0;
 
     private readonly string _originalName;
 
     public AuthorDetailViewModel(AuthorNode authorNode, string libraryPath,
-        IMetadataJsonProcessor metadataProcessor, ILogger logger)
+        IMetadataJsonProcessor metadataProcessor, IFileOrganizer fileOrganizer,
+        IPathGenerator pathGenerator, Func<string?, Task> reloadCallback, ILogger logger)
     {
         _authorNode = authorNode;
         _libraryPath = libraryPath;
         _metadataProcessor = metadataProcessor;
+        _fileOrganizer = fileOrganizer;
+        _pathGenerator = pathGenerator;
+        _reloadCallback = reloadCallback;
         _logger = logger;
 
         _originalName = authorNode.Name;
@@ -40,6 +54,7 @@ public partial class AuthorDetailViewModel : ObservableObject
 
         _bookCount = CountBooks(authorNode);
         _seriesCount = authorNode.Children.OfType<SeriesNode>().Count();
+        _booksNeedingReorganize = GetAllBooks(authorNode).Count(b => b.NeedsReorganize);
     }
 
     partial void OnAuthorNameChanged(string value)
@@ -81,28 +96,88 @@ public partial class AuthorDetailViewModel : ObservableObject
         SaveStatus = "";
     }
 
-    private static int CountBooks(AuthorNode author)
+    [RelayCommand]
+    private async Task ReorganizeAuthorAsync(CancellationToken ct)
     {
-        var count = 0;
-        foreach (var child in author.Children)
+        var booksToMove = GetAllBooks(_authorNode)
+            .Where(b => b.NeedsReorganize && b.SourceFolder != null && !string.IsNullOrEmpty(b.ExpectedPath))
+            .ToList();
+
+        if (booksToMove.Count == 0)
+            return;
+
+        try
         {
-            if (child is BookNode) count++;
-            else if (child is SeriesNode series) count += series.Books.Count;
+            SaveStatus = $"Moving {booksToMove.Count} book(s)...";
+
+            var plans = new List<OrganizationPlan>();
+            foreach (var book in booksToMove)
+            {
+                var metadata = new BookMetadata
+                {
+                    Title = book.Title,
+                    Author = book.Author,
+                    Series = book.Series,
+                    SeriesNumber = book.SeriesNumber,
+                    Narrator = book.Narrator,
+                    Year = book.Year,
+                    Genre = book.Genre,
+                    Description = book.Description,
+                    Language = book.Language,
+                    Confidence = book.Confidence,
+                    Source = "GUI"
+                };
+
+                plans.Add(new OrganizationPlan
+                {
+                    SourceFolder = book.SourceFolder!,
+                    Metadata = metadata,
+                    TargetPath = book.ExpectedPath!,
+                    OperationType = FileOperationType.Move
+                });
+            }
+
+            var result = await _fileOrganizer.OrganizeFromPlansAsync(plans, false, null, ct);
+            if (result.Success)
+            {
+                await _fileOrganizer.CleanupEmptyDirectoriesAsync(_libraryPath);
+                SaveStatus = $"Moved {result.SuccessfulAudiobooks} book(s). Reloading...";
+                await _reloadCallback(null);
+            }
+            else
+            {
+                SaveStatus = $"Move failed: {result.ErrorMessage}";
+            }
         }
-        return count;
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to reorganize author {Author}", _authorNode.Name);
+            SaveStatus = $"Error: {ex.Message}";
+        }
     }
 
-    private static void UpdateTreeNodes(AuthorNode author, string newAuthor)
+    private static int CountBooks(AuthorNode author)
+    {
+        return GetAllBooks(author).Count();
+    }
+
+    private static IEnumerable<BookNode> GetAllBooks(AuthorNode author)
     {
         foreach (var child in author.Children)
         {
             if (child is BookNode book)
-                book.Author = newAuthor;
+                yield return book;
             else if (child is SeriesNode series)
             {
                 foreach (var book2 in series.Books)
-                    book2.Author = newAuthor;
+                    yield return book2;
             }
         }
+    }
+
+    private static void UpdateTreeNodes(AuthorNode author, string newAuthor)
+    {
+        foreach (var book in GetAllBooks(author))
+            book.Author = newAuthor;
     }
 }

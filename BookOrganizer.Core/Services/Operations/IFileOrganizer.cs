@@ -60,6 +60,12 @@ public interface IFileOrganizer
         IProgress<OrganizationProgress>? progress = null,
         CancellationToken cancellationToken = default,
         OrganizationOptions? options = null);
+
+    /// <summary>
+    /// Cleans up directories that are empty or contain only metadata files after reorganization.
+    /// </summary>
+    /// <param name="libraryPath">Path to the library root.</param>
+    Task CleanupEmptyDirectoriesAsync(string libraryPath);
 }
 
 /// <summary>
