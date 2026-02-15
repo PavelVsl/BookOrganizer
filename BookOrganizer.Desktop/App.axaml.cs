@@ -13,6 +13,7 @@ namespace BookOrganizer.Desktop;
 public partial class App : Application
 {
     public static IServiceProvider Services { get; private set; } = null!;
+    public static AppSettings Settings { get; private set; } = null!;
 
     public override void Initialize()
     {
@@ -23,6 +24,9 @@ public partial class App : Application
     {
         // Register code pages for Czech encoding support
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+
+        // Load persistent settings
+        Settings = AppSettings.Load();
 
         // Build DI container
         var services = new ServiceCollection();
@@ -46,10 +50,27 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var mainVm = Services.GetRequiredService<MainWindowViewModel>();
-            desktop.MainWindow = new MainWindow
+
+            // Restore last nav selection
+            mainVm.SelectedNavIndex = Settings.SelectedNavIndex;
+
+            var mainWindow = new MainWindow
             {
-                DataContext = mainVm
+                DataContext = mainVm,
+                Width = Settings.WindowWidth,
+                Height = Settings.WindowHeight
             };
+
+            // Save settings on close
+            mainWindow.Closing += (_, _) =>
+            {
+                Settings.WindowWidth = mainWindow.Width;
+                Settings.WindowHeight = mainWindow.Height;
+                Settings.SelectedNavIndex = mainVm.SelectedNavIndex;
+                Settings.Save();
+            };
+
+            desktop.MainWindow = mainWindow;
         }
 
         base.OnFrameworkInitializationCompleted();
