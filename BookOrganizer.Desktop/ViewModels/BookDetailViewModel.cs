@@ -1,4 +1,9 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using BookOrganizer.Models;
@@ -32,6 +37,14 @@ public partial class BookDetailViewModel : ObservableObject
     [ObservableProperty] private string _folderPath = "";
     [ObservableProperty] private int _audioFileCount;
 
+    // Metadata source display
+    [ObservableProperty] private string _mp3TagsSummary = "";
+    [ObservableProperty] private string _bookinfoContent = "";
+    [ObservableProperty] private string _nfoContent = "";
+    [ObservableProperty] private bool _hasMp3Tags;
+    [ObservableProperty] private bool _hasBookinfo;
+    [ObservableProperty] private bool _hasNfo;
+
     public BookDetailViewModel(BookNode bookNode, IMetadataJsonProcessor metadataProcessor, ILogger logger)
     {
         _bookNode = bookNode;
@@ -43,6 +56,9 @@ public partial class BookDetailViewModel : ObservableObject
 
         // Load current values
         LoadFromBookNode();
+
+        // Load metadata sources lazily
+        LoadMetadataSources();
     }
 
     private void LoadFromBookNode()
@@ -59,6 +75,114 @@ public partial class BookDetailViewModel : ObservableObject
         Language = _bookNode.Language;
         IsDirty = false;
         SaveStatus = _bookNode.IsManual ? "source: manual" : (_bookNode.HasBookinfo ? "has bookinfo.json" : "no bookinfo.json");
+    }
+
+    private void LoadMetadataSources()
+    {
+        var folderPath = _bookNode.Path;
+
+        // mp3tags.json
+        var mp3TagsPath = Path.Combine(folderPath, "mp3tags.json");
+        if (File.Exists(mp3TagsPath))
+        {
+            HasMp3Tags = true;
+            try
+            {
+                var json = File.ReadAllText(mp3TagsPath);
+                var cache = JsonSerializer.Deserialize<Mp3TagsCache>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+                if (cache?.Files != null)
+                {
+                    Mp3TagsSummary = BuildMp3TagsSummary(cache);
+                }
+            }
+            catch (Exception ex)
+            {
+                Mp3TagsSummary = $"Error reading: {ex.Message}";
+            }
+        }
+        else
+        {
+            Mp3TagsSummary = "Not found";
+        }
+
+        // bookinfo.json
+        var bookinfoPath = Path.Combine(folderPath, "bookinfo.json");
+        if (File.Exists(bookinfoPath))
+        {
+            HasBookinfo = true;
+            try
+            {
+                BookinfoContent = File.ReadAllText(bookinfoPath);
+            }
+            catch (Exception ex)
+            {
+                BookinfoContent = $"Error reading: {ex.Message}";
+            }
+        }
+        else
+        {
+            BookinfoContent = "Not found";
+        }
+
+        // metadata.nfo
+        var nfoPath = Path.Combine(folderPath, "metadata.nfo");
+        if (File.Exists(nfoPath))
+        {
+            HasNfo = true;
+            try
+            {
+                NfoContent = File.ReadAllText(nfoPath);
+            }
+            catch (Exception ex)
+            {
+                NfoContent = $"Error reading: {ex.Message}";
+            }
+        }
+        else
+        {
+            NfoContent = "Not found";
+        }
+    }
+
+    private static string BuildMp3TagsSummary(Mp3TagsCache cache)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"Scanned: {cache.ScannedAtUtc:yyyy-MM-dd HH:mm} UTC");
+        sb.AppendLine($"Files: {cache.Files.Count}");
+        sb.AppendLine();
+
+        // Most common values per field
+        var artists = MostCommon(cache.Files.Select(f => f.Tags.Artist));
+        var albums = MostCommon(cache.Files.Select(f => f.Tags.Album));
+        var composers = MostCommon(cache.Files.Select(f => f.Tags.Composer));
+        var albumArtists = MostCommon(cache.Files.Select(f => f.Tags.AlbumArtist));
+        var genres = MostCommon(cache.Files.Select(f => f.Tags.Genre));
+        var years = cache.Files.Where(f => f.Tags.Year > 0).Select(f => f.Tags.Year).Distinct().ToList();
+
+        if (artists != null) sb.AppendLine($"Artist (narrator): {artists}");
+        if (albumArtists != null) sb.AppendLine($"Album Artist: {albumArtists}");
+        if (composers != null) sb.AppendLine($"Composer (author): {composers}");
+        if (albums != null) sb.AppendLine($"Album (title): {albums}");
+        if (genres != null) sb.AppendLine($"Genre: {genres}");
+        if (years.Count > 0) sb.AppendLine($"Year: {string.Join(", ", years)}");
+
+        var totalDuration = TimeSpan.FromSeconds(cache.Files.Sum(f => f.Tags.DurationSeconds));
+        sb.AppendLine($"Total duration: {totalDuration:hh\\:mm\\:ss}");
+
+        return sb.ToString().TrimEnd();
+    }
+
+    private static string? MostCommon(IEnumerable<string?> values)
+    {
+        return values
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .GroupBy(v => v)
+            .OrderByDescending(g => g.Count())
+            .Select(g => g.Key)
+            .FirstOrDefault();
     }
 
     partial void OnAuthorChanged(string value) => IsDirty = true;

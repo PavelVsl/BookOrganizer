@@ -18,10 +18,6 @@
                            Margin="16,8,16,16" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}" />
                 <ListBox SelectedIndex="{Binding SelectedNavIndex}" Margin="4,0">
                     <ListBoxItem>Library</ListBoxItem>
-                    <ListBoxItem>Batch Rename</ListBoxItem>
-                    <ListBoxItem>Scan</ListBoxItem>
-                    <ListBoxItem>Preview</ListBoxItem>
-                    <ListBoxItem>Organize</ListBoxItem>
                     <ListBoxItem>Tools</ListBoxItem>
                 </ListBox>
             </StackPanel>

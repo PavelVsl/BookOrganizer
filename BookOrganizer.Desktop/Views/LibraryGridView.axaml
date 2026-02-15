@@ -1,0 +1,30 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:BookOrganizer.Desktop.ViewModels"
+             x:Class="BookOrganizer.Desktop.Views.LibraryGridView"
+             x:DataType="vm:LibraryViewModel">
+
+    <DataGrid ItemsSource="{Binding AllBooks}"
+              AutoGenerateColumns="False"
+              CanUserReorderColumns="True"
+              CanUserResizeColumns="True"
+              CanUserSortColumns="True"
+              IsReadOnly="False"
+              GridLinesVisibility="Horizontal"
+              SelectionMode="Single">
+        <DataGrid.Columns>
+            <DataGridTextColumn Header="Author" Binding="{Binding Author}" Width="180" />
+            <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="250" />
+            <DataGridTextColumn Header="Series" Binding="{Binding Series}" Width="150" />
+            <DataGridTextColumn Header="#" Binding="{Binding SeriesNumber}" Width="50" />
+            <DataGridTextColumn Header="Narrator" Binding="{Binding Narrator}" Width="150" />
+            <DataGridTextColumn Header="Year" Binding="{Binding Year}" Width="60" />
+            <DataGridTextColumn Header="Genre" Binding="{Binding Genre}" Width="120" />
+            <DataGridTextColumn Header="Confidence" Binding="{Binding Confidence, StringFormat='{}{0:P0}'}"
+                                IsReadOnly="True" Width="80" />
+            <DataGridTextColumn Header="Files" Binding="{Binding AudioFileCount}"
+                                IsReadOnly="True" Width="60" />
+        </DataGrid.Columns>
+    </DataGrid>
+
+</UserControl>

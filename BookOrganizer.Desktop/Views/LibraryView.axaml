@@ -3,11 +3,12 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:BookOrganizer.Desktop.ViewModels"
+             xmlns:views="using:BookOrganizer.Desktop.Views"
              mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
              x:Class="BookOrganizer.Desktop.Views.LibraryView"
              x:DataType="vm:LibraryViewModel">
 
-    <Grid RowDefinitions="Auto,*,Auto">
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
         <!-- Header: library path + load button -->
         <Border Grid.Row="0" Padding="12,8" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,0,1">
             <Grid ColumnDefinitions="Auto,*,Auto">
@@ -19,174 +20,265 @@
             </Grid>
         </Border>
 
-        <!-- Main content: tree + detail -->
-        <Grid Grid.Row="1" ColumnDefinitions="350,Auto,*">
-            <!-- Tree browser -->
-            <TreeView Grid.Column="0" ItemsSource="{Binding Authors}"
-                      SelectedItem="{Binding SelectedItem}"
-                      Margin="4">
-                <TreeView.DataTemplates>
-                    <!-- Author node -->
-                    <TreeDataTemplate DataType="vm:AuthorNode" ItemsSource="{Binding Children}">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock Text="&#128100;" />
-                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+        <!-- Toolbar -->
+        <Border Grid.Row="1" Padding="8,4" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="Scan Metadata" Command="{Binding ScanMetadataCommand}"
+                        IsEnabled="{Binding !IsLoading}" ToolTip.Tip="Run full metadata extraction (MP3 tags + bookinfo.json + folder structure)" />
+                <Button Content="Synonyms" Command="{Binding DetectSynonymsCommand}"
+                        ToolTip.Tip="Detect similar author/narrator names" />
+                <Separator Width="1" Margin="4,2" />
+                <TextBlock Text="Destination:" VerticalAlignment="Center" />
+                <TextBox Text="{Binding DestinationPath}" Watermark="Reorganize destination..."
+                         Width="250" />
+                <ComboBox SelectedIndex="{Binding OperationTypeIndex}" Width="100">
+                    <ComboBoxItem Content="Copy" />
+                    <ComboBoxItem Content="Move" />
+                </ComboBox>
+                <Button Content="Reorganize" Command="{Binding ReorganizeCommand}"
+                        IsEnabled="{Binding !IsReorganizing}"
+                        ToolTip.Tip="Organize books into Author/Series/Title structure" />
+            </StackPanel>
+        </Border>
+
+        <!-- Main content -->
+        <Grid Grid.Row="2">
+            <!-- Synonym panel (shown when detected) -->
+            <Panel IsVisible="{Binding ShowSynonymPanel}">
+                <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                        Padding="12" CornerRadius="4" Margin="8">
+                    <Grid RowDefinitions="Auto,*,Auto">
+                        <TextBlock Grid.Row="0" Text="Synonym Groups" FontSize="16" FontWeight="Bold" Margin="0,0,0,8" />
+
+                        <ScrollViewer Grid.Row="1">
+                            <ItemsControl ItemsSource="{Binding SynonymGroups}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="vm:NameSynonymGroup">
+                                        <Border BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+                                                BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,0,8">
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Text="{Binding FieldName}" FontWeight="SemiBold" />
+                                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                                    <TextBlock Text="Canonical:" VerticalAlignment="Center" />
+                                                    <TextBox Text="{Binding CanonicalName}" Width="250" />
+                                                </StackPanel>
+                                                <ItemsControl ItemsSource="{Binding Variants}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate DataType="vm:NameVariant">
+                                                            <TextBlock Margin="16,0,0,0">
+                                                                <Run Text="{Binding Name}" />
+                                                                <Run Text="{Binding BookCount, StringFormat=' ({0} books)'}"
+                                                                     Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                                            </TextBlock>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                            <Button Content="Apply" Command="{Binding ApplySynonymsCommand}" Classes="accent" />
+                            <Button Content="Cancel" Command="{Binding DetectSynonymsCommand}" />
                         </StackPanel>
-                    </TreeDataTemplate>
-                    <!-- Series node -->
-                    <TreeDataTemplate DataType="vm:SeriesNode" ItemsSource="{Binding Books}">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock Text="&#128218;" />
-                            <TextBlock Text="{Binding Name}" FontStyle="Italic" />
-                        </StackPanel>
-                    </TreeDataTemplate>
-                    <!-- Book node -->
-                    <DataTemplate DataType="vm:BookNode">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock Text="&#127911;" />
-                            <TextBlock Text="{Binding Title}" />
-                            <TextBlock Text="{Binding AudioFileCount, StringFormat='({0} files)'}"
-                                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                                       FontSize="11" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </DataTemplate>
-                </TreeView.DataTemplates>
-            </TreeView>
+                    </Grid>
+                </Border>
+            </Panel>
 
-            <!-- Splitter -->
-            <GridSplitter Grid.Column="1" Width="4" ResizeDirection="Columns"
-                          Background="{DynamicResource SystemControlForegroundBaseLowBrush}" />
+            <!-- Main library view (hidden when synonyms shown) -->
+            <Panel IsVisible="{Binding !ShowSynonymPanel}">
+                <TabControl>
+                    <!-- Tree view tab -->
+                    <TabItem Header="Tree">
+                        <Grid ColumnDefinitions="350,Auto,*">
+                            <!-- Tree browser -->
+                            <TreeView Grid.Column="0" ItemsSource="{Binding Authors}"
+                                      SelectedItem="{Binding SelectedItem}"
+                                      Margin="4">
+                                <TreeView.DataTemplates>
+                                    <TreeDataTemplate DataType="vm:AuthorNode" ItemsSource="{Binding Children}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <TextBlock Text="&#128100;" />
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                        </StackPanel>
+                                    </TreeDataTemplate>
+                                    <TreeDataTemplate DataType="vm:SeriesNode" ItemsSource="{Binding Books}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <TextBlock Text="&#128218;" />
+                                            <TextBlock Text="{Binding Name}" FontStyle="Italic" />
+                                        </StackPanel>
+                                    </TreeDataTemplate>
+                                    <DataTemplate DataType="vm:BookNode">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <TextBlock Text="&#127911;" />
+                                            <TextBlock Text="{Binding Title}" />
+                                            <TextBlock Text="{Binding AudioFileCount, StringFormat='({0} files)'}"
+                                                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                                       FontSize="11" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </TreeView.DataTemplates>
+                            </TreeView>
 
-            <!-- Detail panel -->
-            <ScrollViewer Grid.Column="2" Padding="16,8">
-                <ContentControl Content="{Binding SelectedDetail}">
-                    <ContentControl.DataTemplates>
+                            <GridSplitter Grid.Column="1" Width="4" ResizeDirection="Columns"
+                                          Background="{DynamicResource SystemControlForegroundBaseLowBrush}" />
 
-                        <!-- Author detail -->
-                        <DataTemplate DataType="vm:AuthorDetailViewModel">
-                            <StackPanel Spacing="8" MaxWidth="500">
-                                <TextBlock Text="Author" FontSize="18" FontWeight="Bold" Margin="0,0,0,8" />
+                            <!-- Detail panel -->
+                            <ScrollViewer Grid.Column="2" Padding="16,8">
+                                <ContentControl Content="{Binding SelectedDetail}">
+                                    <ContentControl.DataTemplates>
 
-                                <TextBlock Text="Author name" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
-                                <TextBox Text="{Binding AuthorName}" />
+                                        <!-- Author detail -->
+                                        <DataTemplate DataType="vm:AuthorDetailViewModel">
+                                            <StackPanel Spacing="8" MaxWidth="500">
+                                                <TextBlock Text="Author" FontSize="18" FontWeight="Bold" Margin="0,0,0,8" />
+                                                <TextBlock Text="Author name" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                                <TextBox Text="{Binding AuthorName}" />
+                                                <Separator Margin="0,8" />
+                                                <TextBlock Text="{Binding BookCount, StringFormat='{}{0} book(s)'}" FontSize="12" />
+                                                <TextBlock Text="{Binding SeriesCount, StringFormat='{}{0} series'}" FontSize="12"
+                                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                                <TextBlock Text="{Binding FolderPath}" FontSize="11"
+                                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                                           TextWrapping="Wrap" Margin="0,4,0,0" />
+                                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                                                    <Button Content="Save" Command="{Binding SaveCommand}"
+                                                            IsEnabled="{Binding IsDirty}" Classes="accent" />
+                                                    <Button Content="Revert" Command="{Binding RevertCommand}"
+                                                            IsEnabled="{Binding IsDirty}" />
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding SaveStatus}" FontSize="11"
+                                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                            </StackPanel>
+                                        </DataTemplate>
 
-                                <Separator Margin="0,8" />
+                                        <!-- Series detail -->
+                                        <DataTemplate DataType="vm:SeriesDetailViewModel">
+                                            <StackPanel Spacing="8" MaxWidth="500">
+                                                <TextBlock Text="Series" FontSize="18" FontWeight="Bold" Margin="0,0,0,8" />
+                                                <TextBlock Text="Series name" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                                <TextBox Text="{Binding SeriesName}" />
+                                                <Separator Margin="0,8" />
+                                                <TextBlock Text="{Binding BookCount, StringFormat='{}{0} book(s) in series'}" FontSize="12" />
+                                                <TextBlock Text="{Binding FolderPath}" FontSize="11"
+                                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                                           TextWrapping="Wrap" Margin="0,4,0,0" />
+                                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                                                    <Button Content="Save" Command="{Binding SaveCommand}"
+                                                            IsEnabled="{Binding IsDirty}" Classes="accent" />
+                                                    <Button Content="Revert" Command="{Binding RevertCommand}"
+                                                            IsEnabled="{Binding IsDirty}" />
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding SaveStatus}" FontSize="11"
+                                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                            </StackPanel>
+                                        </DataTemplate>
 
-                                <TextBlock Text="{Binding BookCount, StringFormat='{}{0} book(s)'}" FontSize="12" />
-                                <TextBlock Text="{Binding SeriesCount, StringFormat='{}{0} series'}" FontSize="12"
-                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                        <!-- Book detail -->
+                                        <DataTemplate DataType="vm:BookDetailViewModel">
+                                            <StackPanel Spacing="8" MaxWidth="500">
+                                                <TextBlock Text="Book Details" FontSize="18" FontWeight="Bold" Margin="0,0,0,8" />
 
-                                <TextBlock Text="{Binding FolderPath}" FontSize="11"
-                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                                           TextWrapping="Wrap" Margin="0,4,0,0" />
+                                                <TextBlock Text="Author" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                                <TextBox Text="{Binding Author}" />
 
-                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
-                                    <Button Content="Save" Command="{Binding SaveCommand}"
-                                            IsEnabled="{Binding IsDirty}" Classes="accent" />
-                                    <Button Content="Revert" Command="{Binding RevertCommand}"
-                                            IsEnabled="{Binding IsDirty}" />
-                                </StackPanel>
+                                                <TextBlock Text="Title" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                                <TextBox Text="{Binding Title}" />
 
-                                <TextBlock Text="{Binding SaveStatus}" FontSize="11"
-                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
-                            </StackPanel>
-                        </DataTemplate>
+                                                <TextBlock Text="Series" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                                <TextBox Text="{Binding Series}" />
 
-                        <!-- Series detail -->
-                        <DataTemplate DataType="vm:SeriesDetailViewModel">
-                            <StackPanel Spacing="8" MaxWidth="500">
-                                <TextBlock Text="Series" FontSize="18" FontWeight="Bold" Margin="0,0,0,8" />
+                                                <TextBlock Text="Series #" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                                <TextBox Text="{Binding SeriesNumber}" />
 
-                                <TextBlock Text="Series name" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
-                                <TextBox Text="{Binding SeriesName}" />
+                                                <TextBlock Text="Narrator" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                                <TextBox Text="{Binding Narrator}" />
 
-                                <Separator Margin="0,8" />
+                                                <TextBlock Text="Year" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                                <TextBox Text="{Binding Year}" />
 
-                                <TextBlock Text="{Binding BookCount, StringFormat='{}{0} book(s) in series'}" FontSize="12" />
+                                                <TextBlock Text="Genre" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                                <TextBox Text="{Binding Genre}" />
 
-                                <TextBlock Text="{Binding FolderPath}" FontSize="11"
-                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                                           TextWrapping="Wrap" Margin="0,4,0,0" />
+                                                <TextBlock Text="Publisher" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                                <TextBox Text="{Binding Publisher}" />
 
-                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
-                                    <Button Content="Save" Command="{Binding SaveCommand}"
-                                            IsEnabled="{Binding IsDirty}" Classes="accent" />
-                                    <Button Content="Revert" Command="{Binding RevertCommand}"
-                                            IsEnabled="{Binding IsDirty}" />
-                                </StackPanel>
+                                                <TextBlock Text="Language" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                                <TextBox Text="{Binding Language}" />
 
-                                <TextBlock Text="{Binding SaveStatus}" FontSize="11"
-                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
-                            </StackPanel>
-                        </DataTemplate>
+                                                <TextBlock Text="Description" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                                <TextBox Text="{Binding Description}" AcceptsReturn="True" MinHeight="60"
+                                                         TextWrapping="Wrap" />
 
-                        <!-- Book detail -->
-                        <DataTemplate DataType="vm:BookDetailViewModel">
-                            <StackPanel Spacing="8" MaxWidth="500">
-                                <TextBlock Text="Book Details" FontSize="18" FontWeight="Bold" Margin="0,0,0,8" />
+                                                <Separator Margin="0,8" />
 
-                                <TextBlock Text="Author" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
-                                <TextBox Text="{Binding Author}" />
+                                                <TextBlock Text="{Binding FolderPath}" FontSize="11"
+                                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                                           TextWrapping="Wrap" />
 
-                                <TextBlock Text="Title" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
-                                <TextBox Text="{Binding Title}" />
+                                                <TextBlock Text="{Binding AudioFileCount, StringFormat='{}{0} audio file(s)'}"
+                                                           FontSize="11"
+                                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
 
-                                <TextBlock Text="Series" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
-                                <TextBox Text="{Binding Series}" />
+                                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                                                    <Button Content="Save" Command="{Binding SaveCommand}"
+                                                            IsEnabled="{Binding IsDirty}" Classes="accent" />
+                                                    <Button Content="Revert" Command="{Binding RevertCommand}"
+                                                            IsEnabled="{Binding IsDirty}" />
+                                                </StackPanel>
 
-                                <TextBlock Text="Series #" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
-                                <TextBox Text="{Binding SeriesNumber}" />
+                                                <TextBlock Text="{Binding SaveStatus}" FontSize="11"
+                                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
 
-                                <TextBlock Text="Narrator" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
-                                <TextBox Text="{Binding Narrator}" />
+                                                <!-- Metadata Sources -->
+                                                <Separator Margin="0,8" />
+                                                <Expander Header="Metadata Sources" IsExpanded="False">
+                                                    <TabControl Margin="0,4,0,0">
+                                                        <TabItem Header="MP3 Tags">
+                                                            <TextBox Text="{Binding Mp3TagsSummary, Mode=OneWay}"
+                                                                     IsReadOnly="True" AcceptsReturn="True"
+                                                                     TextWrapping="Wrap" MinHeight="100"
+                                                                     FontFamily="Consolas, Menlo, monospace"
+                                                                     FontSize="11" />
+                                                        </TabItem>
+                                                        <TabItem Header="bookinfo.json">
+                                                            <TextBox Text="{Binding BookinfoContent, Mode=OneWay}"
+                                                                     IsReadOnly="True" AcceptsReturn="True"
+                                                                     TextWrapping="Wrap" MinHeight="100"
+                                                                     FontFamily="Consolas, Menlo, monospace"
+                                                                     FontSize="11" />
+                                                        </TabItem>
+                                                        <TabItem Header="metadata.nfo">
+                                                            <TextBox Text="{Binding NfoContent, Mode=OneWay}"
+                                                                     IsReadOnly="True" AcceptsReturn="True"
+                                                                     TextWrapping="Wrap" MinHeight="100"
+                                                                     FontFamily="Consolas, Menlo, monospace"
+                                                                     FontSize="11" />
+                                                        </TabItem>
+                                                    </TabControl>
+                                                </Expander>
+                                            </StackPanel>
+                                        </DataTemplate>
 
-                                <TextBlock Text="Year" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
-                                <TextBox Text="{Binding Year}" />
+                                    </ContentControl.DataTemplates>
+                                </ContentControl>
+                            </ScrollViewer>
+                        </Grid>
+                    </TabItem>
 
-                                <TextBlock Text="Genre" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
-                                <TextBox Text="{Binding Genre}" />
-
-                                <TextBlock Text="Publisher" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
-                                <TextBox Text="{Binding Publisher}" />
-
-                                <TextBlock Text="Language" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
-                                <TextBox Text="{Binding Language}" />
-
-                                <TextBlock Text="Description" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
-                                <TextBox Text="{Binding Description}" AcceptsReturn="True" MinHeight="60"
-                                         TextWrapping="Wrap" />
-
-                                <!-- Status and actions -->
-                                <Separator Margin="0,8" />
-
-                                <TextBlock Text="{Binding FolderPath}" FontSize="11"
-                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                                           TextWrapping="Wrap" />
-
-                                <TextBlock Text="{Binding AudioFileCount, StringFormat='{}{0} audio file(s)'}"
-                                           FontSize="11"
-                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
-
-                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
-                                    <Button Content="Save" Command="{Binding SaveCommand}"
-                                            IsEnabled="{Binding IsDirty}"
-                                            Classes="accent" />
-                                    <Button Content="Revert" Command="{Binding RevertCommand}"
-                                            IsEnabled="{Binding IsDirty}" />
-                                </StackPanel>
-
-                                <TextBlock Text="{Binding SaveStatus}" FontSize="11"
-                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
-                            </StackPanel>
-                        </DataTemplate>
-
-                    </ContentControl.DataTemplates>
-                </ContentControl>
-            </ScrollViewer>
+                    <!-- Grid view tab -->
+                    <TabItem Header="Grid">
+                        <views:LibraryGridView DataContext="{Binding}" />
+                    </TabItem>
+                </TabControl>
+            </Panel>
         </Grid>
 
         <!-- Status bar -->
-        <Border Grid.Row="2" Padding="12,4" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,1,0,0">
+        <Border Grid.Row="3" Padding="12,4" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,1,0,0">
             <TextBlock Text="{Binding StatusText}" FontSize="12"
                        Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
         </Border>

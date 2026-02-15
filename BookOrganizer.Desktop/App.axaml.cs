@@ -41,10 +41,6 @@ public partial class App : Application
 
         // Register ViewModels
         services.AddTransient<LibraryViewModel>();
-        services.AddTransient<BatchRenameViewModel>();
-        services.AddTransient<ScanViewModel>();
-        services.AddTransient<PreviewViewModel>();
-        services.AddTransient<OrganizeViewModel>();
         services.AddTransient<ToolsViewModel>();
         services.AddTransient<MainWindowViewModel>();
 
@@ -54,8 +50,8 @@ public partial class App : Application
         {
             var mainVm = Services.GetRequiredService<MainWindowViewModel>();
 
-            // Restore last nav selection
-            mainVm.SelectedNavIndex = Settings.SelectedNavIndex;
+            // Restore last nav selection (clamped to valid range)
+            mainVm.SelectedNavIndex = Math.Min(Settings.SelectedNavIndex, 1);
 
             var mainWindow = new MainWindow
             {

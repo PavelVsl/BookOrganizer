@@ -2,9 +2,9 @@ using Avalonia.Controls;
 
 namespace BookOrganizer.Desktop.Views;
 
-public partial class BatchRenameView : UserControl
+public partial class LibraryGridView : UserControl
 {
-    public BatchRenameView()
+    public LibraryGridView()
     {
         InitializeComponent();
     }
