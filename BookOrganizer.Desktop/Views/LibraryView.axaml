@@ -268,9 +268,14 @@
 
                                                             <Separator Margin="0,8" />
 
-                                                            <TextBlock Text="{Binding FolderPath}" FontSize="11"
-                                                                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                                                                       TextWrapping="Wrap" />
+                                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                                <TextBlock Text="{Binding FolderPath}" FontSize="11"
+                                                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                                                           TextWrapping="Wrap" VerticalAlignment="Center" />
+                                                                <Button Content="Open" Command="{Binding OpenInFinderCommand}"
+                                                                        FontSize="11" Padding="6,2"
+                                                                        ToolTip.Tip="Open folder in Finder" />
+                                                            </StackPanel>
                                                             <TextBlock Text="{Binding AudioFileCount, StringFormat='{}{0} audio file(s)'}"
                                                                        FontSize="11"
                                                                        Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
@@ -323,6 +328,19 @@
                                                              TextWrapping="Wrap" Margin="8"
                                                              FontFamily="Consolas, Menlo, monospace"
                                                              FontSize="11" />
+                                                </TabItem>
+
+                                                <!-- Files tab -->
+                                                <TabItem Header="Files">
+                                                    <DataGrid ItemsSource="{Binding FolderFiles}"
+                                                              IsReadOnly="True" CanUserSortColumns="True"
+                                                              GridLinesVisibility="Horizontal"
+                                                              Margin="8" FontSize="11">
+                                                        <DataGrid.Columns>
+                                                            <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
+                                                            <DataGridTextColumn Header="Size" Binding="{Binding Size}" Width="80" />
+                                                        </DataGrid.Columns>
+                                                    </DataGrid>
                                                 </TabItem>
                                             </TabControl>
                                             </Grid>

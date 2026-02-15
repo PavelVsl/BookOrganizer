@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -58,6 +60,9 @@ public partial class BookDetailViewModel : ObservableObject
     [ObservableProperty] private bool _hasBookinfo;
     [ObservableProperty] private bool _hasNfo;
 
+    // Folder files
+    public ObservableCollection<FolderFileInfo> FolderFiles { get; } = [];
+
     public BookDetailViewModel(BookNode bookNode, IMetadataJsonProcessor metadataProcessor,
         IFileOrganizer fileOrganizer, IPathGenerator pathGenerator,
         string libraryPath, Func<string?, Task> reloadCallback, ILogger logger)
@@ -83,6 +88,9 @@ public partial class BookDetailViewModel : ObservableObject
 
         // Load cover image
         LoadCoverImage();
+
+        // Load folder file list
+        LoadFolderFiles();
     }
 
     private void LoadFromBookNode()
@@ -439,6 +447,61 @@ public partial class BookDetailViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    private void OpenInFinder()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = _bookNode.Path,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to open folder {Path}", _bookNode.Path);
+        }
+    }
+
+    private void LoadFolderFiles()
+    {
+        try
+        {
+            var entries = new DirectoryInfo(_bookNode.Path)
+                .EnumerateFiles()
+                .OrderBy(f => f.Name)
+                .Select(f => new FolderFileInfo
+                {
+                    Name = f.Name,
+                    Size = FormatFileSize(f.Length),
+                    Extension = f.Extension.ToLowerInvariant()
+                });
+
+            foreach (var entry in entries)
+                FolderFiles.Add(entry);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Failed to enumerate files in {Path}", _bookNode.Path);
+        }
+    }
+
+    private static string FormatFileSize(long bytes) => bytes switch
+    {
+        < 1024 => $"{bytes} B",
+        < 1024 * 1024 => $"{bytes / 1024.0:F0} KB",
+        < 1024 * 1024 * 1024 => $"{bytes / (1024.0 * 1024):F1} MB",
+        _ => $"{bytes / (1024.0 * 1024 * 1024):F2} GB"
+    };
+
     private static string? NullIfEmpty(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+}
+
+public record FolderFileInfo
+{
+    public required string Name { get; init; }
+    public required string Size { get; init; }
+    public required string Extension { get; init; }
 }
