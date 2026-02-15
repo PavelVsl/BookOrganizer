@@ -14,6 +14,7 @@ public partial class OrganizeViewModel : ObservableObject
 {
     private readonly IFileOrganizer _organizer;
     private readonly ILogger<OrganizeViewModel> _logger;
+    private readonly AppSettings _settings;
 
     [ObservableProperty] private string _sourcePath = "";
     [ObservableProperty] private string _destinationPath = "";
@@ -29,18 +30,31 @@ public partial class OrganizeViewModel : ObservableObject
     [ObservableProperty] private int _totalAudiobooks;
     [ObservableProperty] private string _resultSummary = "";
 
-    public OrganizeViewModel(IFileOrganizer organizer, ILogger<OrganizeViewModel> logger)
+    public OrganizeViewModel(IFileOrganizer organizer, ILogger<OrganizeViewModel> logger, AppSettings settings)
     {
         _organizer = organizer;
         _logger = logger;
+        _settings = settings;
 
-        var envSource = Environment.GetEnvironmentVariable("BOOKORGANIZER_SOURCE");
-        if (!string.IsNullOrEmpty(envSource) && Directory.Exists(envSource))
-            SourcePath = envSource;
+        var source = settings.SourcePath
+            ?? Environment.GetEnvironmentVariable("BOOKORGANIZER_SOURCE");
+        if (!string.IsNullOrEmpty(source) && Directory.Exists(source))
+            SourcePath = source;
 
-        var envDest = Environment.GetEnvironmentVariable("BOOKORGANIZER_DESTINATION");
-        if (!string.IsNullOrEmpty(envDest))
-            DestinationPath = envDest;
+        var dest = settings.DestinationPath
+            ?? Environment.GetEnvironmentVariable("BOOKORGANIZER_DESTINATION");
+        if (!string.IsNullOrEmpty(dest))
+            DestinationPath = dest;
+    }
+
+    partial void OnSourcePathChanged(string value)
+    {
+        _settings.SourcePath = value;
+    }
+
+    partial void OnDestinationPathChanged(string value)
+    {
+        _settings.DestinationPath = value;
     }
 
     [RelayCommand(IncludeCancelCommand = true)]

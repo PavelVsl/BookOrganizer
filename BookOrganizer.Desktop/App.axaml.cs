@@ -36,6 +36,9 @@ public partial class App : Application
             builder.SetMinimumLevel(LogLevel.Information);
         });
 
+        // Register settings as singleton so all VMs share the same instance
+        services.AddSingleton(Settings);
+
         // Register ViewModels
         services.AddTransient<LibraryViewModel>();
         services.AddTransient<BatchRenameViewModel>();

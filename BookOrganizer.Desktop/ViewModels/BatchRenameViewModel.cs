@@ -18,6 +18,7 @@ public partial class BatchRenameViewModel : ObservableObject
 {
     private readonly IMetadataJsonProcessor _metadataProcessor;
     private readonly ILogger<BatchRenameViewModel> _logger;
+    private readonly AppSettings _settings;
 
     [ObservableProperty]
     private string _libraryPath = "";
@@ -47,16 +48,24 @@ public partial class BatchRenameViewModel : ObservableObject
 
     public BatchRenameViewModel(
         IMetadataJsonProcessor metadataProcessor,
-        ILogger<BatchRenameViewModel> logger)
+        ILogger<BatchRenameViewModel> logger,
+        AppSettings settings)
     {
         _metadataProcessor = metadataProcessor;
         _logger = logger;
+        _settings = settings;
 
-        var envPath = Environment.GetEnvironmentVariable("BOOKORGANIZER_LIBRARY");
-        if (!string.IsNullOrEmpty(envPath) && Directory.Exists(envPath))
+        var path = settings.LibraryPath
+            ?? Environment.GetEnvironmentVariable("BOOKORGANIZER_LIBRARY");
+        if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
         {
-            LibraryPath = envPath;
+            LibraryPath = path;
         }
+    }
+
+    partial void OnLibraryPathChanged(string value)
+    {
+        _settings.LibraryPath = value;
     }
 
     partial void OnIsAuthorModeChanged(bool value)

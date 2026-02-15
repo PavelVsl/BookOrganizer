@@ -16,6 +16,7 @@ public partial class PreviewViewModel : ObservableObject
 {
     private readonly IPreviewGenerator _previewGenerator;
     private readonly ILogger<PreviewViewModel> _logger;
+    private readonly AppSettings _settings;
 
     [ObservableProperty] private string _sourcePath = "";
     [ObservableProperty] private string _destinationPath = "";
@@ -31,18 +32,31 @@ public partial class PreviewViewModel : ObservableObject
     public ObservableCollection<PreviewItem> Operations { get; } = [];
     public ObservableCollection<PreviewIssueItem> Issues { get; } = [];
 
-    public PreviewViewModel(IPreviewGenerator previewGenerator, ILogger<PreviewViewModel> logger)
+    public PreviewViewModel(IPreviewGenerator previewGenerator, ILogger<PreviewViewModel> logger, AppSettings settings)
     {
         _previewGenerator = previewGenerator;
         _logger = logger;
+        _settings = settings;
 
-        var envSource = Environment.GetEnvironmentVariable("BOOKORGANIZER_SOURCE");
-        if (!string.IsNullOrEmpty(envSource) && Directory.Exists(envSource))
-            SourcePath = envSource;
+        var source = settings.SourcePath
+            ?? Environment.GetEnvironmentVariable("BOOKORGANIZER_SOURCE");
+        if (!string.IsNullOrEmpty(source) && Directory.Exists(source))
+            SourcePath = source;
 
-        var envDest = Environment.GetEnvironmentVariable("BOOKORGANIZER_DESTINATION");
-        if (!string.IsNullOrEmpty(envDest))
-            DestinationPath = envDest;
+        var dest = settings.DestinationPath
+            ?? Environment.GetEnvironmentVariable("BOOKORGANIZER_DESTINATION");
+        if (!string.IsNullOrEmpty(dest))
+            DestinationPath = dest;
+    }
+
+    partial void OnSourcePathChanged(string value)
+    {
+        _settings.SourcePath = value;
+    }
+
+    partial void OnDestinationPathChanged(string value)
+    {
+        _settings.DestinationPath = value;
     }
 
     [RelayCommand(IncludeCancelCommand = true)]

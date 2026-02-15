@@ -21,6 +21,7 @@ public partial class ToolsViewModel : ObservableObject
     private readonly IMetadataGenerator _metadataGenerator;
     private readonly IMetadataJsonProcessor _metadataProcessor;
     private readonly ILogger<ToolsViewModel> _logger;
+    private readonly AppSettings _settings;
 
     [ObservableProperty] private int _selectedTabIndex;
     [ObservableProperty] private string _libraryPath = "";
@@ -41,17 +42,25 @@ public partial class ToolsViewModel : ObservableObject
         IDirectoryScanner scanner,
         IMetadataGenerator metadataGenerator,
         IMetadataJsonProcessor metadataProcessor,
-        ILogger<ToolsViewModel> logger)
+        ILogger<ToolsViewModel> logger,
+        AppSettings settings)
     {
         _organizer = organizer;
         _scanner = scanner;
         _metadataGenerator = metadataGenerator;
         _metadataProcessor = metadataProcessor;
         _logger = logger;
+        _settings = settings;
 
-        var envPath = Environment.GetEnvironmentVariable("BOOKORGANIZER_LIBRARY");
-        if (!string.IsNullOrEmpty(envPath) && Directory.Exists(envPath))
-            LibraryPath = envPath;
+        var path = settings.LibraryPath
+            ?? Environment.GetEnvironmentVariable("BOOKORGANIZER_LIBRARY");
+        if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
+            LibraryPath = path;
+    }
+
+    partial void OnLibraryPathChanged(string value)
+    {
+        _settings.LibraryPath = value;
     }
 
     [RelayCommand(IncludeCancelCommand = true)]

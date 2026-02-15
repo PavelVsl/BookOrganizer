@@ -16,6 +16,7 @@ public partial class ScanViewModel : ObservableObject
 {
     private readonly IDirectoryScanner _scanner;
     private readonly ILogger<ScanViewModel> _logger;
+    private readonly AppSettings _settings;
 
     [ObservableProperty] private string _sourcePath = "";
     [ObservableProperty] private bool _isScanning;
@@ -27,14 +28,21 @@ public partial class ScanViewModel : ObservableObject
 
     public ObservableCollection<ScanResultItem> Results { get; } = [];
 
-    public ScanViewModel(IDirectoryScanner scanner, ILogger<ScanViewModel> logger)
+    public ScanViewModel(IDirectoryScanner scanner, ILogger<ScanViewModel> logger, AppSettings settings)
     {
         _scanner = scanner;
         _logger = logger;
+        _settings = settings;
 
-        var envPath = Environment.GetEnvironmentVariable("BOOKORGANIZER_SOURCE");
-        if (!string.IsNullOrEmpty(envPath) && Directory.Exists(envPath))
-            SourcePath = envPath;
+        var path = settings.SourcePath
+            ?? Environment.GetEnvironmentVariable("BOOKORGANIZER_SOURCE");
+        if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
+            SourcePath = path;
+    }
+
+    partial void OnSourcePathChanged(string value)
+    {
+        _settings.SourcePath = value;
     }
 
     [RelayCommand(IncludeCancelCommand = true)]

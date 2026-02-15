@@ -17,6 +17,7 @@ public partial class LibraryViewModel : ObservableObject
 {
     private readonly IMetadataJsonProcessor _metadataProcessor;
     private readonly ILogger<LibraryViewModel> _logger;
+    private readonly AppSettings _settings;
 
     [ObservableProperty]
     private string _libraryPath = "";
@@ -38,17 +39,25 @@ public partial class LibraryViewModel : ObservableObject
 
     public LibraryViewModel(
         IMetadataJsonProcessor metadataProcessor,
-        ILogger<LibraryViewModel> logger)
+        ILogger<LibraryViewModel> logger,
+        AppSettings settings)
     {
         _metadataProcessor = metadataProcessor;
         _logger = logger;
+        _settings = settings;
 
-        // Try default from env var
-        var envPath = Environment.GetEnvironmentVariable("BOOKORGANIZER_LIBRARY");
-        if (!string.IsNullOrEmpty(envPath) && Directory.Exists(envPath))
+        // Restore from settings, fall back to env var
+        var path = settings.LibraryPath
+            ?? Environment.GetEnvironmentVariable("BOOKORGANIZER_LIBRARY");
+        if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
         {
-            LibraryPath = envPath;
+            LibraryPath = path;
         }
+    }
+
+    partial void OnLibraryPathChanged(string value)
+    {
+        _settings.LibraryPath = value;
     }
 
     partial void OnSelectedItemChanged(object? value)
