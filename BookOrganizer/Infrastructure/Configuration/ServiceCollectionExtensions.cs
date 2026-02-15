@@ -1,91 +1,27 @@
-using BookOrganizer.Infrastructure.Database;
-using BookOrganizer.Services.Audiobookshelf;
+using BookOrganizer.Rendering;
 using BookOrganizer.Services.Deduplication;
-using BookOrganizer.Services.Library;
-using BookOrganizer.Services.Metadata;
-using BookOrganizer.Services.Operations;
-using BookOrganizer.Services.Operations.FileOperators;
 using BookOrganizer.Services.Preview;
-using BookOrganizer.Services.Scanning;
-using BookOrganizer.Services.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace BookOrganizer.Infrastructure.Configuration;
 
 /// <summary>
-/// Extension methods for configuring services in the DI container.
+/// Extension methods for configuring CLI-specific services in the DI container.
 /// </summary>
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds core application services to the DI container.
+    /// Adds all application services (core + CLI-specific) to the DI container.
     /// </summary>
     public static IServiceCollection AddBookOrganizerServices(this IServiceCollection services)
     {
-        // Text normalization services
-        services.AddSingleton<ITextNormalizer, TextNormalizer>();
-        services.AddSingleton<INameDictionary, NameDictionary>();
+        // Register all core (CLI-agnostic) services
+        services.AddBookOrganizerCoreServices();
 
-        // Scanning services
-        services.AddSingleton<IDirectoryScanner, DirectoryScanner>();
-
-        // Metadata services
-        services.AddSingleton<IMetadataJsonProcessor, MetadataJsonProcessor>();
-        services.AddSingleton<IFolderHierarchyAnalyzer, FolderHierarchyAnalyzer>();
-        services.AddSingleton<Mp3TagsCacheService>();
-        services.AddSingleton<IMetadataExtractor, MetadataExtractor>();
-        services.AddSingleton<IFilenameParser, FilenameParser>();
-        services.AddSingleton<IMetadataConsolidator, MetadataConsolidator>();
-        services.AddSingleton<IMetadataValidator, MetadataValidator>();
-        services.AddSingleton<IMetadataGenerator, FolderStructureMetadataGenerator>();
-
-        // Metadata formatters
-        services.AddSingleton<IMetadataFormatter, BookOrganizerFormatter>();
-        services.AddSingleton<IMetadataFormatter, AudiobookshelfFormatter>();
-        services.AddSingleton<NfoFormatter>();
-        services.AddSingleton<IMetadataFormatter>(sp => sp.GetRequiredService<NfoFormatter>());
-
-        // Operation services
-        services.AddSingleton<IPathGenerator, PathGenerator>();
-        services.AddSingleton<IFilenameNormalizer, FilenameNormalizer>();
-        services.AddSingleton<ChecksumCalculator>();
-
-        // File operator services
-        services.AddSingleton<CopyFileOperator>();
-        services.AddSingleton<MoveFileOperator>();
-        services.AddSingleton<HardLinkFileOperator>();
-        services.AddSingleton<SymbolicLinkFileOperator>();
-
-        // Register all specific file operators as ISpecificFileOperator
-        services.AddSingleton<ISpecificFileOperator>(sp => sp.GetRequiredService<CopyFileOperator>());
-        services.AddSingleton<ISpecificFileOperator>(sp => sp.GetRequiredService<MoveFileOperator>());
-        services.AddSingleton<ISpecificFileOperator>(sp => sp.GetRequiredService<HardLinkFileOperator>());
-        services.AddSingleton<ISpecificFileOperator>(sp => sp.GetRequiredService<SymbolicLinkFileOperator>());
-
-        // Main file operator orchestrator
-        services.AddSingleton<IFileOperator, FileOperator>();
-
-        // Preview services
-        services.AddSingleton<IPreviewGenerator, PreviewGenerator>();
+        // CLI-specific services (Spectre.Console dependent)
         services.AddSingleton<IPreviewRenderer, PreviewRenderer>();
-
-        // File organization services
-        services.AddSingleton<IFileOrganizer, FileOrganizer>();
-
-        // Deduplication services
-        services.AddSingleton<ContentAnalyzer>();
-        services.AddSingleton<IDeduplicationDetector, DeduplicationDetector>();
         services.AddSingleton<IDeduplicationResolver, DeduplicationResolver>();
-        services.AddSingleton<IDeduplicationCache, InMemoryDeduplicationCache>();
-
-        // Audiobookshelf services
-        services.AddSingleton<AbsDeduplicationService>();
-
-        // Library tree services
-        // Note: ILibraryDatabase and ILibraryTree are created per-operation in commands
-        // They require libraryRoot path which is only known at runtime
-        services.AddTransient<ILibraryTree, LibraryTree>();
 
         return services;
     }

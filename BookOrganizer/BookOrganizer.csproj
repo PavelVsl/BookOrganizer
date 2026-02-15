@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
@@ -24,18 +24,19 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\BookOrganizer.Core\BookOrganizer.Core.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
         <PackageReference Include="Nerdbank.GitVersioning" Version="3.9.50">
           <PrivateAssets>all</PrivateAssets>
           <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="System.Text.Encoding.CodePages" Version="10.0.2" />
-        <PackageReference Include="TagLibSharp" Version="2.3.0" />
         <PackageReference Include="System.CommandLine" Version="2.0.0" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
         <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0" />
         <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.0" />
         <PackageReference Include="Spectre.Console" Version="0.54.0" />
-        <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.0" />
         <PackageReference Update="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.100">
           <PrivateAssets>all</PrivateAssets>
           <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

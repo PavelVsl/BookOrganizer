@@ -1,9 +1,10 @@
 using BookOrganizer.Infrastructure.Database;
 using BookOrganizer.Models;
+using BookOrganizer.Services.Preview;
 using BookOrganizer.Services.Text;
 using Spectre.Console;
 
-namespace BookOrganizer.Services.Preview;
+namespace BookOrganizer.Rendering;
 
 /// <summary>
 /// Renders preview results to the console using Spectre.Console.

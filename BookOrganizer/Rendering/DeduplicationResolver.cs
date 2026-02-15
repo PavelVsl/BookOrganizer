@@ -1,8 +1,9 @@
 using BookOrganizer.Models;
+using BookOrganizer.Services.Deduplication;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
 
-namespace BookOrganizer.Services.Deduplication;
+namespace BookOrganizer.Rendering;
 
 /// <summary>
 /// Handles user interaction for resolving duplicate audiobooks using Spectre.Console.
