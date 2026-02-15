@@ -10,6 +10,7 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private int _selectedNavIndex;
 
+    public LibraryViewModel Library => _libraryViewModel;
     private readonly LibraryViewModel _libraryViewModel;
     private readonly BatchRenameViewModel _batchRenameViewModel;
     private readonly ScanViewModel _scanViewModel;

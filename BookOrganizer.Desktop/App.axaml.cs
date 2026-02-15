@@ -74,6 +74,12 @@ public partial class App : Application
             };
 
             desktop.MainWindow = mainWindow;
+
+            // Auto-load last library if path was persisted
+            if (!string.IsNullOrEmpty(mainVm.Library.LibraryPath))
+            {
+                mainVm.Library.LoadLibraryCommand.ExecuteAsync(null);
+            }
         }
 
         base.OnFrameworkInitializationCompleted();
