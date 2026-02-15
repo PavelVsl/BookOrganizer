@@ -35,6 +35,9 @@ public partial class App : Application
         // Register ViewModels
         services.AddTransient<LibraryViewModel>();
         services.AddTransient<BatchRenameViewModel>();
+        services.AddTransient<ScanViewModel>();
+        services.AddTransient<PreviewViewModel>();
+        services.AddTransient<OrganizeViewModel>();
         services.AddTransient<MainWindowViewModel>();
 
         Services = services.BuildServiceProvider();

@@ -19,9 +19,9 @@
                 <ListBox SelectedIndex="{Binding SelectedNavIndex}" Margin="4,0">
                     <ListBoxItem>Library</ListBoxItem>
                     <ListBoxItem>Batch Rename</ListBoxItem>
-                    <ListBoxItem IsEnabled="False">Scan</ListBoxItem>
-                    <ListBoxItem IsEnabled="False">Preview</ListBoxItem>
-                    <ListBoxItem IsEnabled="False">Organize</ListBoxItem>
+                    <ListBoxItem>Scan</ListBoxItem>
+                    <ListBoxItem>Preview</ListBoxItem>
+                    <ListBoxItem>Organize</ListBoxItem>
                     <ListBoxItem IsEnabled="False">Tools</ListBoxItem>
                 </ListBox>
             </StackPanel>
