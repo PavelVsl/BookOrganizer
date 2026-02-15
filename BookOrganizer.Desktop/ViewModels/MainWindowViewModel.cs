@@ -1,5 +1,4 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
 
 namespace BookOrganizer.Desktop.ViewModels;
 
@@ -12,10 +11,14 @@ public partial class MainWindowViewModel : ObservableObject
     private int _selectedNavIndex;
 
     private readonly LibraryViewModel _libraryViewModel;
+    private readonly BatchRenameViewModel _batchRenameViewModel;
 
-    public MainWindowViewModel(LibraryViewModel libraryViewModel)
+    public MainWindowViewModel(
+        LibraryViewModel libraryViewModel,
+        BatchRenameViewModel batchRenameViewModel)
     {
         _libraryViewModel = libraryViewModel;
+        _batchRenameViewModel = batchRenameViewModel;
         _currentView = libraryViewModel;
     }
 
@@ -24,6 +27,7 @@ public partial class MainWindowViewModel : ObservableObject
         CurrentView = value switch
         {
             0 => _libraryViewModel,
+            1 => _batchRenameViewModel,
             _ => _libraryViewModel
         };
     }

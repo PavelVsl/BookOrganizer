@@ -18,7 +18,7 @@
                            Margin="16,8,16,16" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}" />
                 <ListBox SelectedIndex="{Binding SelectedNavIndex}" Margin="4,0">
                     <ListBoxItem>Library</ListBoxItem>
-                    <ListBoxItem IsEnabled="False">Batch Rename</ListBoxItem>
+                    <ListBoxItem>Batch Rename</ListBoxItem>
                     <ListBoxItem IsEnabled="False">Scan</ListBoxItem>
                     <ListBoxItem IsEnabled="False">Preview</ListBoxItem>
                     <ListBoxItem IsEnabled="False">Organize</ListBoxItem>
