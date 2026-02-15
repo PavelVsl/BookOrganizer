@@ -278,6 +278,102 @@ public class MetadataJsonProcessor : IMetadataJsonProcessor
         };
     }
 
+    public async Task SaveMetadataAsync(
+        string folderPath,
+        MetadataOverride metadata,
+        CancellationToken cancellationToken = default)
+    {
+        var bookinfoPath = Path.Combine(folderPath, "bookinfo.json");
+
+        // Load existing file to merge, preserving fields not in the new metadata
+        var existing = await LoadMetadataJsonAsync(folderPath, cancellationToken);
+
+        var merged = new MetadataOverride
+        {
+            Title = metadata.Title ?? existing?.Title,
+            Author = metadata.Author ?? existing?.Author,
+            Narrator = metadata.Narrator ?? existing?.Narrator,
+            Series = metadata.Series ?? existing?.Series,
+            SeriesNumber = metadata.SeriesNumber ?? existing?.SeriesNumber,
+            Year = metadata.Year ?? existing?.Year,
+            Genre = metadata.Genre ?? existing?.Genre,
+            Publisher = metadata.Publisher ?? existing?.Publisher,
+            Description = metadata.Description ?? existing?.Description,
+            Language = metadata.Language ?? existing?.Language,
+            Comment = metadata.Comment ?? existing?.Comment,
+            Notes = metadata.Notes ?? existing?.Notes,
+            Source = MetadataOverride.ManualSource
+        };
+
+        var writeOptions = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
+
+        var json = JsonSerializer.Serialize(merged, writeOptions);
+        await File.WriteAllTextAsync(bookinfoPath, json, cancellationToken);
+
+        _logger.LogInformation("Saved metadata to {Path}", bookinfoPath);
+    }
+
+    public async Task<int> BatchUpdateAuthorAsync(
+        string libraryRoot,
+        string oldAuthor,
+        string newAuthor,
+        CancellationToken cancellationToken = default)
+    {
+        return await BatchUpdateFieldAsync(
+            libraryRoot,
+            m => string.Equals(m.Author, oldAuthor, StringComparison.OrdinalIgnoreCase),
+            m => m with { Author = newAuthor },
+            cancellationToken);
+    }
+
+    public async Task<int> BatchUpdateSeriesAsync(
+        string libraryRoot,
+        string oldSeries,
+        string newSeries,
+        CancellationToken cancellationToken = default)
+    {
+        return await BatchUpdateFieldAsync(
+            libraryRoot,
+            m => string.Equals(m.Series, oldSeries, StringComparison.OrdinalIgnoreCase),
+            m => m with { Series = newSeries },
+            cancellationToken);
+    }
+
+    private async Task<int> BatchUpdateFieldAsync(
+        string libraryRoot,
+        Func<MetadataOverride, bool> predicate,
+        Func<MetadataOverride, MetadataOverride> transform,
+        CancellationToken cancellationToken)
+    {
+        var updated = 0;
+        var bookinfoFiles = Directory.EnumerateFiles(libraryRoot, "bookinfo.json", SearchOption.AllDirectories);
+
+        foreach (var filePath in bookinfoFiles)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var folderPath = Path.GetDirectoryName(filePath)!;
+            var metadata = await LoadMetadataJsonAsync(folderPath, cancellationToken);
+
+            if (metadata != null && predicate(metadata))
+            {
+                var transformed = transform(metadata);
+                await SaveMetadataAsync(folderPath, transformed, cancellationToken);
+                updated++;
+
+                _logger.LogInformation("Updated bookinfo.json in {Path}", folderPath);
+            }
+        }
+
+        _logger.LogInformation("Batch updated {Count} bookinfo.json file(s) in {Root}", updated, libraryRoot);
+        return updated;
+    }
+
     private static string GetLevelName(int level) => level switch
     {
         0 => "Author",
