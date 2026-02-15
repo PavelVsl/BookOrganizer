@@ -1,0 +1,134 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:BookOrganizer.Desktop.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
+             x:Class="BookOrganizer.Desktop.Views.LibraryView"
+             x:DataType="vm:LibraryViewModel">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <!-- Header: library path + load button -->
+        <Border Grid.Row="0" Padding="12,8" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <TextBlock Grid.Column="0" Text="Library:" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <TextBox Grid.Column="1" Text="{Binding LibraryPath}" Watermark="Path to audiobook library..."
+                         Margin="0,0,8,0" />
+                <Button Grid.Column="2" Content="Load" Command="{Binding LoadLibraryCommand}"
+                        IsEnabled="{Binding !IsLoading}" />
+            </Grid>
+        </Border>
+
+        <!-- Main content: tree + detail -->
+        <Grid Grid.Row="1" ColumnDefinitions="350,Auto,*">
+            <!-- Tree browser -->
+            <TreeView Grid.Column="0" ItemsSource="{Binding Authors}"
+                      SelectedItem="{Binding SelectedItem}"
+                      Margin="4">
+                <TreeView.DataTemplates>
+                    <!-- Author node -->
+                    <TreeDataTemplate DataType="vm:AuthorNode" ItemsSource="{Binding Children}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="&#128100;" />
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                        </StackPanel>
+                    </TreeDataTemplate>
+                    <!-- Series node -->
+                    <TreeDataTemplate DataType="vm:SeriesNode" ItemsSource="{Binding Books}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="&#128218;" />
+                            <TextBlock Text="{Binding Name}" FontStyle="Italic" />
+                        </StackPanel>
+                    </TreeDataTemplate>
+                    <!-- Book node -->
+                    <DataTemplate DataType="vm:BookNode">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="&#127911;" />
+                            <TextBlock Text="{Binding Title}" />
+                            <TextBlock Text="{Binding AudioFileCount, StringFormat='({0} files)'}"
+                                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                       FontSize="11" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </DataTemplate>
+                </TreeView.DataTemplates>
+            </TreeView>
+
+            <!-- Splitter -->
+            <GridSplitter Grid.Column="1" Width="4" ResizeDirection="Columns"
+                          Background="{DynamicResource SystemControlForegroundBaseLowBrush}" />
+
+            <!-- Detail panel -->
+            <ScrollViewer Grid.Column="2" Padding="16,8">
+                <ContentControl Content="{Binding SelectedBookDetail}">
+                    <ContentControl.DataTemplates>
+                        <DataTemplate DataType="vm:BookDetailViewModel">
+                            <StackPanel Spacing="8" MaxWidth="500">
+                                <TextBlock Text="Book Details" FontSize="18" FontWeight="Bold" Margin="0,0,0,8" />
+
+                                <TextBlock Text="Author" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                <TextBox Text="{Binding Author}" />
+
+                                <TextBlock Text="Title" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                <TextBox Text="{Binding Title}" />
+
+                                <TextBlock Text="Series" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                <TextBox Text="{Binding Series}" />
+
+                                <TextBlock Text="Series #" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                <TextBox Text="{Binding SeriesNumber}" />
+
+                                <TextBlock Text="Narrator" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                <TextBox Text="{Binding Narrator}" />
+
+                                <TextBlock Text="Year" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                <TextBox Text="{Binding Year}" />
+
+                                <TextBlock Text="Genre" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                <TextBox Text="{Binding Genre}" />
+
+                                <TextBlock Text="Publisher" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                <TextBox Text="{Binding Publisher}" />
+
+                                <TextBlock Text="Language" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                <TextBox Text="{Binding Language}" />
+
+                                <TextBlock Text="Description" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                <TextBox Text="{Binding Description}" AcceptsReturn="True" MinHeight="60"
+                                         TextWrapping="Wrap" />
+
+                                <!-- Status and actions -->
+                                <Separator Margin="0,8" />
+
+                                <TextBlock Text="{Binding FolderPath}" FontSize="11"
+                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                           TextWrapping="Wrap" />
+
+                                <TextBlock Text="{Binding AudioFileCount, StringFormat='{}{0} audio file(s)'}"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+
+                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                                    <Button Content="Save" Command="{Binding SaveCommand}"
+                                            IsEnabled="{Binding IsDirty}"
+                                            Classes="accent" />
+                                    <Button Content="Revert" Command="{Binding RevertCommand}"
+                                            IsEnabled="{Binding IsDirty}" />
+                                </StackPanel>
+
+                                <TextBlock Text="{Binding SaveStatus}" FontSize="11"
+                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ContentControl.DataTemplates>
+                </ContentControl>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- Status bar -->
+        <Border Grid.Row="2" Padding="12,4" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,1,0,0">
+            <TextBlock Text="{Binding StatusText}" FontSize="12"
+                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+        </Border>
+    </Grid>
+
+</UserControl>

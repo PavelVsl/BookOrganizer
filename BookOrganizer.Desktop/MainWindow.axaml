@@ -1,0 +1,34 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:BookOrganizer.Desktop.ViewModels"
+        mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="700"
+        x:Class="BookOrganizer.Desktop.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="BookOrganizer" Width="1200" Height="700"
+        MinWidth="800" MinHeight="500">
+
+    <Grid ColumnDefinitions="180,*">
+        <!-- Sidebar -->
+        <Border Grid.Column="0" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,1,0">
+            <StackPanel Margin="0,8">
+                <TextBlock Text="BookOrganizer" FontSize="16" FontWeight="Bold"
+                           Margin="16,8,16,16" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+                <ListBox SelectedIndex="{Binding SelectedNavIndex}" Margin="4,0">
+                    <ListBoxItem>Library</ListBoxItem>
+                    <ListBoxItem IsEnabled="False">Batch Rename</ListBoxItem>
+                    <ListBoxItem IsEnabled="False">Scan</ListBoxItem>
+                    <ListBoxItem IsEnabled="False">Preview</ListBoxItem>
+                    <ListBoxItem IsEnabled="False">Organize</ListBoxItem>
+                    <ListBoxItem IsEnabled="False">Tools</ListBoxItem>
+                </ListBox>
+            </StackPanel>
+        </Border>
+
+        <!-- Content area -->
+        <ContentControl Grid.Column="1" Content="{Binding CurrentView}" />
+    </Grid>
+
+</Window>
