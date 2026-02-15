@@ -215,7 +215,19 @@
 
                                         <!-- Book detail (tabbed: Edit / MP3 Tags / bookinfo.json / metadata.nfo) -->
                                         <DataTemplate DataType="vm:BookDetailViewModel">
-                                            <TabControl>
+                                            <Grid ColumnDefinitions="Auto,*">
+                                            <!-- Cover image panel -->
+                                            <StackPanel Grid.Column="0" Width="200" Margin="8"
+                                                        IsVisible="{Binding CoverImage, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                                <Image Source="{Binding CoverImage}"
+                                                       MaxWidth="200" MaxHeight="280"
+                                                       Stretch="Uniform" />
+                                                <TextBlock Text="{Binding CoverImageSource}"
+                                                           FontSize="10" HorizontalAlignment="Center"
+                                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                                           Margin="0,4,0,0" />
+                                            </StackPanel>
+                                            <TabControl Grid.Column="1">
                                                 <!-- Edit tab -->
                                                 <TabItem Header="Edit">
                                                     <ScrollViewer>
@@ -310,6 +322,7 @@
                                                              FontSize="11" />
                                                 </TabItem>
                                             </TabControl>
+                                            </Grid>
                                         </DataTemplate>
 
                                 </ContentControl.DataTemplates>

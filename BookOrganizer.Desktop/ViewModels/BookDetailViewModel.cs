@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Media.Imaging;
 using BookOrganizer.Models;
 using BookOrganizer.Services.Metadata;
 using BookOrganizer.Services.Operations;
@@ -44,6 +45,10 @@ public partial class BookDetailViewModel : ObservableObject
     [ObservableProperty] private bool _needsReorganize;
     [ObservableProperty] private string? _expectedPath;
 
+    // Cover image
+    [ObservableProperty] private Bitmap? _coverImage;
+    [ObservableProperty] private string? _coverImageSource;
+
     // Metadata source display
     [ObservableProperty] private string _mp3TagsSummary = "";
     [ObservableProperty] private string _bookinfoContent = "";
@@ -74,6 +79,9 @@ public partial class BookDetailViewModel : ObservableObject
 
         // Load metadata sources lazily
         LoadMetadataSources();
+
+        // Load cover image
+        LoadCoverImage();
     }
 
     private void LoadFromBookNode()
@@ -159,6 +167,88 @@ public partial class BookDetailViewModel : ObservableObject
         else
         {
             NfoContent = "Not found";
+        }
+    }
+
+    private static readonly string[] CoverFileNames =
+        ["cover", "folder", "front", "albumart", "album", "thumb", "thumbnail"];
+
+    private static readonly string[] ImageExtensions =
+        [".jpg", ".jpeg", ".png", ".bmp", ".webp"];
+
+    private void LoadCoverImage()
+    {
+        var folderPath = _bookNode.Path;
+
+        // 1. Look for image files in the folder
+        var coverPath = FindFolderCoverImage(folderPath);
+        if (coverPath != null)
+        {
+            try
+            {
+                CoverImage = new Bitmap(coverPath);
+                CoverImageSource = System.IO.Path.GetFileName(coverPath);
+                return;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to load cover image: {Path}", coverPath);
+            }
+        }
+
+        // 2. Fall back to embedded MP3 cover art
+        TryExtractEmbeddedCover(folderPath);
+    }
+
+    private static string? FindFolderCoverImage(string folderPath)
+    {
+        try
+        {
+            var files = Directory.GetFiles(folderPath);
+            // First pass: match known cover filenames
+            foreach (var file in files)
+            {
+                var name = System.IO.Path.GetFileNameWithoutExtension(file).ToLowerInvariant();
+                var ext = System.IO.Path.GetExtension(file).ToLowerInvariant();
+                if (ImageExtensions.Contains(ext) && CoverFileNames.Contains(name))
+                    return file;
+            }
+            // Second pass: any image file
+            foreach (var file in files)
+            {
+                var ext = System.IO.Path.GetExtension(file).ToLowerInvariant();
+                if (ImageExtensions.Contains(ext))
+                    return file;
+            }
+        }
+        catch
+        {
+            // Folder may not be accessible
+        }
+        return null;
+    }
+
+    private void TryExtractEmbeddedCover(string folderPath)
+    {
+        try
+        {
+            // Find first MP3 file
+            var mp3File = Directory.EnumerateFiles(folderPath, "*.mp3").FirstOrDefault();
+            if (mp3File == null)
+                return;
+
+            using var tagFile = TagLib.File.Create(mp3File);
+            if (tagFile.Tag.Pictures.Length == 0)
+                return;
+
+            var picture = tagFile.Tag.Pictures[0];
+            using var stream = new MemoryStream(picture.Data.Data);
+            CoverImage = new Bitmap(stream);
+            CoverImageSource = "embedded in MP3";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "No embedded cover art found in {Path}", folderPath);
         }
     }
 
