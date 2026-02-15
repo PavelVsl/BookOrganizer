@@ -34,6 +34,7 @@ public class BookOrganizerFormatter : IMetadataFormatter
             Series = metadata.Series ?? string.Empty,
             SeriesNumber = metadata.SeriesNumber ?? string.Empty,
             Year = metadata.Year,
+            DiscNumber = metadata.DiscNumber,
             Genre = metadata.Genre,
             Comment = metadata.Comment,
             Description = metadata.Description,

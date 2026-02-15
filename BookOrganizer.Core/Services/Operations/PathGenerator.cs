@@ -80,6 +80,12 @@ public class PathGenerator : IPathGenerator
             pathComponents.Add(bookFolder);
         }
 
+        // If disc number is set, append disc subfolder
+        if (metadata.DiscNumber.HasValue)
+        {
+            pathComponents.Add($"Disk {metadata.DiscNumber.Value}");
+        }
+
         var targetPath = Path.Combine(pathComponents.ToArray());
 
         // Check if path exceeds MAX_PATH limitation (mainly for Windows)

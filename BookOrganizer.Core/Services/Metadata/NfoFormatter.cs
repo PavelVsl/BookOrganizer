@@ -51,6 +51,12 @@ public class NfoFormatter : IMetadataFormatter
             }
         }
 
+        // Disc number
+        if (metadata.DiscNumber.HasValue)
+        {
+            sb.AppendLine($"disc: {metadata.DiscNumber.Value}");
+        }
+
         // Genre (semicolon-separated in BookMetadata, comma-separated in NFO)
         if (!string.IsNullOrWhiteSpace(metadata.Genre))
         {

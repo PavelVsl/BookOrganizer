@@ -124,6 +124,8 @@ public class MetadataConsolidator : IMetadataConsolidator
                 out _,
                 out _),
 
+            DiscNumber = ConsolidateDiscNumberField(sourcesList),
+
             ContributingSources = sourcesList.Select(s => s.Source).Distinct().ToList()
         };
 
@@ -246,6 +248,16 @@ public class MetadataConsolidator : IMetadataConsolidator
         source = best.Source;
 
         return best.Value;
+    }
+
+    private static int? ConsolidateDiscNumberField(List<BookMetadata> sources)
+    {
+        // Take the first non-null DiscNumber from the highest-weighted source
+        return sources
+            .Where(s => s.DiscNumber.HasValue)
+            .OrderByDescending(s => GetSourceWeight(s.Source) * s.Confidence)
+            .Select(s => s.DiscNumber)
+            .FirstOrDefault();
     }
 
     private static bool IsValidYear(int year)

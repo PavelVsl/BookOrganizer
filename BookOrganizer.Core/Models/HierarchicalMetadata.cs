@@ -63,6 +63,7 @@ public record HierarchicalMetadata
                 Series = canOverride && !string.IsNullOrWhiteSpace(Metadata.Series) ? Metadata.Series : effective.Series,
                 SeriesNumber = canOverride && !string.IsNullOrWhiteSpace(Metadata.SeriesNumber) ? Metadata.SeriesNumber : effective.SeriesNumber,
                 Year = canOverride ? (Metadata.Year ?? effective.Year) : effective.Year,
+                DiscNumber = canOverride ? (Metadata.DiscNumber ?? effective.DiscNumber) : effective.DiscNumber,
                 Genre = canOverride && !string.IsNullOrWhiteSpace(Metadata.Genre) ? Metadata.Genre : effective.Genre,
                 Description = canOverride && !string.IsNullOrWhiteSpace(Metadata.Description) ? Metadata.Description : effective.Description,
                 Language = canOverride && !string.IsNullOrWhiteSpace(Metadata.Language) ? Metadata.Language : effective.Language

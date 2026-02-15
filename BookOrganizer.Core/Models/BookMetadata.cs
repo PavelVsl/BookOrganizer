@@ -36,6 +36,12 @@ public record BookMetadata
     public int? Year { get; init; }
 
     /// <summary>
+    /// Disc/volume number for multi-volume audiobooks.
+    /// When set, the book is organized into a disc subfolder (e.g., "Disk 1").
+    /// </summary>
+    public int? DiscNumber { get; init; }
+
+    /// <summary>
     /// Composer from MP3 tags. Often contains the book author in Czech audiobooks.
     /// </summary>
     public string? Composer { get; init; }

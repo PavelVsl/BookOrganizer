@@ -34,6 +34,7 @@ public partial class BookDetailViewModel : ObservableObject
     [ObservableProperty] private string? _narrator;
     [ObservableProperty] private string? _year;
     [ObservableProperty] private string? _genre;
+    [ObservableProperty] private string? _discNumber;
     [ObservableProperty] private string? _publisher;
     [ObservableProperty] private string? _description;
     [ObservableProperty] private string? _language;
@@ -93,6 +94,7 @@ public partial class BookDetailViewModel : ObservableObject
         Narrator = _bookNode.Narrator;
         Year = _bookNode.Year?.ToString();
         Genre = _bookNode.Genre;
+        DiscNumber = _bookNode.DiscNumber?.ToString();
         Publisher = _bookNode.Publisher;
         Description = _bookNode.Description;
         Language = _bookNode.Language;
@@ -297,6 +299,7 @@ public partial class BookDetailViewModel : ObservableObject
     partial void OnNarratorChanged(string? value) => IsDirty = true;
     partial void OnYearChanged(string? value) => IsDirty = true;
     partial void OnGenreChanged(string? value) => IsDirty = true;
+    partial void OnDiscNumberChanged(string? value) => IsDirty = true;
     partial void OnPublisherChanged(string? value) => IsDirty = true;
     partial void OnDescriptionChanged(string? value) => IsDirty = true;
     partial void OnLanguageChanged(string? value) => IsDirty = true;
@@ -310,6 +313,10 @@ public partial class BookDetailViewModel : ObservableObject
             if (!string.IsNullOrWhiteSpace(Year) && int.TryParse(Year, out var parsed))
                 yearInt = parsed;
 
+            int? discNumberInt = null;
+            if (!string.IsNullOrWhiteSpace(DiscNumber) && int.TryParse(DiscNumber, out var parsedDisc))
+                discNumberInt = parsedDisc;
+
             var metadata = new MetadataOverride
             {
                 Author = NullIfEmpty(Author),
@@ -318,6 +325,7 @@ public partial class BookDetailViewModel : ObservableObject
                 SeriesNumber = NullIfEmpty(SeriesNumber),
                 Narrator = NullIfEmpty(Narrator),
                 Year = yearInt,
+                DiscNumber = discNumberInt,
                 Genre = NullIfEmpty(Genre),
                 Publisher = NullIfEmpty(Publisher),
                 Description = NullIfEmpty(Description),
@@ -334,6 +342,7 @@ public partial class BookDetailViewModel : ObservableObject
             _bookNode.Narrator = Narrator;
             _bookNode.Year = yearInt;
             _bookNode.Genre = Genre;
+            _bookNode.DiscNumber = discNumberInt;
             _bookNode.Publisher = Publisher;
             _bookNode.Description = Description;
             _bookNode.Language = Language;
@@ -372,6 +381,7 @@ public partial class BookDetailViewModel : ObservableObject
                 SeriesNumber = _bookNode.SeriesNumber,
                 Narrator = _bookNode.Narrator,
                 Year = _bookNode.Year,
+                DiscNumber = _bookNode.DiscNumber,
                 Genre = _bookNode.Genre,
                 Description = _bookNode.Description,
                 Language = _bookNode.Language,

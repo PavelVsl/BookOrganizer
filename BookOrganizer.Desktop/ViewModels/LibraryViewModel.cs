@@ -491,6 +491,7 @@ public partial class LibraryViewModel : ObservableObject
                     SeriesNumber = book.SeriesNumber,
                     Narrator = book.Narrator,
                     Year = book.Year,
+                    DiscNumber = book.DiscNumber,
                     Genre = book.Genre,
                     Description = book.Description,
                     Language = book.Language,
@@ -555,6 +556,7 @@ public partial class LibraryViewModel : ObservableObject
             Narrator = meta.Narrator,
             Year = meta.Year,
             Genre = meta.Genre,
+            DiscNumber = meta.DiscNumber,
             Publisher = null,
             Description = meta.Description,
             Language = meta.Language,
@@ -680,6 +682,7 @@ public partial class BookNode : ObservableObject
     [ObservableProperty] private string? _narrator;
     [ObservableProperty] private int? _year;
     [ObservableProperty] private string? _genre;
+    [ObservableProperty] private int? _discNumber;
     [ObservableProperty] private string? _publisher;
     [ObservableProperty] private string? _description;
     [ObservableProperty] private string? _language;

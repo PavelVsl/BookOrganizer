@@ -121,6 +121,7 @@ public partial class AuthorDetailViewModel : ObservableObject
                     SeriesNumber = book.SeriesNumber,
                     Narrator = book.Narrator,
                     Year = book.Year,
+                    DiscNumber = book.DiscNumber,
                     Genre = book.Genre,
                     Description = book.Description,
                     Language = book.Language,

@@ -131,6 +131,11 @@ public record ConsolidatedMetadata
     public string? Language { get; init; }
 
     /// <summary>
+    /// Disc/volume number for multi-volume audiobooks.
+    /// </summary>
+    public int? DiscNumber { get; init; }
+
+    /// <summary>
     /// Overall confidence score calculated from all field confidences (0.0 to 1.0).
     /// Represents the weighted average of all field confidence scores.
     /// </summary>
@@ -158,6 +163,7 @@ public record ConsolidatedMetadata
             SeriesNumber = SeriesNumber,
             Narrator = Narrator,
             Year = Year,
+            DiscNumber = DiscNumber,
             Genre = Genre,
             Description = Description,
             Language = Language,
@@ -207,6 +213,8 @@ public record ConsolidatedMetadata
             Description = metadata.Description,
             DescriptionConfidence = metadata.Confidence,
             DescriptionSource = metadata.Source,
+
+            DiscNumber = metadata.DiscNumber,
 
             OverallConfidence = metadata.Confidence,
             ContributingSources = new[] { metadata.Source }

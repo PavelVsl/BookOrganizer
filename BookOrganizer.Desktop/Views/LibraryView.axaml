@@ -244,6 +244,9 @@
                                                             <TextBlock Text="Series #" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
                                                             <TextBox Text="{Binding SeriesNumber}" />
 
+                                                            <TextBlock Text="Disc #" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                                            <TextBox Text="{Binding DiscNumber}" />
+
                                                             <TextBlock Text="Narrator" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
                                                             <TextBox Text="{Binding Narrator}" />
 

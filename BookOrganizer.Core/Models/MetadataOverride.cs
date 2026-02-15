@@ -42,6 +42,12 @@ public record MetadataOverride
     public int? Year { get; init; }
 
     /// <summary>
+    /// Disc/volume number for multi-volume audiobooks.
+    /// When set, the book is organized into a disc subfolder (e.g., "Disk 1").
+    /// </summary>
+    public int? DiscNumber { get; init; }
+
+    /// <summary>
     /// Genre (overrides ID3 tags).
     /// </summary>
     public string? Genre { get; init; }
