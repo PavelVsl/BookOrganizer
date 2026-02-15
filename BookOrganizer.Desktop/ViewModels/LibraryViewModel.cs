@@ -4,8 +4,12 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Platform.Storage;
 using BookOrganizer.Models;
 using BookOrganizer.Services.Metadata;
 using BookOrganizer.Services.Operations;
@@ -55,13 +59,13 @@ public partial class LibraryViewModel : ObservableObject
     private string _destinationPath = "";
 
     [ObservableProperty]
-    private FileOperationType _operationType = FileOperationType.Copy;
-
-    [ObservableProperty]
-    private int _operationTypeIndex;
+    [NotifyPropertyChangedFor(nameof(NeedsDestination))]
+    private int _reorganizeModeIndex; // 0=In-place, 1=Copy to, 2=Move to
 
     [ObservableProperty]
     private bool _isReorganizing;
+
+    public bool NeedsDestination => ReorganizeModeIndex > 0;
 
     // Synonym detection
     [ObservableProperty]
@@ -98,8 +102,7 @@ public partial class LibraryViewModel : ObservableObject
         }
 
         DestinationPath = settings.DestinationPath ?? "";
-        OperationType = settings.LastOperationType;
-        OperationTypeIndex = (int)OperationType;
+        ReorganizeModeIndex = settings.ReorganizeModeIndex;
     }
 
     partial void OnLibraryPathChanged(string value)
@@ -112,14 +115,47 @@ public partial class LibraryViewModel : ObservableObject
         _settings.DestinationPath = value;
     }
 
-    partial void OnOperationTypeChanged(FileOperationType value)
+    partial void OnReorganizeModeIndexChanged(int value)
     {
-        _settings.LastOperationType = value;
+        _settings.ReorganizeModeIndex = value;
     }
 
-    partial void OnOperationTypeIndexChanged(int value)
+    [RelayCommand]
+    private async Task BrowseLibraryAsync()
     {
-        OperationType = (FileOperationType)value;
+        var path = await BrowseFolderAsync("Select library folder");
+        if (path != null)
+        {
+            LibraryPath = path;
+        }
+    }
+
+    [RelayCommand]
+    private async Task BrowseDestinationAsync()
+    {
+        var path = await BrowseFolderAsync("Select destination folder");
+        if (path != null)
+        {
+            DestinationPath = path;
+        }
+    }
+
+    private static async Task<string?> BrowseFolderAsync(string title)
+    {
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+            return null;
+
+        var mainWindow = desktop.MainWindow;
+        if (mainWindow == null)
+            return null;
+
+        var result = await mainWindow.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = title,
+            AllowMultiple = false
+        });
+
+        return result.Count > 0 ? result[0].Path.LocalPath : null;
     }
 
     partial void OnSelectedItemChanged(object? value)
@@ -141,7 +177,7 @@ public partial class LibraryViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(LibraryPath) || !Directory.Exists(LibraryPath))
         {
-            StatusText = "Invalid library path.";
+            StatusText = $"Path not found: {LibraryPath}";
             return;
         }
 
@@ -395,13 +431,26 @@ public partial class LibraryViewModel : ObservableObject
 
     /// <summary>
     /// Reorganizes books into structured Author/[Series/]Title/ layout.
+    /// Mode 0: In-place (move within library path)
+    /// Mode 1: Copy to destination
+    /// Mode 2: Move to destination
     /// </summary>
     [RelayCommand]
     private async Task ReorganizeAsync(CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(DestinationPath))
+        var isInPlace = ReorganizeModeIndex == 0;
+        var destPath = isInPlace ? LibraryPath : DestinationPath;
+        var opType = ReorganizeModeIndex switch
         {
-            StatusText = "Set a destination path first.";
+            0 => FileOperationType.Move, // in-place = move within same root
+            1 => FileOperationType.Copy,
+            2 => FileOperationType.Move,
+            _ => FileOperationType.Copy
+        };
+
+        if (string.IsNullOrWhiteSpace(destPath) || !Directory.Exists(destPath))
+        {
+            StatusText = isInPlace ? "Load a library first." : "Set a valid destination path.";
             return;
         }
 
@@ -413,7 +462,8 @@ public partial class LibraryViewModel : ObservableObject
         }
 
         IsReorganizing = true;
-        StatusText = $"Building plans for {booksWithFolders.Count} book(s)...";
+        var modeLabel = isInPlace ? "in-place" : $"to {destPath}";
+        StatusText = $"Building plans for {booksWithFolders.Count} book(s) ({modeLabel})...";
 
         try
         {
@@ -436,14 +486,14 @@ public partial class LibraryViewModel : ObservableObject
                     Source = "GUI"
                 };
 
-                var targetPath = _pathGenerator.GenerateTargetPath(metadata, DestinationPath);
+                var targetPath = _pathGenerator.GenerateTargetPath(metadata, destPath);
 
                 plans.Add(new OrganizationPlan
                 {
                     SourceFolder = book.SourceFolder!,
                     Metadata = metadata,
                     TargetPath = targetPath,
-                    OperationType = OperationType
+                    OperationType = opType
                 });
             }
 
@@ -455,7 +505,7 @@ public partial class LibraryViewModel : ObservableObject
             var result = await _fileOrganizer.OrganizeFromPlansAsync(plans, true, progress, ct);
 
             StatusText = result.Success
-                ? $"Organized {result.SuccessfulAudiobooks}/{result.TotalAudiobooks} book(s) to {DestinationPath}"
+                ? $"Organized {result.SuccessfulAudiobooks}/{result.TotalAudiobooks} book(s) {modeLabel}"
                 : $"Completed with errors: {result.SuccessfulAudiobooks}/{result.TotalAudiobooks} succeeded. {result.ErrorMessage}";
         }
         catch (OperationCanceledException)
@@ -473,10 +523,15 @@ public partial class LibraryViewModel : ObservableObject
         }
     }
 
+    // ABS-compatible disc folder pattern: Disc/CD/Disk followed by number, optional space
+    private static readonly Regex DiscFolderPattern = new(
+        @"^(?:Disc|CD|Disk)\s*\d+$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
     private void ScanLibraryStructure(CancellationToken ct)
     {
         // Library structure: Author/[Series/]Book/
         // Each folder may have bookinfo.json
+        // Multi-disc: Book/Disc 1/, Book/Disc 2/ → merged into single BookNode
         var libraryDir = new DirectoryInfo(LibraryPath);
         var authorNodes = new ObservableCollection<AuthorNode>();
 
@@ -492,18 +547,15 @@ public partial class LibraryViewModel : ObservableObject
                 .Where(d => !d.Name.StartsWith('.'))
                 .OrderBy(d => d.Name))
             {
-                // Check if this is a book folder (contains audio files) or a series folder
-                var hasAudio = HasAudioFiles(subDir);
+                var bookNode = TryCreateBookNode(subDir, authorDir.Name, null);
 
-                if (hasAudio)
+                if (bookNode != null)
                 {
-                    // Direct book under author (no series)
-                    var bookNode = CreateBookNode(subDir, authorDir.Name, null);
                     authorNode.Children.Add(bookNode);
                 }
                 else
                 {
-                    // Series folder
+                    // No audio + no disc subfolders → could be a series folder
                     var seriesNode = new SeriesNode { Name = subDir.Name, Path = subDir.FullName };
 
                     foreach (var bookDir in subDir.EnumerateDirectories()
@@ -512,10 +564,10 @@ public partial class LibraryViewModel : ObservableObject
                     {
                         ct.ThrowIfCancellationRequested();
 
-                        if (HasAudioFiles(bookDir))
+                        var seriesBookNode = TryCreateBookNode(bookDir, authorDir.Name, subDir.Name);
+                        if (seriesBookNode != null)
                         {
-                            var bookNode = CreateBookNode(bookDir, authorDir.Name, subDir.Name);
-                            seriesNode.Books.Add(bookNode);
+                            seriesNode.Books.Add(seriesBookNode);
                         }
                     }
 
@@ -535,7 +587,60 @@ public partial class LibraryViewModel : ObservableObject
         Authors = authorNodes;
     }
 
-    private BookNode CreateBookNode(DirectoryInfo dir, string authorName, string? seriesName)
+    /// <summary>
+    /// Tries to create a BookNode from a directory. Detects multi-disc folders.
+    /// Returns null if the directory contains neither audio files nor disc subfolders.
+    /// </summary>
+    private BookNode? TryCreateBookNode(DirectoryInfo dir, string authorName, string? seriesName)
+    {
+        if (HasAudioFiles(dir))
+        {
+            // Check for additional disc subfolders (audio in root + disc subfolders)
+            var discCount = CountDiscSubfolders(dir);
+            var bookNode = CreateBookNode(dir, authorName, seriesName);
+            if (discCount > 0)
+            {
+                bookNode.IsMultiDisc = true;
+                bookNode.DiscCount = discCount + 1; // root counts as a disc too? No, just discs
+            }
+            return bookNode;
+        }
+
+        // No audio in root — check for disc subfolders (ABS convention: Disc/CD/Disk + number)
+        var discDirs = dir.EnumerateDirectories()
+            .Where(d => DiscFolderPattern.IsMatch(d.Name))
+            .ToList();
+
+        if (discDirs.Count == 0)
+            return null;
+
+        // Count total audio files across all disc subfolders
+        var totalAudio = discDirs.Sum(d => CountAudioFiles(d));
+        if (totalAudio == 0)
+            return null;
+
+        var bookNode2 = CreateBookNode(dir, authorName, seriesName, totalAudio);
+        bookNode2.IsMultiDisc = true;
+        bookNode2.DiscCount = discDirs.Count;
+        return bookNode2;
+    }
+
+    private static int CountDiscSubfolders(DirectoryInfo dir)
+    {
+        return dir.EnumerateDirectories()
+            .Count(d => DiscFolderPattern.IsMatch(d.Name));
+    }
+
+    private static int CountAudioFiles(DirectoryInfo dir)
+    {
+        return dir.EnumerateFiles("*", SearchOption.AllDirectories)
+            .Count(f => AudioExtensions.Contains(f.Extension.ToLowerInvariant()));
+    }
+
+    private static readonly HashSet<string> AudioExtensions =
+        [".mp3", ".m4b", ".m4a", ".flac", ".aac", ".ogg", ".opus", ".wma"];
+
+    private BookNode CreateBookNode(DirectoryInfo dir, string authorName, string? seriesName, int? audioFileOverride = null)
     {
         var bookinfoPath = System.IO.Path.Combine(dir.FullName, "bookinfo.json");
         MetadataOverride? metadata = null;
@@ -558,7 +663,7 @@ public partial class LibraryViewModel : ObservableObject
             }
         }
 
-        var audioFiles = dir.EnumerateFiles("*.mp3", SearchOption.TopDirectoryOnly).Count();
+        var audioFiles = audioFileOverride ?? dir.EnumerateFiles("*.mp3", SearchOption.TopDirectoryOnly).Count();
 
         return new BookNode
         {
@@ -606,6 +711,8 @@ public partial class LibraryViewModel : ObservableObject
             IsManual = meta.Source.Equals("Manual", StringComparison.OrdinalIgnoreCase),
             HasMp3TagsCache = File.Exists(System.IO.Path.Combine(folder.Path, "mp3tags.json")),
             HasNfo = File.Exists(System.IO.Path.Combine(folder.Path, "metadata.nfo")),
+            IsMultiDisc = folder.IsMultiDisc,
+            DiscCount = folder.DiscSubfolders.Count,
             SourceFolder = folder
         };
     }
@@ -635,9 +742,8 @@ public partial class LibraryViewModel : ObservableObject
 
     private static bool HasAudioFiles(DirectoryInfo dir)
     {
-        return dir.EnumerateFiles("*.mp3", SearchOption.TopDirectoryOnly).Any()
-            || dir.EnumerateFiles("*.m4b", SearchOption.TopDirectoryOnly).Any()
-            || dir.EnumerateFiles("*.m4a", SearchOption.TopDirectoryOnly).Any();
+        return dir.EnumerateFiles("*", SearchOption.TopDirectoryOnly)
+            .Any(f => AudioExtensions.Contains(f.Extension.ToLowerInvariant()));
     }
 }
 
@@ -676,6 +782,9 @@ public partial class BookNode : ObservableObject
     public bool IsManual { get; init; }
     public bool HasMp3TagsCache { get; init; }
     public bool HasNfo { get; init; }
+
+    [ObservableProperty] private bool _isMultiDisc;
+    [ObservableProperty] private int _discCount;
 
     /// <summary>The scanned AudiobookFolder, if loaded via metadata scan.</summary>
     public AudiobookFolder? SourceFolder { get; set; }

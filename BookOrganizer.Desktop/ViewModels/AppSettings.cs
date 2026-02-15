@@ -1,8 +1,6 @@
 using System;
 using System.IO;
 using System.Text.Json;
-using System.Text.Json.Serialization;
-using BookOrganizer.Models;
 
 namespace BookOrganizer.Desktop.ViewModels;
 
@@ -15,8 +13,7 @@ public class AppSettings
     public string? SourcePath { get; set; }
     public string? DestinationPath { get; set; }
 
-    [JsonConverter(typeof(JsonStringEnumConverter))]
-    public FileOperationType LastOperationType { get; set; } = FileOperationType.Copy;
+    public int ReorganizeModeIndex { get; set; } // 0=In-place, 1=Copy, 2=Move
 
     public double WindowWidth { get; set; } = 1200;
     public double WindowHeight { get; set; } = 700;
