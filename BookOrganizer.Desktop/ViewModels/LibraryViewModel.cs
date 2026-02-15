@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
@@ -170,7 +168,8 @@ public partial class LibraryViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Fast load: reads folder structure + bookinfo.json only.
+    /// Load library using full pipeline (folder structure + bookinfo.json + cached MP3 tags).
+    /// Does NOT read actual MP3 files — use Scan Metadata for that.
     /// </summary>
     [RelayCommand]
     private async Task LoadLibraryAsync(CancellationToken ct)
@@ -181,46 +180,31 @@ public partial class LibraryViewModel : ObservableObject
             return;
         }
 
-        IsLoading = true;
-        StatusText = "Loading library...";
-        Authors.Clear();
-        AllBooks.Clear();
-
-        try
-        {
-            await Task.Run(() => ScanLibraryStructure(ct), ct);
-            RebuildFlatBookList();
-            StatusText = $"Loaded {Authors.Count} author(s), {AllBooks.Count} book(s).";
-        }
-        catch (OperationCanceledException)
-        {
-            StatusText = "Loading cancelled.";
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to load library");
-            StatusText = $"Error: {ex.Message}";
-        }
-        finally
-        {
-            IsLoading = false;
-        }
+        await ScanLibraryInternalAsync(cacheOnly: true, ct);
     }
 
     /// <summary>
-    /// Full scan: uses IDirectoryScanner + IMetadataExtractor for consolidated metadata.
+    /// Full scan: reads actual MP3 files and creates/updates mp3tags.json cache.
     /// </summary>
     [RelayCommand]
     private async Task ScanMetadataAsync(CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(LibraryPath) || !Directory.Exists(LibraryPath))
         {
-            StatusText = "Invalid library path.";
+            StatusText = $"Path not found: {LibraryPath}";
             return;
         }
 
+        await ScanLibraryInternalAsync(cacheOnly: false, ct);
+    }
+
+    /// <summary>
+    /// Shared scan logic. cacheOnly=true skips MP3 reading (fast), false reads actual files.
+    /// </summary>
+    private async Task ScanLibraryInternalAsync(bool cacheOnly, CancellationToken ct)
+    {
         IsLoading = true;
-        StatusText = "Scanning folders...";
+        StatusText = cacheOnly ? "Loading library..." : "Scanning folders...";
         Authors.Clear();
         AllBooks.Clear();
 
@@ -246,7 +230,10 @@ public partial class LibraryViewModel : ObservableObject
 
                 try
                 {
-                    var metadata = await _metadataExtractor.ExtractMetadataAsync(folder, LibraryPath, ct);
+                    var metadata = cacheOnly
+                        ? await _metadataExtractor.ExtractMetadataCachedOnlyAsync(folder, LibraryPath, ct)
+                        : await _metadataExtractor.ExtractMetadataAsync(folder, LibraryPath, ct);
+
                     var author = metadata.Author ?? "Unknown";
 
                     if (!booksByAuthor.TryGetValue(author, out var list))
@@ -298,15 +285,16 @@ public partial class LibraryViewModel : ObservableObject
 
             Authors = authorNodes;
             RebuildFlatBookList();
-            StatusText = $"Scanned {AllBooks.Count} book(s) from {Authors.Count} author(s).";
+            var mode = cacheOnly ? "Loaded" : "Scanned";
+            StatusText = $"{mode} {AllBooks.Count} book(s) from {Authors.Count} author(s).";
         }
         catch (OperationCanceledException)
         {
-            StatusText = "Scan cancelled.";
+            StatusText = "Cancelled.";
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to scan metadata");
+            _logger.LogError(ex, "Failed to load library");
             StatusText = $"Error: {ex.Message}";
         }
         finally
@@ -523,170 +511,6 @@ public partial class LibraryViewModel : ObservableObject
         }
     }
 
-    // ABS-compatible disc folder pattern: Disc/CD/Disk followed by number, optional space
-    private static readonly Regex DiscFolderPattern = new(
-        @"^(?:Disc|CD|Disk)\s*\d+$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
-    private void ScanLibraryStructure(CancellationToken ct)
-    {
-        // Library structure: Author/[Series/]Book/
-        // Each folder may have bookinfo.json
-        // Multi-disc: Book/Disc 1/, Book/Disc 2/ → merged into single BookNode
-        var libraryDir = new DirectoryInfo(LibraryPath);
-        var authorNodes = new ObservableCollection<AuthorNode>();
-
-        foreach (var authorDir in libraryDir.EnumerateDirectories()
-            .Where(d => !d.Name.StartsWith('.'))
-            .OrderBy(d => d.Name))
-        {
-            ct.ThrowIfCancellationRequested();
-
-            var authorNode = new AuthorNode { Name = authorDir.Name, Path = authorDir.FullName };
-
-            foreach (var subDir in authorDir.EnumerateDirectories()
-                .Where(d => !d.Name.StartsWith('.'))
-                .OrderBy(d => d.Name))
-            {
-                var bookNode = TryCreateBookNode(subDir, authorDir.Name, null);
-
-                if (bookNode != null)
-                {
-                    authorNode.Children.Add(bookNode);
-                }
-                else
-                {
-                    // No audio + no disc subfolders → could be a series folder
-                    var seriesNode = new SeriesNode { Name = subDir.Name, Path = subDir.FullName };
-
-                    foreach (var bookDir in subDir.EnumerateDirectories()
-                        .Where(d => !d.Name.StartsWith('.'))
-                        .OrderBy(d => d.Name))
-                    {
-                        ct.ThrowIfCancellationRequested();
-
-                        var seriesBookNode = TryCreateBookNode(bookDir, authorDir.Name, subDir.Name);
-                        if (seriesBookNode != null)
-                        {
-                            seriesNode.Books.Add(seriesBookNode);
-                        }
-                    }
-
-                    if (seriesNode.Books.Count > 0)
-                    {
-                        authorNode.Children.Add(seriesNode);
-                    }
-                }
-            }
-
-            if (authorNode.Children.Count > 0)
-            {
-                authorNodes.Add(authorNode);
-            }
-        }
-
-        Authors = authorNodes;
-    }
-
-    /// <summary>
-    /// Tries to create a BookNode from a directory. Detects multi-disc folders.
-    /// Returns null if the directory contains neither audio files nor disc subfolders.
-    /// </summary>
-    private BookNode? TryCreateBookNode(DirectoryInfo dir, string authorName, string? seriesName)
-    {
-        if (HasAudioFiles(dir))
-        {
-            // Check for additional disc subfolders (audio in root + disc subfolders)
-            var discCount = CountDiscSubfolders(dir);
-            var bookNode = CreateBookNode(dir, authorName, seriesName);
-            if (discCount > 0)
-            {
-                bookNode.IsMultiDisc = true;
-                bookNode.DiscCount = discCount + 1; // root counts as a disc too? No, just discs
-            }
-            return bookNode;
-        }
-
-        // No audio in root — check for disc subfolders (ABS convention: Disc/CD/Disk + number)
-        var discDirs = dir.EnumerateDirectories()
-            .Where(d => DiscFolderPattern.IsMatch(d.Name))
-            .ToList();
-
-        if (discDirs.Count == 0)
-            return null;
-
-        // Count total audio files across all disc subfolders
-        var totalAudio = discDirs.Sum(d => CountAudioFiles(d));
-        if (totalAudio == 0)
-            return null;
-
-        var bookNode2 = CreateBookNode(dir, authorName, seriesName, totalAudio);
-        bookNode2.IsMultiDisc = true;
-        bookNode2.DiscCount = discDirs.Count;
-        return bookNode2;
-    }
-
-    private static int CountDiscSubfolders(DirectoryInfo dir)
-    {
-        return dir.EnumerateDirectories()
-            .Count(d => DiscFolderPattern.IsMatch(d.Name));
-    }
-
-    private static int CountAudioFiles(DirectoryInfo dir)
-    {
-        return dir.EnumerateFiles("*", SearchOption.AllDirectories)
-            .Count(f => AudioExtensions.Contains(f.Extension.ToLowerInvariant()));
-    }
-
-    private static readonly HashSet<string> AudioExtensions =
-        [".mp3", ".m4b", ".m4a", ".flac", ".aac", ".ogg", ".opus", ".wma"];
-
-    private BookNode CreateBookNode(DirectoryInfo dir, string authorName, string? seriesName, int? audioFileOverride = null)
-    {
-        var bookinfoPath = System.IO.Path.Combine(dir.FullName, "bookinfo.json");
-        MetadataOverride? metadata = null;
-
-        if (File.Exists(bookinfoPath))
-        {
-            try
-            {
-                var json = File.ReadAllText(bookinfoPath);
-                metadata = JsonSerializer.Deserialize<MetadataOverride>(json, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true,
-                    AllowTrailingCommas = true,
-                    ReadCommentHandling = JsonCommentHandling.Skip
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to load bookinfo.json from {Path}", dir.FullName);
-            }
-        }
-
-        var audioFiles = audioFileOverride ?? dir.EnumerateFiles("*.mp3", SearchOption.TopDirectoryOnly).Count();
-
-        return new BookNode
-        {
-            FolderName = dir.Name,
-            Path = dir.FullName,
-            Author = metadata?.Author ?? authorName,
-            Title = metadata?.Title ?? dir.Name,
-            Series = metadata?.Series ?? seriesName,
-            SeriesNumber = metadata?.SeriesNumber,
-            Narrator = metadata?.Narrator,
-            Year = metadata?.Year,
-            Genre = metadata?.Genre,
-            Publisher = metadata?.Publisher,
-            Description = metadata?.Description,
-            Language = metadata?.Language,
-            AudioFileCount = audioFiles,
-            HasBookinfo = File.Exists(bookinfoPath),
-            IsManual = metadata?.Source?.Equals(MetadataOverride.ManualSource, StringComparison.OrdinalIgnoreCase) == true,
-            HasMp3TagsCache = File.Exists(System.IO.Path.Combine(dir.FullName, "mp3tags.json")),
-            HasNfo = File.Exists(System.IO.Path.Combine(dir.FullName, "metadata.nfo"))
-        };
-    }
-
     private BookNode CreateBookNodeFromMetadata(BookMetadata meta, AudiobookFolder folder)
     {
         var bookinfoPath = System.IO.Path.Combine(folder.Path, "bookinfo.json");
@@ -740,11 +564,6 @@ public partial class LibraryViewModel : ObservableObject
         AllBooks = books;
     }
 
-    private static bool HasAudioFiles(DirectoryInfo dir)
-    {
-        return dir.EnumerateFiles("*", SearchOption.TopDirectoryOnly)
-            .Any(f => AudioExtensions.Contains(f.Extension.ToLowerInvariant()));
-    }
 }
 
 public class AuthorNode

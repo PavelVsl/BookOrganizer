@@ -24,6 +24,8 @@
                                 IsReadOnly="True" Width="80" />
             <DataGridTextColumn Header="Files" Binding="{Binding AudioFileCount}"
                                 IsReadOnly="True" Width="60" />
+            <DataGridTextColumn Header="Path" Binding="{Binding Path}"
+                                IsReadOnly="True" Width="300" />
         </DataGrid.Columns>
     </DataGrid>
 

@@ -19,4 +19,13 @@ public interface IMetadataExtractor
         AudiobookFolder audiobookFolder,
         string? sourceRootPath = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Extracts metadata using only cached MP3 tags (mp3tags.json), folder structure and bookinfo.json.
+    /// Does NOT read actual MP3 files — fast but less complete if no cache exists.
+    /// </summary>
+    Task<BookMetadata> ExtractMetadataCachedOnlyAsync(
+        AudiobookFolder audiobookFolder,
+        string? sourceRootPath = null,
+        CancellationToken cancellationToken = default);
 }
