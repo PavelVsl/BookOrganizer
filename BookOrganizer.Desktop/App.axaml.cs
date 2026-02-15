@@ -38,6 +38,7 @@ public partial class App : Application
         services.AddTransient<ScanViewModel>();
         services.AddTransient<PreviewViewModel>();
         services.AddTransient<OrganizeViewModel>();
+        services.AddTransient<ToolsViewModel>();
         services.AddTransient<MainWindowViewModel>();
 
         Services = services.BuildServiceProvider();

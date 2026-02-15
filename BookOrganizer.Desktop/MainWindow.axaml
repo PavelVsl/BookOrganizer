@@ -22,7 +22,7 @@
                     <ListBoxItem>Scan</ListBoxItem>
                     <ListBoxItem>Preview</ListBoxItem>
                     <ListBoxItem>Organize</ListBoxItem>
-                    <ListBoxItem IsEnabled="False">Tools</ListBoxItem>
+                    <ListBoxItem>Tools</ListBoxItem>
                 </ListBox>
             </StackPanel>
         </Border>
