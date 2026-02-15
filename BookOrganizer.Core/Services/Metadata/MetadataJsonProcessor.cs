@@ -296,6 +296,7 @@ public class MetadataJsonProcessor : IMetadataJsonProcessor
             Series = metadata.Series ?? existing?.Series,
             SeriesNumber = metadata.SeriesNumber ?? existing?.SeriesNumber,
             Year = metadata.Year ?? existing?.Year,
+            DiscNumber = metadata.DiscNumber ?? existing?.DiscNumber,
             Genre = metadata.Genre ?? existing?.Genre,
             Publisher = metadata.Publisher ?? existing?.Publisher,
             Description = metadata.Description ?? existing?.Description,

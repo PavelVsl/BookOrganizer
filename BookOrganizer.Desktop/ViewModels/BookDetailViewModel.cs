@@ -347,6 +347,29 @@ public partial class BookDetailViewModel : ObservableObject
             _bookNode.Description = Description;
             _bookNode.Language = Language;
 
+            // Recalculate expected path and reorganize status
+            var bookMeta = new BookMetadata
+            {
+                Title = Title,
+                Author = Author,
+                Series = NullIfEmpty(Series),
+                SeriesNumber = NullIfEmpty(SeriesNumber),
+                Year = yearInt,
+                DiscNumber = discNumberInt,
+                Confidence = _bookNode.Confidence,
+                Source = "GUI"
+            };
+            var newExpectedPath = _pathGenerator.GenerateTargetPath(bookMeta, _libraryPath);
+            ExpectedPath = newExpectedPath;
+            _bookNode.ExpectedPath = newExpectedPath;
+
+            var needsMove = !string.Equals(
+                _bookNode.Path.TrimEnd(Path.DirectorySeparatorChar),
+                newExpectedPath.TrimEnd(Path.DirectorySeparatorChar),
+                StringComparison.OrdinalIgnoreCase);
+            NeedsReorganize = needsMove;
+            _bookNode.NeedsReorganize = needsMove;
+
             IsDirty = false;
             SaveStatus = "Saved (source: manual)";
         }
