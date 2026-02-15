@@ -29,7 +29,7 @@ public partial class LibraryViewModel : ObservableObject
     private object? _selectedItem;
 
     [ObservableProperty]
-    private BookDetailViewModel? _selectedBookDetail;
+    private object? _selectedDetail;
 
     [ObservableProperty]
     private bool _isLoading;
@@ -62,14 +62,13 @@ public partial class LibraryViewModel : ObservableObject
 
     partial void OnSelectedItemChanged(object? value)
     {
-        if (value is BookNode book)
+        SelectedDetail = value switch
         {
-            SelectedBookDetail = new BookDetailViewModel(book, _metadataProcessor, _logger);
-        }
-        else
-        {
-            SelectedBookDetail = null;
-        }
+            BookNode book => new BookDetailViewModel(book, _metadataProcessor, _logger),
+            AuthorNode author => new AuthorDetailViewModel(author, LibraryPath, _metadataProcessor, _logger),
+            SeriesNode series => new SeriesDetailViewModel(series, LibraryPath, _metadataProcessor, _logger),
+            _ => null
+        };
     }
 
     [RelayCommand]
