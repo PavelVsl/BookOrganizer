@@ -298,6 +298,107 @@ public class FileOrganizer : IFileOrganizer
         IProgress<FileOperationProgress>? progress,
         CancellationToken cancellationToken)
     {
+        // For Move operations, move the entire folder to preserve ALL files
+        // (including bookinfo.json and other files created after scanning)
+        if (plan.OperationType == FileOperationType.Move)
+        {
+            return await MoveFolderAsync(plan, cancellationToken);
+        }
+
+        // For Copy operations, enumerate files at execution time (not from scan-time list)
+        return await CopyFolderFilesAsync(plan, validateIntegrity, progress, cancellationToken);
+    }
+
+    /// <summary>
+    /// Moves an entire audiobook folder to the target path.
+    /// Uses Directory.Move when on the same volume, otherwise falls back to copy+delete.
+    /// </summary>
+    private async Task<AudiobookOperationResult> MoveFolderAsync(
+        OrganizationPlan plan,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var sourcePath = plan.SourceFolder.Path;
+            var targetPath = plan.TargetPath;
+
+            // Ensure parent directory exists
+            var parentDir = Path.GetDirectoryName(targetPath);
+            if (parentDir != null)
+                Directory.CreateDirectory(parentDir);
+
+            // If target already exists (e.g., merging discs), move files individually
+            if (Directory.Exists(targetPath))
+            {
+                _logger.LogInformation("Target exists, merging files: {Source} -> {Target}", sourcePath, targetPath);
+                var fileCount = 0;
+                foreach (var file in Directory.EnumerateFiles(sourcePath, "*", SearchOption.AllDirectories))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var relativePath = Path.GetRelativePath(sourcePath, file);
+                    var destFile = Path.Combine(targetPath, relativePath);
+                    var destDir = Path.GetDirectoryName(destFile);
+                    if (destDir != null)
+                        Directory.CreateDirectory(destDir);
+                    File.Move(file, destFile, overwrite: true);
+                    fileCount++;
+                }
+
+                // Clean up source (now empty)
+                try { Directory.Delete(sourcePath, recursive: true); }
+                catch (Exception ex) { _logger.LogWarning(ex, "Failed to delete source after merge: {Path}", sourcePath); }
+
+                return new AudiobookOperationResult
+                {
+                    SourceFolder = plan.SourceFolder,
+                    Metadata = plan.Metadata,
+                    TargetPath = targetPath,
+                    Success = true,
+                    FilesProcessed = fileCount
+                };
+            }
+
+            // Simple atomic directory move
+            Directory.Move(sourcePath, targetPath);
+
+            var filesProcessed = Directory.EnumerateFiles(targetPath, "*", SearchOption.AllDirectories).Count();
+
+            _logger.LogInformation("Moved folder: {Source} -> {Target} ({Count} files)", sourcePath, targetPath, filesProcessed);
+
+            return new AudiobookOperationResult
+            {
+                SourceFolder = plan.SourceFolder,
+                Metadata = plan.Metadata,
+                TargetPath = targetPath,
+                Success = true,
+                FilesProcessed = filesProcessed
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to move folder: {Source} -> {Target}", plan.SourceFolder.Path, plan.TargetPath);
+
+            return new AudiobookOperationResult
+            {
+                SourceFolder = plan.SourceFolder,
+                Metadata = plan.Metadata,
+                TargetPath = plan.TargetPath,
+                Success = false,
+                ErrorMessage = ex.Message
+            };
+        }
+    }
+
+    /// <summary>
+    /// Copies all files from the source folder to the target path.
+    /// Enumerates files at execution time to capture any changes since scanning.
+    /// </summary>
+    private async Task<AudiobookOperationResult> CopyFolderFilesAsync(
+        OrganizationPlan plan,
+        bool validateIntegrity,
+        IProgress<FileOperationProgress>? progress,
+        CancellationToken cancellationToken)
+    {
         // Create destination directory
         Directory.CreateDirectory(plan.TargetPath);
 
@@ -305,8 +406,11 @@ public class FileOrganizer : IFileOrganizer
         var filesFailed = 0;
         var isMultiDisc = plan.SourceFolder.IsMultiDisc;
 
-        // Process all files (audio + cover images/metadata)
-        foreach (var sourceFile in plan.SourceFolder.AllFiles)
+        // Enumerate files at execution time (not from scan-time AllFiles list)
+        var sourceFiles = Directory.EnumerateFiles(plan.SourceFolder.Path, "*",
+            isMultiDisc ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
+
+        foreach (var sourceFile in sourceFiles)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
