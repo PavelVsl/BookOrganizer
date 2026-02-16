@@ -108,7 +108,12 @@ public class MetadataExtractor : IMetadataExtractor
         }
 
         // Get metadata from filename/folder structure
-        var filenameMetadata = _filenameParser.ParseFolderPath(audiobookFolder.Path);
+        // When sourceRootPath is provided, use relative path to avoid parent folders
+        // outside the library root polluting the filename parser
+        var pathForParsing = !string.IsNullOrWhiteSpace(sourceRootPath)
+            ? Path.GetRelativePath(sourceRootPath, audiobookFolder.Path)
+            : audiobookFolder.Path;
+        var filenameMetadata = _filenameParser.ParseFolderPath(pathForParsing);
 
         // Get metadata from folder hierarchy (if sourceRoot provided)
         BookMetadata? folderHierarchyMetadata = null;
