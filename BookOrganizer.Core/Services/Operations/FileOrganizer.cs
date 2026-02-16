@@ -348,12 +348,6 @@ public class FileOrganizer : IFileOrganizer
                 try { Directory.Delete(sourcePath, recursive: true); }
                 catch (Exception ex) { _logger.LogWarning(ex, "Failed to delete source after merge: {Path}", sourcePath); }
 
-                // If this is a disc volume, lift metadata files to the book root (parent of Disk N)
-                if (plan.Metadata.DiscNumber.HasValue)
-                {
-                    LiftMetadataToBookRoot(targetPath);
-                }
-
                 return new AudiobookOperationResult
                 {
                     SourceFolder = plan.SourceFolder,
@@ -366,12 +360,6 @@ public class FileOrganizer : IFileOrganizer
 
             // Simple atomic directory move
             Directory.Move(sourcePath, targetPath);
-
-            // If this is a disc volume, lift metadata files to the book root (parent of Disk N)
-            if (plan.Metadata.DiscNumber.HasValue)
-            {
-                LiftMetadataToBookRoot(targetPath);
-            }
 
             var filesProcessed = Directory.EnumerateFiles(targetPath, "*", SearchOption.AllDirectories).Count();
 
@@ -398,39 +386,6 @@ public class FileOrganizer : IFileOrganizer
                 Success = false,
                 ErrorMessage = ex.Message
             };
-        }
-    }
-
-    /// <summary>
-    /// Moves metadata files (bookinfo.json, metadata.nfo, mp3tags.json) from a disc subfolder
-    /// to the book root (parent directory). This ensures metadata lives at the book level,
-    /// not inside individual disc folders.
-    /// </summary>
-    private void LiftMetadataToBookRoot(string discFolderPath)
-    {
-        var bookRoot = Path.GetDirectoryName(discFolderPath);
-        if (bookRoot == null) return;
-
-        string[] metadataFiles = ["bookinfo.json", "metadata.nfo", "mp3tags.json"];
-
-        foreach (var fileName in metadataFiles)
-        {
-            var sourcePath = Path.Combine(discFolderPath, fileName);
-            if (!File.Exists(sourcePath)) continue;
-
-            var destPath = Path.Combine(bookRoot, fileName);
-            // Only move if not already present at book root (first disc wins)
-            if (!File.Exists(destPath))
-            {
-                File.Move(sourcePath, destPath);
-                _logger.LogInformation("Lifted {File} to book root: {Path}", fileName, bookRoot);
-            }
-            else
-            {
-                // Delete duplicate from disc subfolder
-                File.Delete(sourcePath);
-                _logger.LogDebug("Removed duplicate {File} from disc folder: {Path}", fileName, discFolderPath);
-            }
         }
     }
 

@@ -170,7 +170,7 @@ public partial class LibraryViewModel : ObservableObject
             BookNode book => new BookDetailViewModel(book, _metadataProcessor, _fileOrganizer, _pathGenerator, LibraryPath, ReloadAndReselectAsync, _logger),
             AuthorNode author => new AuthorDetailViewModel(author, LibraryPath, _metadataProcessor, _fileOrganizer, _pathGenerator, ReloadAndReselectAsync, _logger),
             SeriesNode series => new SeriesDetailViewModel(series, LibraryPath, _metadataProcessor, _logger),
-            VolumeNode volume => new VolumeDetailViewModel(volume, _logger),
+            VolumeNode volume => new VolumeDetailViewModel(volume, _metadataProcessor, _logger),
             _ => null
         };
     }
