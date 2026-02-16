@@ -27,6 +27,9 @@
             <StackPanel Orientation="Horizontal" Spacing="8">
                 <Button Content="Scan Metadata" Command="{Binding ScanMetadataCommand}"
                         IsEnabled="{Binding !IsLoading}" ToolTip.Tip="Run full metadata extraction (MP3 tags + bookinfo.json + folder structure)" />
+                <Button Content="Export NFO" Command="{Binding ExportNfoCommand}"
+                        IsEnabled="{Binding !IsLoading}"
+                        ToolTip.Tip="Regenerate metadata.nfo for all books" />
                 <Button Content="Synonyms" Command="{Binding DetectSynonymsCommand}"
                         ToolTip.Tip="Detect similar author/narrator names" />
                 <Separator Width="1" Margin="4,2" />

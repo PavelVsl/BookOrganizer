@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BookOrganizer.Models;
 using BookOrganizer.Services.Metadata;
+using BookOrganizer.Services.Operations;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -130,6 +131,23 @@ public partial class VolumeDetailViewModel : ObservableObject
             };
 
             await _metadataProcessor.SaveMetadataAsync(_volume.Path, metadata, ct);
+
+            // Regenerate metadata.nfo to stay in sync
+            var nfoFormatter = new NfoFormatter();
+            var nfoMeta = new BookMetadata
+            {
+                Title = NullIfEmpty(Title) ?? "",
+                Author = NullIfEmpty(Author),
+                Series = NullIfEmpty(Series),
+                SeriesNumber = NullIfEmpty(SeriesNumber),
+                Narrator = NullIfEmpty(Narrator),
+                Year = yearInt,
+                DiscNumber = discNumberInt,
+                Confidence = 1.0,
+                Source = "manual"
+            };
+            var nfoContent = await nfoFormatter.FormatAsync(nfoMeta, ct);
+            await File.WriteAllTextAsync(Path.Combine(_volume.Path, "metadata.nfo"), nfoContent, ct);
 
             IsDirty = false;
             SaveStatus = "Saved (source: manual)";

@@ -599,6 +599,56 @@ public partial class LibraryViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    private async Task ExportNfoAsync(CancellationToken ct)
+    {
+        if (AllBooks.Count == 0)
+        {
+            StatusText = "No books loaded. Load a library first.";
+            return;
+        }
+
+        var nfoFormatter = new NfoFormatter();
+        var exported = 0;
+
+        StatusText = $"Exporting NFO for {AllBooks.Count} book(s)...";
+
+        foreach (var book in AllBooks)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            var metadata = new BookMetadata
+            {
+                Title = book.Title,
+                Author = book.Author,
+                Series = book.Series,
+                SeriesNumber = book.SeriesNumber,
+                Narrator = book.Narrator,
+                Year = book.Year,
+                DiscNumber = book.DiscNumber,
+                Genre = book.Genre,
+                Description = book.Description,
+                Language = book.Language,
+                Confidence = book.Confidence,
+                Source = "GUI"
+            };
+
+            try
+            {
+                var nfoContent = await nfoFormatter.FormatAsync(metadata, ct);
+                var nfoPath = System.IO.Path.Combine(book.Path, "metadata.nfo");
+                await File.WriteAllTextAsync(nfoPath, nfoContent, ct);
+                exported++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to write NFO for {Path}", book.Path);
+            }
+        }
+
+        StatusText = $"Exported {exported} metadata.nfo file(s).";
+    }
+
     private BookNode CreateBookNodeFromMetadata(BookMetadata meta, AudiobookFolder folder)
     {
         var bookinfoPath = System.IO.Path.Combine(folder.Path, "bookinfo.json");
