@@ -448,6 +448,40 @@ public partial class BookDetailViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task DeleteBookAsync(CancellationToken ct)
+    {
+        try
+        {
+            var trashDir = Path.Combine(_libraryPath, ".trash");
+            Directory.CreateDirectory(trashDir);
+
+            var folderName = new DirectoryInfo(_bookNode.Path).Name;
+            var trashTarget = Path.Combine(trashDir, folderName);
+
+            // Ensure unique target path
+            if (Directory.Exists(trashTarget))
+            {
+                var suffix = DateTime.Now.ToString("yyyyMMddHHmmss");
+                trashTarget = Path.Combine(trashDir, $"{folderName}_{suffix}");
+            }
+
+            SaveStatus = "Moving to trash...";
+            Directory.Move(_bookNode.Path, trashTarget);
+
+            // Cleanup empty parent directories
+            await _fileOrganizer.CleanupEmptyDirectoriesAsync(_libraryPath);
+
+            SaveStatus = "Deleted. Reloading...";
+            await _reloadCallback(null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete book {Path}", _bookNode.Path);
+            SaveStatus = $"Error: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
     private void OpenInFinder()
     {
         try

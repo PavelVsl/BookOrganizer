@@ -229,8 +229,8 @@ public class DirectoryScanner : IDirectoryScanner
                     totalSize / 1024.0 / 1024.0);
             }
 
-            // Recursively scan non-disc subdirectories
-            foreach (var subdirectory in nonDiscSubdirs)
+            // Recursively scan non-disc subdirectories (skip hidden/dot-directories like .trash)
+            foreach (var subdirectory in nonDiscSubdirs.Where(d => !Path.GetFileName(d).StartsWith('.')))
             {
                 directoriesScanned = await ScanDirectoryRecursiveAsync(
                     subdirectory,

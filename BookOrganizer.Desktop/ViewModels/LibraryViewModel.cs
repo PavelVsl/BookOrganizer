@@ -165,6 +165,23 @@ public partial class LibraryViewModel : ObservableObject
 
     partial void OnSelectedItemChanged(object? value)
     {
+        // Auto-save previous detail if dirty
+        switch (SelectedDetail)
+        {
+            case BookDetailViewModel { IsDirty: true } vm:
+                vm.SaveCommand.Execute(null);
+                break;
+            case AuthorDetailViewModel { IsDirty: true } vm:
+                vm.SaveCommand.Execute(null);
+                break;
+            case SeriesDetailViewModel { IsDirty: true } vm:
+                vm.SaveCommand.Execute(null);
+                break;
+            case VolumeDetailViewModel { IsDirty: true } vm:
+                vm.SaveCommand.Execute(null);
+                break;
+        }
+
         SelectedDetail = value switch
         {
             BookNode book => new BookDetailViewModel(book, _metadataProcessor, _fileOrganizer, _pathGenerator, LibraryPath, ReloadAndReselectAsync, _logger),
@@ -176,10 +193,32 @@ public partial class LibraryViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Reloads the library and re-selects the book at the given path (its new location after move).
+    /// Reloads the library and re-selects the node.
+    /// If <paramref name="reselectPath"/> is provided, selects the book at that path.
+    /// Otherwise, remembers the current selection and restores it after reload.
     /// </summary>
     private async Task ReloadAndReselectAsync(string? reselectPath)
     {
+        // Remember current selection identity before reload clears the tree
+        string? reselectAuthor = null;
+        string? reselectSeries = null;
+
+        if (reselectPath == null)
+        {
+            switch (SelectedItem)
+            {
+                case BookNode book:
+                    reselectPath = book.ExpectedPath ?? book.Path;
+                    break;
+                case AuthorNode author:
+                    reselectAuthor = author.Name;
+                    break;
+                case SeriesNode series:
+                    reselectSeries = series.Name;
+                    break;
+            }
+        }
+
         await ScanLibraryInternalAsync(cacheOnly: true, CancellationToken.None);
 
         if (reselectPath != null)
@@ -188,6 +227,20 @@ public partial class LibraryViewModel : ObservableObject
                 string.Equals(b.Path, reselectPath, StringComparison.OrdinalIgnoreCase));
             if (book != null)
                 SelectedItem = book;
+        }
+        else if (reselectAuthor != null)
+        {
+            var author = Authors.FirstOrDefault(a =>
+                string.Equals(a.Name, reselectAuthor, StringComparison.OrdinalIgnoreCase));
+            if (author != null)
+                SelectedItem = author;
+        }
+        else if (reselectSeries != null)
+        {
+            var series = Authors.SelectMany(a => a.Children.OfType<SeriesNode>())
+                .FirstOrDefault(s => string.Equals(s.Name, reselectSeries, StringComparison.OrdinalIgnoreCase));
+            if (series != null)
+                SelectedItem = series;
         }
     }
 
@@ -518,9 +571,18 @@ public partial class LibraryViewModel : ObservableObject
 
             var result = await _fileOrganizer.OrganizeFromPlansAsync(plans, true, progress, ct);
 
-            StatusText = result.Success
-                ? $"Organized {result.SuccessfulAudiobooks}/{result.TotalAudiobooks} book(s) {modeLabel}"
-                : $"Completed with errors: {result.SuccessfulAudiobooks}/{result.TotalAudiobooks} succeeded. {result.ErrorMessage}";
+            if (result.Success)
+            {
+                StatusText = $"Organized {result.SuccessfulAudiobooks}/{result.TotalAudiobooks} book(s) {modeLabel}. Reloading...";
+                if (isInPlace)
+                    await _fileOrganizer.CleanupEmptyDirectoriesAsync(LibraryPath);
+                await ReloadAndReselectAsync(null);
+                StatusText = $"Organized {result.SuccessfulAudiobooks}/{result.TotalAudiobooks} book(s) {modeLabel}";
+            }
+            else
+            {
+                StatusText = $"Completed with errors: {result.SuccessfulAudiobooks}/{result.TotalAudiobooks} succeeded. {result.ErrorMessage}";
+            }
         }
         catch (OperationCanceledException)
         {

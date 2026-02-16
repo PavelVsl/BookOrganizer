@@ -294,6 +294,9 @@
                                                                         IsEnabled="{Binding IsDirty}" Classes="accent" />
                                                                 <Button Content="Revert" Command="{Binding RevertCommand}"
                                                                         IsEnabled="{Binding IsDirty}" />
+                                                                <Button Content="Delete" Command="{Binding DeleteBookCommand}"
+                                                                        Foreground="Red"
+                                                                        ToolTip.Tip="Move book folder to .trash" />
                                                             </StackPanel>
                                                             <TextBlock Text="{Binding SaveStatus}" FontSize="11"
                                                                        Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
