@@ -17,7 +17,7 @@ public class DirectoryScanner : IDirectoryScanner
     };
 
     private static readonly Regex DiscFolderPattern = new(
-        @"^(?:Disc|CD|Disk)\s*\d+$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        @"^(?:Disc|CD|Disk|Díl|Cast|Část|Part|Volume|Vol)\.?\s*\d+$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     public DirectoryScanner(ILogger<DirectoryScanner> logger)
     {

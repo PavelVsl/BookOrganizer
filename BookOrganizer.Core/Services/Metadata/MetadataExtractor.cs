@@ -179,13 +179,13 @@ public class MetadataExtractor : IMetadataExtractor
             consolidated = consolidated with { Comment = id3Metadata.Comment };
         }
 
-        // Apply metadata overrides only from manually-edited files (source=manual)
-        // Auto-generated files should not override fresh extraction (circular dependency)
-        if (overrideMetadata != null && hierarchicalMetadata == null &&
+        // Apply metadata overrides from manually-edited bookinfo.json (source=manual).
+        // Manual overrides are the user's explicit intent and always take priority.
+        if (overrideMetadata != null &&
             string.Equals(overrideMetadata.Source, MetadataOverride.ManualSource, StringComparison.OrdinalIgnoreCase))
         {
             _logger.LogInformation("Applying manual metadata overrides from {Path}", audiobookFolder.Path);
-            consolidated = ApplyOverrides(consolidated, overrideMetadata);
+            consolidated = ApplyManualOverrides(consolidated, overrideMetadata);
         }
 
         // Final fallback: if title is generic/placeholder, use folder name
@@ -662,26 +662,26 @@ public class MetadataExtractor : IMetadataExtractor
     }
 
     /// <summary>
-    /// Applies metadata overrides to consolidated metadata.
-    /// Only non-null fields in the override will replace existing values.
+    /// Applies manual metadata overrides (source=manual) to consolidated metadata.
+    /// All fields from the override are authoritative — null means the user intentionally
+    /// cleared the field. Title and Author fall back to existing values since they can't be empty.
     /// </summary>
-    private static BookMetadata ApplyOverrides(BookMetadata metadata, MetadataOverride overrides)
+    private static BookMetadata ApplyManualOverrides(BookMetadata metadata, MetadataOverride overrides)
     {
         return metadata with
         {
-            Title = overrides.Title ?? metadata.Title,
-            Author = overrides.Author ?? metadata.Author,
-            Narrator = overrides.Narrator ?? metadata.Narrator,
-            Series = overrides.Series ?? metadata.Series,
-            SeriesNumber = overrides.SeriesNumber ?? metadata.SeriesNumber,
-            Year = overrides.Year ?? metadata.Year,
+            Title = !string.IsNullOrWhiteSpace(overrides.Title) ? overrides.Title : metadata.Title,
+            Author = !string.IsNullOrWhiteSpace(overrides.Author) ? overrides.Author : metadata.Author,
+            Narrator = overrides.Narrator,     // null = intentionally cleared
+            Series = overrides.Series,          // null = intentionally cleared
+            SeriesNumber = overrides.SeriesNumber,
+            Year = overrides.Year,
             DiscNumber = overrides.DiscNumber ?? metadata.DiscNumber,
-            Genre = overrides.Genre ?? metadata.Genre,
-            Description = overrides.Description ?? metadata.Description,
-            Language = overrides.Language ?? metadata.Language,
-            // Set confidence to 1.0 for manual overrides
+            Genre = overrides.Genre,
+            Description = overrides.Description,
+            Language = overrides.Language,
             Confidence = 1.0,
-            Source = "metadata.json"
+            Source = "manual"
         };
     }
 
@@ -787,6 +787,14 @@ public class MetadataExtractor : IMetadataExtractor
     /// or "Legie - Operace Petragun". Returns (series, seriesNumber, cleanTitle).
     /// Series number can be arabic (5) or roman (VII).
     /// </summary>
+    /// <summary>
+    /// Disc/volume indicator pattern — titles matching this are NOT series parts.
+    /// Matches: "Disc 1", "CD 2", "Disk 3", "Díl 1", "Část 2", "Part 1", "Volume 1", "Vol 1"
+    /// </summary>
+    private static readonly Regex DiscIndicatorPattern = new(
+        @"^(?:Disc|CD|Disk|Díl|Cast|Část|Part|Volume|Vol)\.?\s*\d+$",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
     private static (string? series, string? seriesNumber, string? cleanTitle) ExtractSeriesInfo(string? title)
     {
         if (string.IsNullOrWhiteSpace(title))
@@ -808,6 +816,10 @@ public class MetadataExtractor : IMetadataExtractor
                 var seriesPart = matchWithNumber.Groups[1].Value.Trim();
                 var titlePart = matchWithNumber.Groups[3].Value.Trim();
 
+                // Reject if title part is a disc/volume indicator (e.g., "Terror 1 - CD1")
+                if (DiscIndicatorPattern.IsMatch(titlePart))
+                    return (null, null, null);
+
                 var seriesNumber = TryParseRomanNumeral(numberStr, out var arabic)
                     ? arabic.ToString()
                     : numberStr;
@@ -824,6 +836,10 @@ public class MetadataExtractor : IMetadataExtractor
         {
             var seriesPart = matchNoNumber.Groups[1].Value.Trim();
             var titlePart = matchNoNumber.Groups[2].Value.Trim();
+
+            // Reject if title part is a disc/volume indicator (e.g., "Terror - Disc 1")
+            if (DiscIndicatorPattern.IsMatch(titlePart))
+                return (null, null, null);
 
             if (!string.IsNullOrWhiteSpace(seriesPart) && !string.IsNullOrWhiteSpace(titlePart))
             {
