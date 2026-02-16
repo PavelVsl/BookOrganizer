@@ -707,9 +707,10 @@ public class MetadataExtractor : IMetadataExtractor
 
         if (!string.IsNullOrWhiteSpace(composer))
         {
-            // Composer = author, Artist = narrator
+            // Composer = author, Artist may still contain Czech narrator pattern
             author = composer;
-            narrator = rawArtist;
+            var (_, parsedNarrator) = ParseCzechAuthorNarrator(rawArtist);
+            narrator = parsedNarrator ?? rawArtist;
         }
         else
         {
@@ -725,6 +726,9 @@ public class MetadataExtractor : IMetadataExtractor
         {
             narrator = ParseNarratorFromComment(comment);
         }
+
+        // Normalize Czech "a" (and) separator between multiple narrators
+        narrator = NormalizeCzechNarratorList(narrator);
 
         // Year: use the most common non-zero year
         var years = fileMetadataList.Select(m => m.Year).Where(y => y > 0).ToList();
@@ -882,8 +886,9 @@ public class MetadataExtractor : IMetadataExtractor
         if (string.IsNullOrWhiteSpace(artistField))
             return (null, null);
 
-        // Narrator keywords (Czech for "reads", "read by", "perform")
-        string[] narratorKeywords = ["cte", "čte", "ctou", "čtou", "ucinkuji", "účinkují", "účinkuje"];
+        // Narrator keywords (Czech for "reads", "read by", "perform", "play")
+        string[] narratorKeywords = ["cte", "čte", "ctou", "čtou", "ucinkuji", "účinkují", "účinkuje",
+            "hrají", "hraje", "hraji"];
 
         // Look for separator (/ or ;) followed by narrator keyword
         foreach (var keyword in narratorKeywords)
@@ -894,9 +899,9 @@ public class MetadataExtractor : IMetadataExtractor
 
             if (keywordIndex > 0)
             {
-                // Look backwards for separator (/ or ;)
+                // Look backwards for separator (/ or ; or ,)
                 var beforeKeyword = artistField[..keywordIndex].TrimEnd();
-                if (beforeKeyword.EndsWith('/') || beforeKeyword.EndsWith(';'))
+                if (beforeKeyword.EndsWith('/') || beforeKeyword.EndsWith(';') || beforeKeyword.EndsWith(','))
                 {
                     separatorIndex = beforeKeyword.Length - 1;
 
@@ -932,7 +937,8 @@ public class MetadataExtractor : IMetadataExtractor
             return null;
 
         string[] narratorKeywords = ["čte:", "cte:", "čte", "cte", "čtou:", "ctou:", "čtou", "ctou",
-            "účinkují:", "ucinkuji:", "účinkuje:", "ucinkuje:", "účinkují", "ucinkuji", "účinkuje", "ucinkuje"];
+            "účinkují:", "ucinkuji:", "účinkuje:", "ucinkuje:", "účinkují", "ucinkuji", "účinkuje", "ucinkuje",
+            "hrají:", "hraje:", "hraji:", "hrají", "hraje", "hraji"];
 
         foreach (var keyword in narratorKeywords)
         {
@@ -948,6 +954,20 @@ public class MetadataExtractor : IMetadataExtractor
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Normalizes Czech "a" (meaning "and") between narrator names to comma separator.
+    /// E.g., "Jana Pidrmanova a Filip Svarc" → "Jana Pidrmanova, Filip Svarc"
+    /// </summary>
+    private static string? NormalizeCzechNarratorList(string? narrator)
+    {
+        if (string.IsNullOrWhiteSpace(narrator))
+            return narrator;
+
+        // Replace standalone " a " (Czech "and") with ", "
+        // Use word boundary check: must have non-letter chars (or start/end) around "a"
+        return Regex.Replace(narrator, @"\s+a\s+", ", ");
     }
 
     private static double CalculateConfidence(
