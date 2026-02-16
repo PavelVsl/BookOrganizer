@@ -378,6 +378,28 @@ public partial class BookDetailViewModel : ObservableObject
             NeedsReorganize = needsMove;
             _bookNode.NeedsReorganize = needsMove;
 
+            // Regenerate metadata.nfo to stay in sync
+            var nfoFormatter = new NfoFormatter();
+            var nfoMeta = new BookMetadata
+            {
+                Title = Title,
+                Author = Author,
+                Series = NullIfEmpty(Series),
+                SeriesNumber = NullIfEmpty(SeriesNumber),
+                Narrator = NullIfEmpty(Narrator),
+                Year = yearInt,
+                DiscNumber = discNumberInt,
+                Genre = NullIfEmpty(Genre),
+                Description = NullIfEmpty(Description),
+                Language = NullIfEmpty(Language),
+                Confidence = _bookNode.Confidence,
+                Source = "manual"
+            };
+            var nfoContent = await nfoFormatter.FormatAsync(nfoMeta, ct);
+            await File.WriteAllTextAsync(Path.Combine(_bookNode.Path, "metadata.nfo"), nfoContent, ct);
+            NfoContent = nfoContent;
+            HasNfo = true;
+
             IsDirty = false;
             SaveStatus = "Saved (source: manual)";
         }
