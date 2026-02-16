@@ -285,26 +285,9 @@ public class MetadataJsonProcessor : IMetadataJsonProcessor
     {
         var bookinfoPath = Path.Combine(folderPath, "bookinfo.json");
 
-        // Load existing file to merge, preserving fields not in the new metadata
-        var existing = await LoadMetadataJsonAsync(folderPath, cancellationToken);
-
-        var merged = new MetadataOverride
-        {
-            Title = metadata.Title ?? existing?.Title,
-            Author = metadata.Author ?? existing?.Author,
-            Narrator = metadata.Narrator ?? existing?.Narrator,
-            Series = metadata.Series ?? existing?.Series,
-            SeriesNumber = metadata.SeriesNumber ?? existing?.SeriesNumber,
-            Year = metadata.Year ?? existing?.Year,
-            DiscNumber = metadata.DiscNumber ?? existing?.DiscNumber,
-            Genre = metadata.Genre ?? existing?.Genre,
-            Publisher = metadata.Publisher ?? existing?.Publisher,
-            Description = metadata.Description ?? existing?.Description,
-            Language = metadata.Language ?? existing?.Language,
-            Comment = metadata.Comment ?? existing?.Comment,
-            Notes = metadata.Notes ?? existing?.Notes,
-            Source = MetadataOverride.ManualSource
-        };
+        // Write metadata as provided — caller supplies complete data.
+        // Null fields mean "no value" (intentionally cleared or not available).
+        var merged = metadata with { Source = MetadataOverride.ManualSource };
 
         var writeOptions = new JsonSerializerOptions
         {
