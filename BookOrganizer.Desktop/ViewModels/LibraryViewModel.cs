@@ -170,6 +170,7 @@ public partial class LibraryViewModel : ObservableObject
             BookNode book => new BookDetailViewModel(book, _metadataProcessor, _fileOrganizer, _pathGenerator, LibraryPath, ReloadAndReselectAsync, _logger),
             AuthorNode author => new AuthorDetailViewModel(author, LibraryPath, _metadataProcessor, _fileOrganizer, _pathGenerator, ReloadAndReselectAsync, _logger),
             SeriesNode series => new SeriesDetailViewModel(series, LibraryPath, _metadataProcessor, _logger),
+            VolumeNode volume => new VolumeDetailViewModel(volume, _logger),
             _ => null
         };
     }
@@ -545,7 +546,7 @@ public partial class LibraryViewModel : ObservableObject
             expectedPath.TrimEnd(System.IO.Path.DirectorySeparatorChar),
             StringComparison.OrdinalIgnoreCase);
 
-        return new BookNode
+        var node = new BookNode
         {
             FolderName = System.IO.Path.GetFileName(folder.Path),
             Path = folder.Path,
@@ -572,6 +573,26 @@ public partial class LibraryViewModel : ObservableObject
             NeedsReorganize = needsReorganize,
             ExpectedPath = expectedPath
         };
+
+        // Populate volume children for multi-disc books
+        if (folder.IsMultiDisc)
+        {
+            foreach (var discName in folder.DiscSubfolders)
+            {
+                var discPath = System.IO.Path.Combine(folder.Path, discName);
+                var fileCount = Directory.Exists(discPath)
+                    ? Directory.EnumerateFiles(discPath).Count()
+                    : 0;
+                node.Volumes.Add(new VolumeNode
+                {
+                    Name = discName,
+                    Path = discPath,
+                    FileCount = fileCount
+                });
+            }
+        }
+
+        return node;
     }
 
     // Unfiltered backing store
@@ -700,6 +721,16 @@ public partial class BookNode : ObservableObject
 
     /// <summary>The scanned AudiobookFolder, if loaded via metadata scan.</summary>
     public AudiobookFolder? SourceFolder { get; set; }
+
+    /// <summary>Volume (disc) children for multi-disc books.</summary>
+    public ObservableCollection<VolumeNode> Volumes { get; } = [];
+}
+
+public class VolumeNode
+{
+    public required string Name { get; init; }
+    public required string Path { get; init; }
+    public int FileCount { get; init; }
 }
 
 // Synonym detection models
