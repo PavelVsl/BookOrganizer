@@ -34,7 +34,8 @@ public partial class App : Application
         services.AddBookOrganizerCoreServices();
         services.AddLogging(builder =>
         {
-            builder.SetMinimumLevel(LogLevel.Information);
+            builder.SetMinimumLevel(LogLevel.Debug);
+            builder.AddDebug();
         });
 
         // Register settings as singleton so all VMs share the same instance
