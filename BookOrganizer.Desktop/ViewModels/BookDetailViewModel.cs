@@ -465,6 +465,14 @@ public partial class BookDetailViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void SwapAuthorName()
+    {
+        var parts = Author.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 2)
+            Author = $"{parts[1]} {parts[0]}";
+    }
+
+    [RelayCommand]
     private void Revert()
     {
         LoadFromBookNode();
