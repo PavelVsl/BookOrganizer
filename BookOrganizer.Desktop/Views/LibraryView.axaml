@@ -46,6 +46,9 @@
                 <ToggleButton IsChecked="{Binding HidePublished}"
                               ToolTip.Tip="Hide already-published books"
                               Content="Hide published" />
+                <ToggleButton IsChecked="{Binding HideIgnored}"
+                              ToolTip.Tip="Hide ignored books"
+                              Content="Hide ignored" />
                 <Separator Width="1" Margin="4,2" />
                 <ComboBox SelectedIndex="{Binding ReorganizeModeIndex}" Width="120">
                     <ComboBoxItem Content="In-place" />
@@ -348,6 +351,13 @@
                                                                 <Button Content="Publish to ABS" Command="{Binding PublishCommand}"
                                                                         IsEnabled="{Binding CanPublish}"
                                                                         ToolTip.Tip="Copy book to Audiobookshelf library folder" />
+                                                                <Button Command="{Binding ToggleIgnoreCommand}"
+                                                                        ToolTip.Tip="Toggle ignore flag (.ignore marker file)">
+                                                                    <Panel>
+                                                                        <TextBlock Text="Ignore" IsVisible="{Binding !IsIgnored}" />
+                                                                        <TextBlock Text="Unignore" IsVisible="{Binding IsIgnored}" />
+                                                                    </Panel>
+                                                                </Button>
                                                                 <Button Content="Delete" Command="{Binding DeleteBookCommand}"
                                                                         Foreground="Red"
                                                                         ToolTip.Tip="Move book folder to .trash" />

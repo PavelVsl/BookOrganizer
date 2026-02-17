@@ -53,6 +53,7 @@ public partial class BookDetailViewModel : ObservableObject
     [ObservableProperty] private bool _isPublished;
     [ObservableProperty] private string _publishStatus = "";
     [ObservableProperty] private bool _canPublish;
+    [ObservableProperty] private bool _isIgnored;
 
     // Cover image
     [ObservableProperty] private Bitmap? _coverImage;
@@ -89,8 +90,9 @@ public partial class BookDetailViewModel : ObservableObject
         NeedsReorganize = bookNode.NeedsReorganize;
         ExpectedPath = bookNode.ExpectedPath;
 
-        // Check published state
+        // Check published/ignored state
         IsPublished = bookNode.IsPublished;
+        IsIgnored = bookNode.IsIgnored;
         UpdateCanPublish();
 
         // Load current values
@@ -470,6 +472,23 @@ public partial class BookDetailViewModel : ObservableObject
         var parts = Author.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length == 2)
             Author = $"{parts[1]} {parts[0]}";
+    }
+
+    [RelayCommand]
+    private void ToggleIgnore()
+    {
+        var markerPath = Path.Combine(_bookNode.Path, ".ignore");
+        if (IsIgnored)
+        {
+            File.Delete(markerPath);
+            IsIgnored = false;
+        }
+        else
+        {
+            File.WriteAllText(markerPath, $"ignored_at: {DateTime.UtcNow:O}\n");
+            IsIgnored = true;
+        }
+        _bookNode.IsIgnored = IsIgnored;
     }
 
     [RelayCommand]

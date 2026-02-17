@@ -62,6 +62,10 @@ public partial class LibraryViewModel : ObservableObject
     [ObservableProperty]
     private bool _hidePublished;
 
+    // Filter: hide ignored books
+    [ObservableProperty]
+    private bool _hideIgnored;
+
     [ObservableProperty]
     private int _misplacedCount;
 
@@ -692,7 +696,8 @@ public partial class LibraryViewModel : ObservableObject
             SourceFolder = folder,
             NeedsReorganize = needsReorganize,
             ExpectedPath = expectedPath,
-            IsPublished = File.Exists(System.IO.Path.Combine(folder.Path, ".published"))
+            IsPublished = File.Exists(System.IO.Path.Combine(folder.Path, ".published")),
+            IsIgnored = File.Exists(System.IO.Path.Combine(folder.Path, ".ignore"))
         };
 
         // Populate volume children for multi-disc books
@@ -722,6 +727,7 @@ public partial class LibraryViewModel : ObservableObject
 
     partial void OnFilterMisplacedOnlyChanged(bool value) => ApplyFilter();
     partial void OnHidePublishedChanged(bool value) => ApplyFilter();
+    partial void OnHideIgnoredChanged(bool value) => ApplyFilter();
 
     private void RebuildFlatBookList()
     {
@@ -732,7 +738,7 @@ public partial class LibraryViewModel : ObservableObject
 
     private void ApplyFilter()
     {
-        if (!FilterMisplacedOnly && !HidePublished)
+        if (!FilterMisplacedOnly && !HidePublished && !HideIgnored)
         {
             Authors = _allAuthors;
             AllBooks = _allBooksUnfiltered;
@@ -743,6 +749,7 @@ public partial class LibraryViewModel : ObservableObject
         {
             if (FilterMisplacedOnly && !book.NeedsReorganize) return false;
             if (HidePublished && book.IsPublished) return false;
+            if (HideIgnored && book.IsIgnored) return false;
             return true;
         }
 
@@ -847,6 +854,7 @@ public partial class BookNode : ObservableObject
     [ObservableProperty] private bool _needsReorganize;
     [ObservableProperty] private string? _expectedPath;
     [ObservableProperty] private bool _isPublished;
+    [ObservableProperty] private bool _isIgnored;
 
     /// <summary>The scanned AudiobookFolder, if loaded via metadata scan.</summary>
     public AudiobookFolder? SourceFolder { get; set; }
