@@ -189,8 +189,8 @@ public partial class LibraryViewModel : ObservableObject
         SelectedDetail = value switch
         {
             BookNode book => new BookDetailViewModel(book, _metadataProcessor, _fileOrganizer, _pathGenerator, _publishingService, _settings, LibraryPath, ReloadAndReselectAsync, _logger),
-            AuthorNode author => new AuthorDetailViewModel(author, LibraryPath, _metadataProcessor, _fileOrganizer, _pathGenerator, ReloadAndReselectAsync, _logger),
-            SeriesNode series => new SeriesDetailViewModel(series, LibraryPath, _metadataProcessor, _logger),
+            AuthorNode author => new AuthorDetailViewModel(author, LibraryPath, _metadataProcessor, _fileOrganizer, _pathGenerator, _publishingService, _settings, ReloadAndReselectAsync, _logger),
+            SeriesNode series => new SeriesDetailViewModel(series, LibraryPath, _metadataProcessor, _publishingService, _settings, _logger),
             VolumeNode volume => new VolumeDetailViewModel(volume, _metadataProcessor, _logger),
             _ => null
         };

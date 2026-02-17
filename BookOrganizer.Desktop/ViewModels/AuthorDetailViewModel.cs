@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BookOrganizer.Models;
+using BookOrganizer.Services.Audiobookshelf;
 using BookOrganizer.Services.Metadata;
 using BookOrganizer.Services.Operations;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -18,6 +19,8 @@ public partial class AuthorDetailViewModel : ObservableObject
     private readonly IMetadataJsonProcessor _metadataProcessor;
     private readonly IFileOrganizer _fileOrganizer;
     private readonly IPathGenerator _pathGenerator;
+    private readonly IPublishingService _publishingService;
+    private readonly AppSettings _settings;
     private readonly Func<string?, Task> _reloadCallback;
     private readonly ILogger _logger;
     private readonly string _libraryPath;
@@ -34,17 +37,24 @@ public partial class AuthorDetailViewModel : ObservableObject
 
     public bool HasBooksNeedingReorganize => BooksNeedingReorganize > 0;
 
+    [ObservableProperty] private int _unpublishedCount;
+    [ObservableProperty] private string _publishStatus = "";
+    [ObservableProperty] private bool _canPublish;
+
     private readonly string _originalName;
 
     public AuthorDetailViewModel(AuthorNode authorNode, string libraryPath,
         IMetadataJsonProcessor metadataProcessor, IFileOrganizer fileOrganizer,
-        IPathGenerator pathGenerator, Func<string?, Task> reloadCallback, ILogger logger)
+        IPathGenerator pathGenerator, IPublishingService publishingService,
+        AppSettings settings, Func<string?, Task> reloadCallback, ILogger logger)
     {
         _authorNode = authorNode;
         _libraryPath = libraryPath;
         _metadataProcessor = metadataProcessor;
         _fileOrganizer = fileOrganizer;
         _pathGenerator = pathGenerator;
+        _publishingService = publishingService;
+        _settings = settings;
         _reloadCallback = reloadCallback;
         _logger = logger;
 
@@ -55,6 +65,8 @@ public partial class AuthorDetailViewModel : ObservableObject
         _bookCount = CountBooks(authorNode);
         _seriesCount = authorNode.Children.OfType<SeriesNode>().Count();
         _booksNeedingReorganize = GetAllBooks(authorNode).Count(b => b.NeedsReorganize);
+        _unpublishedCount = GetAllBooks(authorNode).Count(b => !b.IsPublished);
+        _canPublish = _unpublishedCount > 0 && !string.IsNullOrWhiteSpace(settings.AbsLibraryFolder);
     }
 
     partial void OnAuthorNameChanged(string value)
@@ -154,6 +166,75 @@ public partial class AuthorDetailViewModel : ObservableObject
         {
             _logger.LogError(ex, "Failed to reorganize author {Author}", _authorNode.Name);
             SaveStatus = $"Error: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private async Task PublishAllAsync(CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(_settings.AbsLibraryFolder))
+        {
+            PublishStatus = "ABS library folder not configured.";
+            return;
+        }
+
+        var unpublished = GetAllBooks(_authorNode)
+            .Where(b => !b.IsPublished)
+            .ToList();
+
+        if (unpublished.Count == 0)
+        {
+            PublishStatus = "All books already published.";
+            return;
+        }
+
+        PublishStatus = $"Publishing {unpublished.Count} book(s)...";
+
+        try
+        {
+            var books = unpublished.Select(b => (
+                b.Path,
+                (BookMetadata)new BookMetadata
+                {
+                    Title = b.Title,
+                    Author = b.Author,
+                    Series = b.Series,
+                    SeriesNumber = b.SeriesNumber,
+                    Narrator = b.Narrator,
+                    Year = b.Year,
+                    DiscNumber = b.DiscNumber,
+                    Genre = b.Genre,
+                    Description = b.Description,
+                    Language = b.Language,
+                    Confidence = b.Confidence,
+                    Source = "GUI"
+                }
+            )).ToList();
+
+            var results = await _publishingService.PublishBooksAsync(
+                books, _settings.AbsLibraryFolder, null, ct);
+
+            var succeeded = results.Count(r => r.Success);
+            var failed = results.Count(r => !r.Success);
+
+            // Update tree nodes
+            foreach (var result in results.Where(r => r.Success))
+            {
+                var book = unpublished.FirstOrDefault(b => b.Path == result.SourcePath);
+                if (book != null)
+                    book.IsPublished = true;
+            }
+
+            UnpublishedCount = GetAllBooks(_authorNode).Count(b => !b.IsPublished);
+            CanPublish = UnpublishedCount > 0;
+            PublishStatus = failed > 0
+                ? $"Published {succeeded}, failed {failed}."
+                : $"Published {succeeded} book(s).";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to publish author {Author}", _authorNode.Name);
+            PublishStatus = $"Error: {ex.Message}";
         }
     }
 

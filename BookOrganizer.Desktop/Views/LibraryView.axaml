@@ -192,6 +192,20 @@
                                                 <TextBlock Text="{Binding SaveStatus}" FontSize="11"
                                                            Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
 
+                                                <!-- Publish section -->
+                                                <StackPanel IsVisible="{Binding CanPublish}"
+                                                            Margin="0,12,0,0">
+                                                    <Separator Margin="0,0,0,8" />
+                                                    <TextBlock Text="{Binding UnpublishedCount, StringFormat='{}{0} book(s) not published'}"
+                                                               FontSize="12" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                                    <Button Content="Publish all to ABS" Command="{Binding PublishAllCommand}"
+                                                            Margin="0,4,0,0"
+                                                            ToolTip.Tip="Publish all unpublished books to Audiobookshelf" />
+                                                    <TextBlock Text="{Binding PublishStatus}" FontSize="11"
+                                                               Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                                               IsVisible="{Binding PublishStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                </StackPanel>
+
                                                 <!-- Reorganize section -->
                                                 <StackPanel IsVisible="{Binding HasBooksNeedingReorganize}"
                                                             Margin="0,12,0,0">
@@ -225,6 +239,20 @@
                                                 </StackPanel>
                                                 <TextBlock Text="{Binding SaveStatus}" FontSize="11"
                                                            Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+
+                                                <!-- Publish section -->
+                                                <StackPanel IsVisible="{Binding CanPublish}"
+                                                            Margin="0,12,0,0">
+                                                    <Separator Margin="0,0,0,8" />
+                                                    <TextBlock Text="{Binding UnpublishedCount, StringFormat='{}{0} book(s) not published'}"
+                                                               FontSize="12" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                                    <Button Content="Publish all to ABS" Command="{Binding PublishAllCommand}"
+                                                            Margin="0,4,0,0"
+                                                            ToolTip.Tip="Publish all unpublished books in series to Audiobookshelf" />
+                                                    <TextBlock Text="{Binding PublishStatus}" FontSize="11"
+                                                               Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                                               IsVisible="{Binding PublishStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                </StackPanel>
                                             </StackPanel>
                                             </ScrollViewer>
                                         </DataTemplate>
