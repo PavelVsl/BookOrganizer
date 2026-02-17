@@ -38,7 +38,7 @@ public class PublishingService : IPublishingService
         {
             if (IsPublished(bookFolderPath))
             {
-                return new PublishResult(false, bookFolderPath, null, "Already published");
+                return new PublishResult(true, bookFolderPath, null, null);
             }
 
             // Generate target path using same structure as local library
