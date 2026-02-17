@@ -95,6 +95,16 @@ public partial class BookDetailViewModel : ObservableObject
         IsIgnored = bookNode.IsIgnored;
         UpdateCanPublish();
 
+        // Keep in sync when queue updates BookNode
+        bookNode.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(BookNode.IsPublished))
+            {
+                IsPublished = bookNode.IsPublished;
+                UpdateCanPublish();
+            }
+        };
+
         // Load current values
         LoadFromBookNode();
 

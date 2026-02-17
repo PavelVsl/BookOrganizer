@@ -67,6 +67,19 @@ public partial class AuthorDetailViewModel : ObservableObject
         _booksNeedingReorganize = GetAllBooks(authorNode).Count(b => b.NeedsReorganize);
         _unpublishedCount = GetAllBooks(authorNode).Count(b => !b.IsPublished && !b.IsIgnored);
         _canPublish = _unpublishedCount > 0 && !string.IsNullOrWhiteSpace(settings.AbsLibraryFolder);
+
+        // Keep in sync when queue updates BookNodes
+        foreach (var book in GetAllBooks(authorNode))
+        {
+            book.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(BookNode.IsPublished))
+                {
+                    UnpublishedCount = GetAllBooks(_authorNode).Count(b => !b.IsPublished && !b.IsIgnored);
+                    CanPublish = UnpublishedCount > 0 && !string.IsNullOrWhiteSpace(_settings.AbsLibraryFolder);
+                }
+            };
+        }
     }
 
     partial void OnAuthorNameChanged(string value)

@@ -48,6 +48,19 @@ public partial class SeriesDetailViewModel : ObservableObject
         _bookCount = seriesNode.Books.Count;
         _unpublishedCount = seriesNode.Books.Count(b => !b.IsPublished && !b.IsIgnored);
         _canPublish = _unpublishedCount > 0 && !string.IsNullOrWhiteSpace(settings.AbsLibraryFolder);
+
+        // Keep in sync when queue updates BookNodes
+        foreach (var book in seriesNode.Books)
+        {
+            book.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(BookNode.IsPublished))
+                {
+                    UnpublishedCount = _seriesNode.Books.Count(b => !b.IsPublished && !b.IsIgnored);
+                    CanPublish = UnpublishedCount > 0 && !string.IsNullOrWhiteSpace(_settings.AbsLibraryFolder);
+                }
+            };
+        }
     }
 
     partial void OnSeriesNameChanged(string value)
