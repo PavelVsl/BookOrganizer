@@ -89,6 +89,19 @@ public partial class LibraryViewModel : ObservableObject
     [ObservableProperty]
     private bool _showSynonymPanel;
 
+    // Source folder check
+    [ObservableProperty]
+    private string _sourceFolderPath = "";
+
+    [ObservableProperty]
+    private ObservableCollection<SourceCheckItem> _sourceCheckResults = [];
+
+    [ObservableProperty]
+    private bool _isCheckingSource;
+
+    [ObservableProperty]
+    private bool _showSourceCheckPanel;
+
     public LibraryViewModel(
         IMetadataJsonProcessor metadataProcessor,
         IDirectoryScanner directoryScanner,
@@ -505,6 +518,130 @@ public partial class LibraryViewModel : ObservableObject
 
         ShowSynonymPanel = false;
         StatusText = $"Applied synonyms to {applied} book(s).";
+    }
+
+    [RelayCommand]
+    private async Task BrowseSourceFolderAsync()
+    {
+        var path = await BrowseFolderAsync("Select source folder to check");
+        if (path != null)
+        {
+            SourceFolderPath = path;
+            ShowSourceCheckPanel = true;
+            await CheckSourceFolderAsync(CancellationToken.None);
+        }
+    }
+
+    [RelayCommand]
+    private async Task CheckSourceFolderAsync(CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(SourceFolderPath) || !Directory.Exists(SourceFolderPath))
+        {
+            StatusText = "Source folder not found.";
+            return;
+        }
+
+        if (_allBooksUnfiltered.Count == 0)
+        {
+            StatusText = "Load a library first before checking source folder.";
+            return;
+        }
+
+        IsCheckingSource = true;
+        StatusText = "Scanning source folder...";
+
+        try
+        {
+            // Build lookup from library books: normalized "author|title" -> book path
+            var libraryLookup = new HashSet<string>();
+            var libraryLookupWithPaths = new Dictionary<string, string>();
+            foreach (var book in _allBooksUnfiltered)
+            {
+                var key = _textNormalizer.NormalizeForComparison(book.Author) + "|" +
+                          _textNormalizer.NormalizeForComparison(book.Title);
+                libraryLookup.Add(key);
+                libraryLookupWithPaths.TryAdd(key, book.Path);
+            }
+
+            // Scan source folder
+            var scanProgress = new Progress<ScanProgress>(p =>
+            {
+                StatusText = $"Scanning source... {p.AudiobookFoldersFound} found in {p.DirectoriesScanned} dirs";
+            });
+
+            var folders = await _directoryScanner.ScanDirectoryAsync(SourceFolderPath, scanProgress, ct);
+            StatusText = $"Found {folders.Count} audiobook(s) in source. Checking...";
+
+            var results = new ObservableCollection<SourceCheckItem>();
+            var processed = 0;
+
+            foreach (var folder in folders)
+            {
+                ct.ThrowIfCancellationRequested();
+                processed++;
+
+                try
+                {
+                    var metadata = await _metadataExtractor.ExtractMetadataCachedOnlyAsync(folder, null, ct);
+                    var author = metadata.Author ?? "Unknown";
+                    var title = metadata.Title;
+
+                    var key = _textNormalizer.NormalizeForComparison(author) + "|" +
+                              _textNormalizer.NormalizeForComparison(title);
+                    var exists = libraryLookup.Contains(key);
+
+                    results.Add(new SourceCheckItem
+                    {
+                        FolderName = System.IO.Path.GetFileName(folder.Path),
+                        Path = folder.Path,
+                        Author = author,
+                        Title = title,
+                        ExistsInLibrary = exists,
+                        MatchedBookPath = exists ? libraryLookupWithPaths.GetValueOrDefault(key) : null
+                    });
+
+                    if (processed % 5 == 0 || processed == folders.Count)
+                        StatusText = $"Checking... {processed}/{folders.Count}";
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to extract metadata from source {Path}", folder.Path);
+                    results.Add(new SourceCheckItem
+                    {
+                        FolderName = System.IO.Path.GetFileName(folder.Path),
+                        Path = folder.Path,
+                        Author = "?",
+                        Title = "? (metadata extraction failed)",
+                        ExistsInLibrary = false
+                    });
+                }
+            }
+
+            SourceCheckResults = results;
+            var dupeCount = results.Count(r => r.ExistsInLibrary);
+            var newCount = results.Count - dupeCount;
+            StatusText = $"Source check: {results.Count} book(s) — {dupeCount} already in library, {newCount} new.";
+        }
+        catch (OperationCanceledException)
+        {
+            StatusText = "Source check cancelled.";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to check source folder");
+            StatusText = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            IsCheckingSource = false;
+        }
+    }
+
+    [RelayCommand]
+    private void CloseSourceCheck()
+    {
+        ShowSourceCheckPanel = false;
+        SourceCheckResults.Clear();
     }
 
     /// <summary>
@@ -924,4 +1061,14 @@ public class NameVariant
 {
     public required string Name { get; init; }
     public required int BookCount { get; init; }
+}
+
+public class SourceCheckItem
+{
+    public required string FolderName { get; init; }
+    public required string Path { get; init; }
+    public required string Author { get; init; }
+    public required string Title { get; init; }
+    public required bool ExistsInLibrary { get; init; }
+    public string? MatchedBookPath { get; init; }
 }
