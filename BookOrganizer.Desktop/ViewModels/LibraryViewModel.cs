@@ -661,6 +661,48 @@ public partial class LibraryViewModel : ObservableObject
         StatusText = $"Exported {exported} metadata.nfo file(s).";
     }
 
+    [RelayCommand]
+    private void PublishAll()
+    {
+        if (string.IsNullOrWhiteSpace(_settings.AbsLibraryFolder))
+        {
+            StatusText = "ABS library folder not configured. Set it in Tools > Audiobookshelf.";
+            return;
+        }
+
+        var unpublished = _allBooksUnfiltered
+            .Where(b => !b.IsPublished && !b.IsIgnored)
+            .ToList();
+
+        if (unpublished.Count == 0)
+        {
+            StatusText = "All books already published.";
+            return;
+        }
+
+        var items = unpublished.Select(b => (
+            b,
+            new BookMetadata
+            {
+                Title = b.Title,
+                Author = b.Author,
+                Series = b.Series,
+                SeriesNumber = b.SeriesNumber,
+                Narrator = b.Narrator,
+                Year = b.Year,
+                DiscNumber = b.DiscNumber,
+                Genre = b.Genre,
+                Description = b.Description,
+                Language = b.Language,
+                Confidence = b.Confidence,
+                Source = "GUI"
+            }
+        )).ToList();
+
+        _publishQueue.EnqueueRange(items, _settings.AbsLibraryFolder);
+        StatusText = $"Queued {unpublished.Count} book(s) for publishing.";
+    }
+
     private BookNode CreateBookNodeFromMetadata(BookMetadata meta, AudiobookFolder folder)
     {
         var bookinfoPath = System.IO.Path.Combine(folder.Path, "bookinfo.json");

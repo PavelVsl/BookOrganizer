@@ -33,6 +33,9 @@
                 <Button Content="Export NFO" Command="{Binding ExportNfoCommand}"
                         IsEnabled="{Binding !IsLoading}"
                         ToolTip.Tip="Regenerate metadata.nfo for all books" />
+                <Button Content="Publish All" Command="{Binding PublishAllCommand}"
+                        IsEnabled="{Binding !IsLoading}"
+                        ToolTip.Tip="Publish all unpublished books to Audiobookshelf" />
                 <Button Content="Synonyms" Command="{Binding DetectSynonymsCommand}"
                         ToolTip.Tip="Detect similar author/narrator names" />
                 <Separator Width="1" Margin="4,2" />
