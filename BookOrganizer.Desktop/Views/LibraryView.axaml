@@ -40,6 +40,9 @@
                         <TextBlock Text="{Binding MisplacedCount}" />
                     </StackPanel>
                 </ToggleButton>
+                <ToggleButton IsChecked="{Binding HidePublished}"
+                              ToolTip.Tip="Hide already-published books"
+                              Content="Hide published" />
                 <Separator Width="1" Margin="4,2" />
                 <ComboBox SelectedIndex="{Binding ReorganizeModeIndex}" Width="120">
                     <ComboBoxItem Content="In-place" />

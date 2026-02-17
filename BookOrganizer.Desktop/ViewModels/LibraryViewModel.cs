@@ -58,6 +58,10 @@ public partial class LibraryViewModel : ObservableObject
     [ObservableProperty]
     private bool _filterMisplacedOnly;
 
+    // Filter: hide already-published books
+    [ObservableProperty]
+    private bool _hidePublished;
+
     [ObservableProperty]
     private int _misplacedCount;
 
@@ -717,6 +721,7 @@ public partial class LibraryViewModel : ObservableObject
     private ObservableCollection<BookNode> _allBooksUnfiltered = [];
 
     partial void OnFilterMisplacedOnlyChanged(bool value) => ApplyFilter();
+    partial void OnHidePublishedChanged(bool value) => ApplyFilter();
 
     private void RebuildFlatBookList()
     {
@@ -727,14 +732,20 @@ public partial class LibraryViewModel : ObservableObject
 
     private void ApplyFilter()
     {
-        if (!FilterMisplacedOnly)
+        if (!FilterMisplacedOnly && !HidePublished)
         {
             Authors = _allAuthors;
             AllBooks = _allBooksUnfiltered;
             return;
         }
 
-        // Filter: only books with NeedsReorganize
+        bool BookPassesFilter(BookNode book)
+        {
+            if (FilterMisplacedOnly && !book.NeedsReorganize) return false;
+            if (HidePublished && book.IsPublished) return false;
+            return true;
+        }
+
         var filteredAuthors = new ObservableCollection<AuthorNode>();
         var filteredBooks = new ObservableCollection<BookNode>();
 
@@ -744,18 +755,18 @@ public partial class LibraryViewModel : ObservableObject
 
             foreach (var child in author.Children)
             {
-                if (child is BookNode book && book.NeedsReorganize)
+                if (child is BookNode book && BookPassesFilter(book))
                 {
                     filteredAuthor.Children.Add(book);
                     filteredBooks.Add(book);
                 }
                 else if (child is SeriesNode series)
                 {
-                    var misplaced = series.Books.Where(b => b.NeedsReorganize).ToList();
-                    if (misplaced.Count > 0)
+                    var matching = series.Books.Where(BookPassesFilter).ToList();
+                    if (matching.Count > 0)
                     {
                         var filteredSeries = new SeriesNode { Name = series.Name, Path = series.Path };
-                        foreach (var b in misplaced)
+                        foreach (var b in matching)
                         {
                             filteredSeries.Books.Add(b);
                             filteredBooks.Add(b);
