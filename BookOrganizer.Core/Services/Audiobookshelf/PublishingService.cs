@@ -51,7 +51,7 @@ public class PublishingService : IPublishingService
                 var existingMarker = $"published_at: {DateTime.UtcNow:O}\ntarget: {targetPath}\n";
                 await File.WriteAllTextAsync(
                     Path.Combine(bookFolderPath, PublishedMarkerFile),
-                    existingMarker, ct).ConfigureAwait(false);
+                    existingMarker).ConfigureAwait(false);
                 return new PublishResult(true, bookFolderPath, targetPath, null);
             }
 
@@ -59,11 +59,11 @@ public class PublishingService : IPublishingService
             _logger.LogInformation("Publishing {Source} -> {Target}", bookFolderPath, targetPath);
             CopyDirectory(bookFolderPath, targetPath, ct);
 
-            // Create .published marker in source folder
+            // Create .published marker in source folder (no CT — must always complete after copy)
             var markerContent = $"published_at: {DateTime.UtcNow:O}\ntarget: {targetPath}\n";
             await File.WriteAllTextAsync(
                 Path.Combine(bookFolderPath, PublishedMarkerFile),
-                markerContent, ct).ConfigureAwait(false);
+                markerContent).ConfigureAwait(false);
 
             _logger.LogInformation("Published successfully: {Title} by {Author}", metadata.Title, metadata.Author);
             return new PublishResult(true, bookFolderPath, targetPath, null);
