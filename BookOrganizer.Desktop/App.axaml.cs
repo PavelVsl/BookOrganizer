@@ -81,6 +81,9 @@ public partial class App : Application
             {
                 mainVm.Library.LoadLibraryCommand.ExecuteAsync(null);
             }
+
+            // Try connecting to ABS in background
+            _ = mainVm.TryConnectAbsAsync();
         }
 
         base.OnFrameworkInitializationCompleted();
