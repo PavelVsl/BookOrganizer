@@ -27,6 +27,11 @@ public record OrganizationPlan
     public required FileOperationType OperationType { get; init; }
 
     /// <summary>
+    /// Library root path (set during reorganization for .duplicates folder placement).
+    /// </summary>
+    public string? LibraryPath { get; init; }
+
+    /// <summary>
     /// Estimated total size to be copied/moved.
     /// For link operations, this represents the size of source files (no actual disk usage increase).
     /// </summary>
