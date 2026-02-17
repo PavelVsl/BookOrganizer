@@ -10,6 +10,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
 using BookOrganizer.Models;
 using BookOrganizer.Desktop.Services;
+using BookOrganizer.Services.Audiobookshelf;
 using BookOrganizer.Services.Metadata;
 using BookOrganizer.Services.Operations;
 using BookOrganizer.Services.Scanning;
@@ -28,6 +29,7 @@ public partial class LibraryViewModel : ObservableObject
     private readonly ITextNormalizer _textNormalizer;
     private readonly IFileOrganizer _fileOrganizer;
     private readonly IPathGenerator _pathGenerator;
+    private readonly IAbsApiClient _absApiClient;
     private readonly PublishQueueService _publishQueue;
     private readonly ILogger<LibraryViewModel> _logger;
     private readonly AppSettings _settings;
@@ -89,6 +91,16 @@ public partial class LibraryViewModel : ObservableObject
     [ObservableProperty]
     private bool _showSynonymPanel;
 
+    // ABS duplicate check
+    [ObservableProperty]
+    private ObservableCollection<AbsCheckItem> _absCheckResults = [];
+
+    [ObservableProperty]
+    private bool _isCheckingAbs;
+
+    [ObservableProperty]
+    private bool _showAbsCheckPanel;
+
     public LibraryViewModel(
         IMetadataJsonProcessor metadataProcessor,
         IDirectoryScanner directoryScanner,
@@ -96,6 +108,7 @@ public partial class LibraryViewModel : ObservableObject
         ITextNormalizer textNormalizer,
         IFileOrganizer fileOrganizer,
         IPathGenerator pathGenerator,
+        IAbsApiClient absApiClient,
         PublishQueueService publishQueue,
         ILogger<LibraryViewModel> logger,
         AppSettings settings)
@@ -106,6 +119,7 @@ public partial class LibraryViewModel : ObservableObject
         _textNormalizer = textNormalizer;
         _fileOrganizer = fileOrganizer;
         _pathGenerator = pathGenerator;
+        _absApiClient = absApiClient;
         _publishQueue = publishQueue;
         _logger = logger;
         _settings = settings;
@@ -505,6 +519,97 @@ public partial class LibraryViewModel : ObservableObject
 
         ShowSynonymPanel = false;
         StatusText = $"Applied synonyms to {applied} book(s).";
+    }
+
+    [RelayCommand]
+    private async Task CheckAbsDuplicatesAsync(CancellationToken ct)
+    {
+        if (_allBooksUnfiltered.Count == 0)
+        {
+            StatusText = "Load a library first.";
+            return;
+        }
+
+        if (!_absApiClient.IsConfigured)
+        {
+            StatusText = "ABS not configured. Set server URL and API key in Tools > Audiobookshelf.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_settings.AbsLibraryId))
+        {
+            StatusText = "No ABS library selected. Configure it in Tools > Audiobookshelf.";
+            return;
+        }
+
+        IsCheckingAbs = true;
+        ShowAbsCheckPanel = true;
+        StatusText = "Fetching ABS library items...";
+
+        try
+        {
+            var absItems = await _absApiClient.GetLibraryItemsAsync(_settings.AbsLibraryId, ct);
+            StatusText = $"Fetched {absItems.Count} item(s) from ABS. Comparing...";
+
+            // Build lookup from ABS items: normalized "author|title"
+            var absLookup = new Dictionary<string, AbsLibraryItem>();
+            foreach (var item in absItems)
+            {
+                var meta = item.Media?.Metadata;
+                if (meta == null) continue;
+
+                var key = _textNormalizer.NormalizeForComparison(meta.AuthorName) + "|" +
+                          _textNormalizer.NormalizeForComparison(meta.Title);
+                absLookup.TryAdd(key, item);
+            }
+
+            // Compare each library book against ABS
+            var results = new ObservableCollection<AbsCheckItem>();
+            foreach (var book in _allBooksUnfiltered)
+            {
+                var key = _textNormalizer.NormalizeForComparison(book.Author) + "|" +
+                          _textNormalizer.NormalizeForComparison(book.Title);
+                var exists = absLookup.TryGetValue(key, out var matchedItem);
+
+                results.Add(new AbsCheckItem
+                {
+                    Author = book.Author,
+                    Title = book.Title,
+                    Path = book.Path,
+                    ExistsInAbs = exists,
+                    AbsTitle = matchedItem?.Media?.Metadata?.Title,
+                    AbsAuthor = matchedItem?.Media?.Metadata?.AuthorName,
+                    IsPublished = book.IsPublished
+                });
+            }
+
+            AbsCheckResults = results;
+            var inAbs = results.Count(r => r.ExistsInAbs);
+            var notInAbs = results.Count - inAbs;
+            var publishedNotInAbs = results.Count(r => r.IsPublished && !r.ExistsInAbs);
+            StatusText = $"ABS check: {inAbs} in ABS, {notInAbs} not in ABS" +
+                         (publishedNotInAbs > 0 ? $" ({publishedNotInAbs} published but missing from ABS!)" : "");
+        }
+        catch (OperationCanceledException)
+        {
+            StatusText = "ABS check cancelled.";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to check ABS duplicates");
+            StatusText = $"ABS error: {ex.Message}";
+        }
+        finally
+        {
+            IsCheckingAbs = false;
+        }
+    }
+
+    [RelayCommand]
+    private void CloseAbsCheck()
+    {
+        ShowAbsCheckPanel = false;
+        AbsCheckResults.Clear();
     }
 
     /// <summary>
@@ -924,4 +1029,15 @@ public class NameVariant
 {
     public required string Name { get; init; }
     public required int BookCount { get; init; }
+}
+
+public class AbsCheckItem
+{
+    public required string Author { get; init; }
+    public required string Title { get; init; }
+    public required string Path { get; init; }
+    public required bool ExistsInAbs { get; init; }
+    public string? AbsTitle { get; init; }
+    public string? AbsAuthor { get; init; }
+    public bool IsPublished { get; init; }
 }

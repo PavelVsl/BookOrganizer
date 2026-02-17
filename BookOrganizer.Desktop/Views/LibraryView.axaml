@@ -38,6 +38,9 @@
                         ToolTip.Tip="Publish all unpublished books to Audiobookshelf" />
                 <Button Content="Synonyms" Command="{Binding DetectSynonymsCommand}"
                         ToolTip.Tip="Detect similar author/narrator names" />
+                <Button Content="Check ABS" Command="{Binding CheckAbsDuplicatesCommand}"
+                        IsEnabled="{Binding !IsCheckingAbs}"
+                        ToolTip.Tip="Compare library against Audiobookshelf to find duplicates and missing books" />
                 <Separator Width="1" Margin="4,2" />
                 <ToggleButton IsChecked="{Binding FilterMisplacedOnly}"
                               ToolTip.Tip="Show only books that need reorganization">
@@ -116,7 +119,42 @@
                 </Border>
             </Panel>
 
-            <!-- Main library view (hidden when synonyms shown) -->
+            <!-- ABS check panel -->
+            <Panel IsVisible="{Binding ShowAbsCheckPanel}">
+                <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                        Padding="12" CornerRadius="4" Margin="8">
+                    <Grid RowDefinitions="Auto,*,Auto">
+                        <TextBlock Grid.Row="0" Text="Library vs Audiobookshelf" FontSize="16" FontWeight="Bold" Margin="0,0,0,8" />
+
+                        <DataGrid Grid.Row="1" ItemsSource="{Binding AbsCheckResults}"
+                                  IsReadOnly="True" CanUserSortColumns="True"
+                                  GridLinesVisibility="Horizontal"
+                                  FontSize="12">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="In ABS" Width="70">
+                                    <DataGridTextColumn.Binding>
+                                        <Binding Path="ExistsInAbs" Converter="{x:Static views:BoolToAbsStatusConverter.Instance}" />
+                                    </DataGridTextColumn.Binding>
+                                </DataGridTextColumn>
+                                <DataGridCheckBoxColumn Header="Pub" Binding="{Binding IsPublished}" Width="50" />
+                                <DataGridTextColumn Header="Author" Binding="{Binding Author}" Width="180" />
+                                <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="*" />
+                                <DataGridTextColumn Header="ABS Author" Binding="{Binding AbsAuthor}" Width="150" />
+                                <DataGridTextColumn Header="ABS Title" Binding="{Binding AbsTitle}" Width="200" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                            <Button Content="Refresh" Command="{Binding CheckAbsDuplicatesCommand}"
+                                    IsEnabled="{Binding !IsCheckingAbs}" />
+                            <Button Content="Close" Command="{Binding CloseAbsCheckCommand}" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Panel>
+
+            <!-- Main library view (hidden when synonyms or ABS check shown) -->
+            <Panel IsVisible="{Binding !ShowAbsCheckPanel}">
             <Panel IsVisible="{Binding !ShowSynonymPanel}">
                 <TabControl>
                     <!-- Tree view tab -->
@@ -514,6 +552,7 @@
                         <views:LibraryGridView DataContext="{Binding}" />
                     </TabItem>
                 </TabControl>
+            </Panel>
             </Panel>
         </Grid>
 
