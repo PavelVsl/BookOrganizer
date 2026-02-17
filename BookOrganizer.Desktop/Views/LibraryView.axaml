@@ -178,7 +178,12 @@
                                             <StackPanel Spacing="8" MaxWidth="500" Margin="8">
                                                 <TextBlock Text="Author" FontSize="18" FontWeight="Bold" Margin="0,0,0,8" />
                                                 <TextBlock Text="Author name" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
-                                                <TextBox Text="{Binding AuthorName}" />
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <TextBox Grid.Column="0" Text="{Binding AuthorName}" />
+                                                    <Button Grid.Column="1" Content="&#8644;" Command="{Binding SwapNameCommand}"
+                                                            ToolTip.Tip="Swap firstname and surname"
+                                                            Padding="8,4" Margin="4,0,0,0" />
+                                                </Grid>
                                                 <Separator Margin="0,8" />
                                                 <TextBlock Text="{Binding BookCount, StringFormat='{}{0} book(s)'}" FontSize="12" />
                                                 <TextBlock Text="{Binding SeriesCount, StringFormat='{}{0} series'}" FontSize="12"

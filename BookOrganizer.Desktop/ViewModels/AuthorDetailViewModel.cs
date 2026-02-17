@@ -101,6 +101,14 @@ public partial class AuthorDetailViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void SwapName()
+    {
+        var parts = AuthorName.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 2)
+            AuthorName = $"{parts[1]} {parts[0]}";
+    }
+
+    [RelayCommand]
     private void Revert()
     {
         AuthorName = _originalName;
