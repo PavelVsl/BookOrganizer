@@ -110,7 +110,7 @@ public partial class BookDetailViewModel : ObservableObject
 
     private void UpdateCanPublish()
     {
-        CanPublish = !IsPublished && !string.IsNullOrWhiteSpace(_settings.AbsLibraryFolder);
+        CanPublish = !IsPublished && !IsIgnored && !string.IsNullOrWhiteSpace(_settings.AbsLibraryFolder);
     }
 
     private void LoadFromBookNode()
@@ -489,6 +489,7 @@ public partial class BookDetailViewModel : ObservableObject
             IsIgnored = true;
         }
         _bookNode.IsIgnored = IsIgnored;
+        UpdateCanPublish();
     }
 
     [RelayCommand]
