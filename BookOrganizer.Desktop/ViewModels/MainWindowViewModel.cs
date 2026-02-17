@@ -1,3 +1,4 @@
+using BookOrganizer.Desktop.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace BookOrganizer.Desktop.ViewModels;
@@ -11,6 +12,8 @@ public partial class MainWindowViewModel : ObservableObject
     private int _selectedNavIndex;
 
     public LibraryViewModel Library => _libraryViewModel;
+    public PublishQueueService PublishQueue { get; }
+
     private readonly LibraryViewModel _libraryViewModel;
     private readonly ToolsViewModel _toolsViewModel;
     private readonly AbsLibraryViewModel _absLibraryViewModel;
@@ -18,11 +21,13 @@ public partial class MainWindowViewModel : ObservableObject
     public MainWindowViewModel(
         LibraryViewModel libraryViewModel,
         ToolsViewModel toolsViewModel,
-        AbsLibraryViewModel absLibraryViewModel)
+        AbsLibraryViewModel absLibraryViewModel,
+        PublishQueueService publishQueue)
     {
         _libraryViewModel = libraryViewModel;
         _toolsViewModel = toolsViewModel;
         _absLibraryViewModel = absLibraryViewModel;
+        PublishQueue = publishQueue;
         _currentView = libraryViewModel;
     }
 

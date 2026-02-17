@@ -3,7 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BookOrganizer.Models;
-using BookOrganizer.Services.Audiobookshelf;
+using BookOrganizer.Desktop.Services;
 using BookOrganizer.Services.Metadata;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -15,7 +15,7 @@ public partial class SeriesDetailViewModel : ObservableObject
 {
     private readonly SeriesNode _seriesNode;
     private readonly IMetadataJsonProcessor _metadataProcessor;
-    private readonly IPublishingService _publishingService;
+    private readonly PublishQueueService _publishQueue;
     private readonly AppSettings _settings;
     private readonly ILogger _logger;
     private readonly string _libraryPath;
@@ -32,13 +32,13 @@ public partial class SeriesDetailViewModel : ObservableObject
     private readonly string _originalName;
 
     public SeriesDetailViewModel(SeriesNode seriesNode, string libraryPath,
-        IMetadataJsonProcessor metadataProcessor, IPublishingService publishingService,
+        IMetadataJsonProcessor metadataProcessor, PublishQueueService publishQueue,
         AppSettings settings, ILogger logger)
     {
         _seriesNode = seriesNode;
         _libraryPath = libraryPath;
         _metadataProcessor = metadataProcessor;
-        _publishingService = publishingService;
+        _publishQueue = publishQueue;
         _settings = settings;
         _logger = logger;
 
@@ -91,7 +91,7 @@ public partial class SeriesDetailViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task PublishAllAsync(CancellationToken ct)
+    private void PublishAll()
     {
         if (string.IsNullOrWhiteSpace(_settings.AbsLibraryFolder))
         {
@@ -107,52 +107,27 @@ public partial class SeriesDetailViewModel : ObservableObject
             return;
         }
 
-        PublishStatus = $"Publishing {unpublished.Count} book(s)...";
-
-        try
-        {
-            var books = unpublished.Select(b => (
-                b.Path,
-                (BookMetadata)new BookMetadata
-                {
-                    Title = b.Title,
-                    Author = b.Author,
-                    Series = b.Series,
-                    SeriesNumber = b.SeriesNumber,
-                    Narrator = b.Narrator,
-                    Year = b.Year,
-                    DiscNumber = b.DiscNumber,
-                    Genre = b.Genre,
-                    Description = b.Description,
-                    Language = b.Language,
-                    Confidence = b.Confidence,
-                    Source = "GUI"
-                }
-            )).ToList();
-
-            var results = await _publishingService.PublishBooksAsync(
-                books, _settings.AbsLibraryFolder, null, ct);
-
-            var succeeded = results.Count(r => r.Success);
-            var failed = results.Count(r => !r.Success);
-
-            foreach (var result in results.Where(r => r.Success))
+        var items = unpublished.Select(b => (
+            b,
+            new BookMetadata
             {
-                var book = unpublished.FirstOrDefault(b => b.Path == result.SourcePath);
-                if (book != null)
-                    book.IsPublished = true;
+                Title = b.Title,
+                Author = b.Author,
+                Series = b.Series,
+                SeriesNumber = b.SeriesNumber,
+                Narrator = b.Narrator,
+                Year = b.Year,
+                DiscNumber = b.DiscNumber,
+                Genre = b.Genre,
+                Description = b.Description,
+                Language = b.Language,
+                Confidence = b.Confidence,
+                Source = "GUI"
             }
+        )).ToList();
 
-            UnpublishedCount = _seriesNode.Books.Count(b => !b.IsPublished);
-            CanPublish = UnpublishedCount > 0;
-            PublishStatus = failed > 0
-                ? $"Published {succeeded}, failed {failed}."
-                : $"Published {succeeded} book(s).";
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to publish series {Series}", _seriesNode.Name);
-            PublishStatus = $"Error: {ex.Message}";
-        }
+        _publishQueue.EnqueueRange(items, _settings.AbsLibraryFolder);
+        CanPublish = false;
+        PublishStatus = $"Queued {unpublished.Count} book(s) for publishing.";
     }
 }

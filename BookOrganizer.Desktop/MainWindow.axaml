@@ -3,29 +3,65 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:BookOrganizer.Desktop.ViewModels"
+        xmlns:svc="using:BookOrganizer.Desktop.Services"
         mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="700"
         x:Class="BookOrganizer.Desktop.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Title="BookOrganizer" Width="1200" Height="700"
         MinWidth="800" MinHeight="500">
 
-    <Grid ColumnDefinitions="180,*">
-        <!-- Sidebar -->
-        <Border Grid.Column="0" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
-                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,1,0">
-            <StackPanel Margin="0,8">
-                <TextBlock Text="BookOrganizer" FontSize="16" FontWeight="Bold"
-                           Margin="16,8,16,16" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}" />
-                <ListBox SelectedIndex="{Binding SelectedNavIndex}" Margin="4,0">
-                    <ListBoxItem>Library</ListBoxItem>
-                    <ListBoxItem>Tools</ListBoxItem>
-                    <ListBoxItem>Audiobookshelf</ListBoxItem>
-                </ListBox>
-            </StackPanel>
-        </Border>
+    <Grid RowDefinitions="*,Auto">
+        <Grid Grid.Row="0" ColumnDefinitions="180,*">
+            <!-- Sidebar -->
+            <Border Grid.Column="0" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                    BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,1,0">
+                <StackPanel Margin="0,8">
+                    <TextBlock Text="BookOrganizer" FontSize="16" FontWeight="Bold"
+                               Margin="16,8,16,16" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+                    <ListBox SelectedIndex="{Binding SelectedNavIndex}" Margin="4,0">
+                        <ListBoxItem>Library</ListBoxItem>
+                        <ListBoxItem>Tools</ListBoxItem>
+                        <ListBoxItem>Audiobookshelf</ListBoxItem>
+                    </ListBox>
+                </StackPanel>
+            </Border>
 
-        <!-- Content area -->
-        <ContentControl Grid.Column="1" Content="{Binding CurrentView}" />
+            <!-- Content area -->
+            <ContentControl Grid.Column="1" Content="{Binding CurrentView}" />
+        </Grid>
+
+        <!-- Publish queue status bar -->
+        <Border Grid.Row="1"
+                DataContext="{Binding PublishQueue}"
+                x:DataType="svc:PublishQueueService"
+                IsVisible="{Binding ShowStatus}"
+                Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="12,6">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                <ProgressBar Grid.Column="0"
+                             IsIndeterminate="True"
+                             IsVisible="{Binding IsPublishing}"
+                             Width="80" Height="12"
+                             Margin="0,0,12,0" />
+                <TextBlock Grid.Column="1"
+                           Text="{Binding ProgressText}"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis" />
+                <Button Grid.Column="2"
+                        Content="Cancel"
+                        IsVisible="{Binding IsPublishing}"
+                        Command="{Binding CancelCommand}"
+                        Padding="8,2"
+                        Margin="8,0" />
+                <Button Grid.Column="3"
+                        Content="Dismiss"
+                        IsVisible="{Binding !IsPublishing}"
+                        Command="{Binding DismissCommand}"
+                        Padding="8,2" />
+            </Grid>
+        </Border>
     </Grid>
 
 </Window>

@@ -9,7 +9,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
 using BookOrganizer.Models;
-using BookOrganizer.Services.Audiobookshelf;
+using BookOrganizer.Desktop.Services;
 using BookOrganizer.Services.Metadata;
 using BookOrganizer.Services.Operations;
 using BookOrganizer.Services.Scanning;
@@ -28,7 +28,7 @@ public partial class LibraryViewModel : ObservableObject
     private readonly ITextNormalizer _textNormalizer;
     private readonly IFileOrganizer _fileOrganizer;
     private readonly IPathGenerator _pathGenerator;
-    private readonly IPublishingService _publishingService;
+    private readonly PublishQueueService _publishQueue;
     private readonly ILogger<LibraryViewModel> _logger;
     private readonly AppSettings _settings;
 
@@ -88,7 +88,7 @@ public partial class LibraryViewModel : ObservableObject
         ITextNormalizer textNormalizer,
         IFileOrganizer fileOrganizer,
         IPathGenerator pathGenerator,
-        IPublishingService publishingService,
+        PublishQueueService publishQueue,
         ILogger<LibraryViewModel> logger,
         AppSettings settings)
     {
@@ -98,7 +98,7 @@ public partial class LibraryViewModel : ObservableObject
         _textNormalizer = textNormalizer;
         _fileOrganizer = fileOrganizer;
         _pathGenerator = pathGenerator;
-        _publishingService = publishingService;
+        _publishQueue = publishQueue;
         _logger = logger;
         _settings = settings;
 
@@ -188,9 +188,9 @@ public partial class LibraryViewModel : ObservableObject
 
         SelectedDetail = value switch
         {
-            BookNode book => new BookDetailViewModel(book, _metadataProcessor, _fileOrganizer, _pathGenerator, _publishingService, _settings, LibraryPath, ReloadAndReselectAsync, _logger),
-            AuthorNode author => new AuthorDetailViewModel(author, LibraryPath, _metadataProcessor, _fileOrganizer, _pathGenerator, _publishingService, _settings, ReloadAndReselectAsync, _logger),
-            SeriesNode series => new SeriesDetailViewModel(series, LibraryPath, _metadataProcessor, _publishingService, _settings, _logger),
+            BookNode book => new BookDetailViewModel(book, _metadataProcessor, _fileOrganizer, _pathGenerator, _publishQueue, _settings, LibraryPath, ReloadAndReselectAsync, _logger),
+            AuthorNode author => new AuthorDetailViewModel(author, LibraryPath, _metadataProcessor, _fileOrganizer, _pathGenerator, _publishQueue, _settings, ReloadAndReselectAsync, _logger),
+            SeriesNode series => new SeriesDetailViewModel(series, LibraryPath, _metadataProcessor, _publishQueue, _settings, _logger),
             VolumeNode volume => new VolumeDetailViewModel(volume, _metadataProcessor, _logger),
             _ => null
         };

@@ -3,6 +3,7 @@ using System.Text;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using BookOrganizer.Desktop.Services;
 using BookOrganizer.Desktop.ViewModels;
 using BookOrganizer.Infrastructure.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,6 +39,9 @@ public partial class App : Application
 
         // Register settings as singleton so all VMs share the same instance
         services.AddSingleton(Settings);
+
+        // Register UI-layer services
+        services.AddSingleton<PublishQueueService>();
 
         // Register ViewModels
         services.AddTransient<LibraryViewModel>();

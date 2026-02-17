@@ -10,7 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Media.Imaging;
 using BookOrganizer.Models;
-using BookOrganizer.Services.Audiobookshelf;
+using BookOrganizer.Desktop.Services;
 using BookOrganizer.Services.Metadata;
 using BookOrganizer.Services.Operations;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -25,7 +25,7 @@ public partial class BookDetailViewModel : ObservableObject
     private readonly IMetadataJsonProcessor _metadataProcessor;
     private readonly IFileOrganizer _fileOrganizer;
     private readonly IPathGenerator _pathGenerator;
-    private readonly IPublishingService _publishingService;
+    private readonly PublishQueueService _publishQueue;
     private readonly AppSettings _settings;
     private readonly string _libraryPath;
     private readonly Func<string?, Task> _reloadCallback;
@@ -71,14 +71,14 @@ public partial class BookDetailViewModel : ObservableObject
 
     public BookDetailViewModel(BookNode bookNode, IMetadataJsonProcessor metadataProcessor,
         IFileOrganizer fileOrganizer, IPathGenerator pathGenerator,
-        IPublishingService publishingService, AppSettings settings,
+        PublishQueueService publishQueue, AppSettings settings,
         string libraryPath, Func<string?, Task> reloadCallback, ILogger logger)
     {
         _bookNode = bookNode;
         _metadataProcessor = metadataProcessor;
         _fileOrganizer = fileOrganizer;
         _pathGenerator = pathGenerator;
-        _publishingService = publishingService;
+        _publishQueue = publishQueue;
         _settings = settings;
         _libraryPath = libraryPath;
         _reloadCallback = reloadCallback;
@@ -90,7 +90,7 @@ public partial class BookDetailViewModel : ObservableObject
         ExpectedPath = bookNode.ExpectedPath;
 
         // Check published state
-        IsPublished = publishingService.IsPublished(bookNode.Path);
+        IsPublished = bookNode.IsPublished;
         UpdateCanPublish();
 
         // Load current values
@@ -429,7 +429,7 @@ public partial class BookDetailViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task PublishAsync(CancellationToken ct)
+    private void Publish()
     {
         if (string.IsNullOrWhiteSpace(_settings.AbsLibraryFolder))
         {
@@ -443,46 +443,25 @@ public partial class BookDetailViewModel : ObservableObject
             return;
         }
 
-        PublishStatus = "Publishing...";
-
-        try
+        var metadata = new BookMetadata
         {
-            var metadata = new BookMetadata
-            {
-                Title = Title,
-                Author = Author,
-                Series = NullIfEmpty(Series),
-                SeriesNumber = NullIfEmpty(SeriesNumber),
-                Narrator = NullIfEmpty(Narrator),
-                Year = int.TryParse(Year, out var y) ? y : null,
-                DiscNumber = int.TryParse(DiscNumber, out var d) ? d : null,
-                Genre = NullIfEmpty(Genre),
-                Description = NullIfEmpty(Description),
-                Language = NullIfEmpty(Language),
-                Confidence = _bookNode.Confidence,
-                Source = "GUI"
-            };
+            Title = Title,
+            Author = Author,
+            Series = NullIfEmpty(Series),
+            SeriesNumber = NullIfEmpty(SeriesNumber),
+            Narrator = NullIfEmpty(Narrator),
+            Year = int.TryParse(Year, out var y) ? y : null,
+            DiscNumber = int.TryParse(DiscNumber, out var d) ? d : null,
+            Genre = NullIfEmpty(Genre),
+            Description = NullIfEmpty(Description),
+            Language = NullIfEmpty(Language),
+            Confidence = _bookNode.Confidence,
+            Source = "GUI"
+        };
 
-            var result = await _publishingService.PublishBookAsync(
-                _bookNode.Path, metadata, _settings.AbsLibraryFolder, ct);
-
-            if (result.Success)
-            {
-                IsPublished = true;
-                _bookNode.IsPublished = true;
-                CanPublish = false;
-                PublishStatus = $"Published to {result.TargetPath}";
-            }
-            else
-            {
-                PublishStatus = $"Failed: {result.Error}";
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to publish {Path}", _bookNode.Path);
-            PublishStatus = $"Error: {ex.Message}";
-        }
+        _publishQueue.Enqueue(_bookNode, metadata, _settings.AbsLibraryFolder);
+        CanPublish = false;
+        PublishStatus = "Queued for publishing.";
     }
 
     [RelayCommand]

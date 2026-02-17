@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BookOrganizer.Models;
-using BookOrganizer.Services.Audiobookshelf;
+using BookOrganizer.Desktop.Services;
 using BookOrganizer.Services.Metadata;
 using BookOrganizer.Services.Operations;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -19,7 +19,7 @@ public partial class AuthorDetailViewModel : ObservableObject
     private readonly IMetadataJsonProcessor _metadataProcessor;
     private readonly IFileOrganizer _fileOrganizer;
     private readonly IPathGenerator _pathGenerator;
-    private readonly IPublishingService _publishingService;
+    private readonly PublishQueueService _publishQueue;
     private readonly AppSettings _settings;
     private readonly Func<string?, Task> _reloadCallback;
     private readonly ILogger _logger;
@@ -45,7 +45,7 @@ public partial class AuthorDetailViewModel : ObservableObject
 
     public AuthorDetailViewModel(AuthorNode authorNode, string libraryPath,
         IMetadataJsonProcessor metadataProcessor, IFileOrganizer fileOrganizer,
-        IPathGenerator pathGenerator, IPublishingService publishingService,
+        IPathGenerator pathGenerator, PublishQueueService publishQueue,
         AppSettings settings, Func<string?, Task> reloadCallback, ILogger logger)
     {
         _authorNode = authorNode;
@@ -53,7 +53,7 @@ public partial class AuthorDetailViewModel : ObservableObject
         _metadataProcessor = metadataProcessor;
         _fileOrganizer = fileOrganizer;
         _pathGenerator = pathGenerator;
-        _publishingService = publishingService;
+        _publishQueue = publishQueue;
         _settings = settings;
         _reloadCallback = reloadCallback;
         _logger = logger;
@@ -170,7 +170,7 @@ public partial class AuthorDetailViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task PublishAllAsync(CancellationToken ct)
+    private void PublishAll()
     {
         if (string.IsNullOrWhiteSpace(_settings.AbsLibraryFolder))
         {
@@ -188,54 +188,28 @@ public partial class AuthorDetailViewModel : ObservableObject
             return;
         }
 
-        PublishStatus = $"Publishing {unpublished.Count} book(s)...";
-
-        try
-        {
-            var books = unpublished.Select(b => (
-                b.Path,
-                (BookMetadata)new BookMetadata
-                {
-                    Title = b.Title,
-                    Author = b.Author,
-                    Series = b.Series,
-                    SeriesNumber = b.SeriesNumber,
-                    Narrator = b.Narrator,
-                    Year = b.Year,
-                    DiscNumber = b.DiscNumber,
-                    Genre = b.Genre,
-                    Description = b.Description,
-                    Language = b.Language,
-                    Confidence = b.Confidence,
-                    Source = "GUI"
-                }
-            )).ToList();
-
-            var results = await _publishingService.PublishBooksAsync(
-                books, _settings.AbsLibraryFolder, null, ct);
-
-            var succeeded = results.Count(r => r.Success);
-            var failed = results.Count(r => !r.Success);
-
-            // Update tree nodes
-            foreach (var result in results.Where(r => r.Success))
+        var items = unpublished.Select(b => (
+            b,
+            new BookMetadata
             {
-                var book = unpublished.FirstOrDefault(b => b.Path == result.SourcePath);
-                if (book != null)
-                    book.IsPublished = true;
+                Title = b.Title,
+                Author = b.Author,
+                Series = b.Series,
+                SeriesNumber = b.SeriesNumber,
+                Narrator = b.Narrator,
+                Year = b.Year,
+                DiscNumber = b.DiscNumber,
+                Genre = b.Genre,
+                Description = b.Description,
+                Language = b.Language,
+                Confidence = b.Confidence,
+                Source = "GUI"
             }
+        )).ToList();
 
-            UnpublishedCount = GetAllBooks(_authorNode).Count(b => !b.IsPublished);
-            CanPublish = UnpublishedCount > 0;
-            PublishStatus = failed > 0
-                ? $"Published {succeeded}, failed {failed}."
-                : $"Published {succeeded} book(s).";
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to publish author {Author}", _authorNode.Name);
-            PublishStatus = $"Error: {ex.Message}";
-        }
+        _publishQueue.EnqueueRange(items, _settings.AbsLibraryFolder);
+        CanPublish = false;
+        PublishStatus = $"Queued {unpublished.Count} book(s) for publishing.";
     }
 
     private static int CountBooks(AuthorNode author)
