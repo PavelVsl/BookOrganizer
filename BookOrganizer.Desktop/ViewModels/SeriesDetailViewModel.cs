@@ -46,7 +46,7 @@ public partial class SeriesDetailViewModel : ObservableObject
         _seriesName = seriesNode.Name;
         _folderPath = seriesNode.Path;
         _bookCount = seriesNode.Books.Count;
-        _unpublishedCount = seriesNode.Books.Count(b => !b.IsPublished);
+        _unpublishedCount = seriesNode.Books.Count(b => !b.IsPublished && !b.IsIgnored);
         _canPublish = _unpublishedCount > 0 && !string.IsNullOrWhiteSpace(settings.AbsLibraryFolder);
     }
 
@@ -99,7 +99,7 @@ public partial class SeriesDetailViewModel : ObservableObject
             return;
         }
 
-        var unpublished = _seriesNode.Books.Where(b => !b.IsPublished).ToList();
+        var unpublished = _seriesNode.Books.Where(b => !b.IsPublished && !b.IsIgnored).ToList();
 
         if (unpublished.Count == 0)
         {

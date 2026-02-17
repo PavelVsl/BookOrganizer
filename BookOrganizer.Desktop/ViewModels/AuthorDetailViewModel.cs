@@ -65,7 +65,7 @@ public partial class AuthorDetailViewModel : ObservableObject
         _bookCount = CountBooks(authorNode);
         _seriesCount = authorNode.Children.OfType<SeriesNode>().Count();
         _booksNeedingReorganize = GetAllBooks(authorNode).Count(b => b.NeedsReorganize);
-        _unpublishedCount = GetAllBooks(authorNode).Count(b => !b.IsPublished);
+        _unpublishedCount = GetAllBooks(authorNode).Count(b => !b.IsPublished && !b.IsIgnored);
         _canPublish = _unpublishedCount > 0 && !string.IsNullOrWhiteSpace(settings.AbsLibraryFolder);
     }
 
@@ -187,7 +187,7 @@ public partial class AuthorDetailViewModel : ObservableObject
         }
 
         var unpublished = GetAllBooks(_authorNode)
-            .Where(b => !b.IsPublished)
+            .Where(b => !b.IsPublished && !b.IsIgnored)
             .ToList();
 
         if (unpublished.Count == 0)
