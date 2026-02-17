@@ -591,8 +591,8 @@ public class PreviewCommand : Command
 
         try
         {
-            var absLogger = Program.ServiceProvider.GetRequiredService<ILogger<AbsApiClient>>();
-            using var client = new AbsApiClient(url, token, absLogger);
+            var client = Program.ServiceProvider.GetRequiredService<IAbsApiClient>();
+            client.Configure(url, token);
 
             // Resolve library ID: CLI flag > env var > auto-detect
             var libraryId = absLibrary ?? Environment.GetEnvironmentVariable("AUDIOBOOKSHELF_LIBRARY");

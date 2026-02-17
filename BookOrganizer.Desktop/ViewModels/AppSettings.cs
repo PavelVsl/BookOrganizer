@@ -15,6 +15,13 @@ public class AppSettings
 
     public int ReorganizeModeIndex { get; set; } // 0=In-place, 1=Copy, 2=Move
 
+    // Audiobookshelf settings
+    public string? AbsServerUrl { get; set; }
+    public string? AbsApiKey { get; set; }
+    public string? AbsLibraryId { get; set; }
+    public string? AbsLibraryName { get; set; }
+    public string? AbsLibraryFolder { get; set; }
+
     public double WindowWidth { get; set; } = 1200;
     public double WindowHeight { get; set; } = 700;
     public int SelectedNavIndex { get; set; }

@@ -19,6 +19,7 @@
                 <ListBox SelectedIndex="{Binding SelectedNavIndex}" Margin="4,0">
                     <ListBoxItem>Library</ListBoxItem>
                     <ListBoxItem>Tools</ListBoxItem>
+                    <ListBoxItem>Audiobookshelf</ListBoxItem>
                 </ListBox>
             </StackPanel>
         </Border>

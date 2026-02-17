@@ -78,6 +78,8 @@ public static class CoreServiceCollectionExtensions
         services.AddSingleton<IDeduplicationCache, InMemoryDeduplicationCache>();
 
         // Audiobookshelf services
+        services.AddSingleton<IAbsApiClient, AbsApiClient>();
+        services.AddSingleton<IPublishingService, PublishingService>();
         services.AddSingleton<AbsDeduplicationService>();
 
         // Library tree services

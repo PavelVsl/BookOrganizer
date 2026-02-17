@@ -94,6 +94,53 @@
                 </Grid>
             </TabItem>
 
+            <!-- Audiobookshelf tab -->
+            <TabItem Header="Audiobookshelf">
+                <ScrollViewer>
+                <StackPanel Spacing="12" Margin="16" MaxWidth="500">
+                    <TextBlock Text="Audiobookshelf Settings" FontSize="18" FontWeight="Bold" />
+                    <TextBlock TextWrapping="Wrap"
+                               Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}">
+                        Configure connection to your Audiobookshelf server for publishing audiobooks.
+                    </TextBlock>
+
+                    <TextBlock Text="Server URL" FontSize="11"
+                               Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                    <TextBox Text="{Binding AbsServerUrl}" Watermark="https://abs.example.com" />
+
+                    <TextBlock Text="API Key" FontSize="11"
+                               Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                    <TextBox Text="{Binding AbsApiKey}" PasswordChar="*"
+                             Watermark="Enter API key..." />
+
+                    <TextBlock Text="ABS Library Folder (local mount)" FontSize="11"
+                               Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                    <TextBox Text="{Binding AbsLibraryFolder}"
+                             Watermark="/mnt/abs-library or /Volumes/abs-library" />
+
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Test Connection" Command="{Binding TestAbsConnectionCommand}"
+                                IsEnabled="{Binding !IsBusy}" />
+                        <Button Content="Save" Command="{Binding SaveAbsSettingsCommand}"
+                                Classes="accent" />
+                    </StackPanel>
+
+                    <TextBlock Text="{Binding AbsConnectionStatus}" FontSize="11"
+                               Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                               TextWrapping="Wrap" />
+
+                    <TextBlock Text="Library" FontSize="11"
+                               Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                               Margin="0,8,0,0" />
+                    <ComboBox ItemsSource="{Binding AbsLibraries}"
+                              SelectedValue="{Binding SelectedAbsLibraryId}"
+                              SelectedValueBinding="{Binding Id}"
+                              DisplayMemberBinding="{Binding}"
+                              HorizontalAlignment="Stretch" />
+                </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
         </TabControl>
 
         <!-- Status bar -->

@@ -13,13 +13,16 @@ public partial class MainWindowViewModel : ObservableObject
     public LibraryViewModel Library => _libraryViewModel;
     private readonly LibraryViewModel _libraryViewModel;
     private readonly ToolsViewModel _toolsViewModel;
+    private readonly AbsLibraryViewModel _absLibraryViewModel;
 
     public MainWindowViewModel(
         LibraryViewModel libraryViewModel,
-        ToolsViewModel toolsViewModel)
+        ToolsViewModel toolsViewModel,
+        AbsLibraryViewModel absLibraryViewModel)
     {
         _libraryViewModel = libraryViewModel;
         _toolsViewModel = toolsViewModel;
+        _absLibraryViewModel = absLibraryViewModel;
         _currentView = libraryViewModel;
     }
 
@@ -29,6 +32,7 @@ public partial class MainWindowViewModel : ObservableObject
         {
             0 => _libraryViewModel,
             1 => _toolsViewModel,
+            2 => _absLibraryViewModel,
             _ => _libraryViewModel
         };
     }

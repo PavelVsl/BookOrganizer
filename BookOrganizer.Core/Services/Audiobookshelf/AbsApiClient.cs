@@ -7,10 +7,11 @@ namespace BookOrganizer.Services.Audiobookshelf;
 
 /// <summary>
 /// HttpClient-based implementation of the Audiobookshelf API client.
+/// Supports lazy configuration — can be registered as singleton and configured later.
 /// </summary>
 public class AbsApiClient : IAbsApiClient, IDisposable
 {
-    private readonly HttpClient _httpClient;
+    private HttpClient? _httpClient;
     private readonly ILogger<AbsApiClient> _logger;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -18,22 +19,38 @@ public class AbsApiClient : IAbsApiClient, IDisposable
         PropertyNameCaseInsensitive = true
     };
 
-    public AbsApiClient(string baseUrl, string apiToken, ILogger<AbsApiClient> logger)
+    public bool IsConfigured => _httpClient != null;
+
+    public AbsApiClient(ILogger<AbsApiClient> logger)
     {
         _logger = logger;
+    }
+
+    /// <inheritdoc />
+    public void Configure(string baseUrl, string apiKey)
+    {
+        _httpClient?.Dispose();
         _httpClient = new HttpClient
         {
             BaseAddress = new Uri(baseUrl.TrimEnd('/'))
         };
         _httpClient.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", apiToken);
+            new AuthenticationHeaderValue("Bearer", apiKey);
+        _logger.LogInformation("ABS client configured for {BaseUrl}", baseUrl);
+    }
+
+    private HttpClient GetClient()
+    {
+        return _httpClient ?? throw new InvalidOperationException(
+            "ABS client is not configured. Call Configure() with server URL and API key first.");
     }
 
     /// <inheritdoc />
     public async Task<List<AbsLibrary>> GetLibrariesAsync(CancellationToken cancellationToken = default)
     {
+        var client = GetClient();
         _logger.LogDebug("Fetching libraries from ABS");
-        var response = await _httpClient.GetAsync("/api/libraries", cancellationToken).ConfigureAwait(false);
+        var response = await client.GetAsync("/api/libraries", cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
@@ -49,9 +66,9 @@ public class AbsApiClient : IAbsApiClient, IDisposable
         string libraryId,
         CancellationToken cancellationToken = default)
     {
-        // Use limit=0 to get all items in a single request
+        var client = GetClient();
         _logger.LogDebug("Fetching all items from ABS library {LibraryId}", libraryId);
-        var response = await _httpClient.GetAsync(
+        var response = await client.GetAsync(
             $"/api/libraries/{libraryId}/items?limit=0",
             cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
@@ -64,8 +81,21 @@ public class AbsApiClient : IAbsApiClient, IDisposable
         return items;
     }
 
+    /// <inheritdoc />
+    public async Task ScanLibraryAsync(string libraryId, CancellationToken cancellationToken = default)
+    {
+        var client = GetClient();
+        _logger.LogInformation("Triggering scan for ABS library {LibraryId}", libraryId);
+        var response = await client.PostAsync(
+            $"/api/libraries/{libraryId}/scan",
+            null,
+            cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+        _logger.LogInformation("Library scan triggered for {LibraryId}", libraryId);
+    }
+
     public void Dispose()
     {
-        _httpClient.Dispose();
+        _httpClient?.Dispose();
     }
 }

@@ -9,6 +9,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
 using BookOrganizer.Models;
+using BookOrganizer.Services.Audiobookshelf;
 using BookOrganizer.Services.Metadata;
 using BookOrganizer.Services.Operations;
 using BookOrganizer.Services.Scanning;
@@ -27,6 +28,7 @@ public partial class LibraryViewModel : ObservableObject
     private readonly ITextNormalizer _textNormalizer;
     private readonly IFileOrganizer _fileOrganizer;
     private readonly IPathGenerator _pathGenerator;
+    private readonly IPublishingService _publishingService;
     private readonly ILogger<LibraryViewModel> _logger;
     private readonly AppSettings _settings;
 
@@ -86,6 +88,7 @@ public partial class LibraryViewModel : ObservableObject
         ITextNormalizer textNormalizer,
         IFileOrganizer fileOrganizer,
         IPathGenerator pathGenerator,
+        IPublishingService publishingService,
         ILogger<LibraryViewModel> logger,
         AppSettings settings)
     {
@@ -95,6 +98,7 @@ public partial class LibraryViewModel : ObservableObject
         _textNormalizer = textNormalizer;
         _fileOrganizer = fileOrganizer;
         _pathGenerator = pathGenerator;
+        _publishingService = publishingService;
         _logger = logger;
         _settings = settings;
 
@@ -184,7 +188,7 @@ public partial class LibraryViewModel : ObservableObject
 
         SelectedDetail = value switch
         {
-            BookNode book => new BookDetailViewModel(book, _metadataProcessor, _fileOrganizer, _pathGenerator, LibraryPath, ReloadAndReselectAsync, _logger),
+            BookNode book => new BookDetailViewModel(book, _metadataProcessor, _fileOrganizer, _pathGenerator, _publishingService, _settings, LibraryPath, ReloadAndReselectAsync, _logger),
             AuthorNode author => new AuthorDetailViewModel(author, LibraryPath, _metadataProcessor, _fileOrganizer, _pathGenerator, ReloadAndReselectAsync, _logger),
             SeriesNode series => new SeriesDetailViewModel(series, LibraryPath, _metadataProcessor, _logger),
             VolumeNode volume => new VolumeDetailViewModel(volume, _metadataProcessor, _logger),
@@ -683,7 +687,8 @@ public partial class LibraryViewModel : ObservableObject
             DiscCount = folder.DiscSubfolders.Count,
             SourceFolder = folder,
             NeedsReorganize = needsReorganize,
-            ExpectedPath = expectedPath
+            ExpectedPath = expectedPath,
+            IsPublished = File.Exists(System.IO.Path.Combine(folder.Path, ".published"))
         };
 
         // Populate volume children for multi-disc books
@@ -830,6 +835,7 @@ public partial class BookNode : ObservableObject
     [ObservableProperty] private int _discCount;
     [ObservableProperty] private bool _needsReorganize;
     [ObservableProperty] private string? _expectedPath;
+    [ObservableProperty] private bool _isPublished;
 
     /// <summary>The scanned AudiobookFolder, if loaded via metadata scan.</summary>
     public AudiobookFolder? SourceFolder { get; set; }

@@ -1,0 +1,57 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:BookOrganizer.Desktop.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
+             x:Class="BookOrganizer.Desktop.Views.AbsLibraryView"
+             x:DataType="vm:AbsLibraryViewModel">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <!-- Toolbar -->
+        <Border Grid.Row="0" Padding="12,8" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="Refresh" Command="{Binding RefreshCommand}"
+                        IsEnabled="{Binding !IsLoading}" Classes="accent" />
+                <Button Content="Scan Library" Command="{Binding ScanLibraryCommand}"
+                        IsEnabled="{Binding !IsLoading}"
+                        ToolTip.Tip="Trigger Audiobookshelf to scan for new books" />
+                <TextBlock Text="{Binding ItemCount, StringFormat='{}{0} items'}"
+                           VerticalAlignment="Center" Margin="8,0,0,0"
+                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+            </StackPanel>
+        </Border>
+
+        <!-- Tree view -->
+        <TreeView Grid.Row="1" ItemsSource="{Binding Authors}"
+                  SelectedItem="{Binding SelectedItem}" Margin="4">
+            <TreeView.DataTemplates>
+                <TreeDataTemplate DataType="vm:AbsAuthorNode" ItemsSource="{Binding Children}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="&#128100;" />
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                    </StackPanel>
+                </TreeDataTemplate>
+                <TreeDataTemplate DataType="vm:AbsSeriesNode" ItemsSource="{Binding Books}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="&#128218;" />
+                        <TextBlock Text="{Binding Name}" FontStyle="Italic" />
+                    </StackPanel>
+                </TreeDataTemplate>
+                <DataTemplate DataType="vm:AbsBookNode">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="&#127911;" />
+                        <TextBlock Text="{Binding Title}" />
+                    </StackPanel>
+                </DataTemplate>
+            </TreeView.DataTemplates>
+        </TreeView>
+
+        <!-- Status bar -->
+        <Border Grid.Row="2" Padding="12,4" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,1,0,0">
+            <TextBlock Text="{Binding StatusText}" FontSize="12"
+                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+        </Border>
+    </Grid>
+
+</UserControl>
