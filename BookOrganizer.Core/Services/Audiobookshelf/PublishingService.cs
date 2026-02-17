@@ -46,7 +46,13 @@ public class PublishingService : IPublishingService
 
             if (Directory.Exists(targetPath))
             {
-                return new PublishResult(false, bookFolderPath, targetPath, "Target folder already exists in ABS library");
+                // Already in ABS — just mark as published locally
+                _logger.LogInformation("Target already exists, marking as published: {Target}", targetPath);
+                var existingMarker = $"published_at: {DateTime.UtcNow:O}\ntarget: {targetPath}\n";
+                await File.WriteAllTextAsync(
+                    Path.Combine(bookFolderPath, PublishedMarkerFile),
+                    existingMarker, ct).ConfigureAwait(false);
+                return new PublishResult(true, bookFolderPath, targetPath, null);
             }
 
             // Copy the entire folder
