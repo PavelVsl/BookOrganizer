@@ -176,6 +176,10 @@
                                         <StackPanel Orientation="Horizontal" Spacing="6">
                                             <TextBlock Text="&#128100;" />
                                             <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                            <TextBlock Text="(ignored)" FontSize="11"
+                                                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                                       IsVisible="{Binding IsIgnored}"
+                                                       VerticalAlignment="Center" />
                                         </StackPanel>
                                     </TreeDataTemplate>
                                     <TreeDataTemplate DataType="vm:SeriesNode" ItemsSource="{Binding Books}">
@@ -250,6 +254,13 @@
                                                             IsEnabled="{Binding IsDirty}" Classes="accent" />
                                                     <Button Content="Revert" Command="{Binding RevertCommand}"
                                                             IsEnabled="{Binding IsDirty}" />
+                                                    <Button Command="{Binding ToggleIgnoreCommand}"
+                                                            ToolTip.Tip="Toggle ignore flag for entire author (.ignore marker file)">
+                                                        <Panel>
+                                                            <TextBlock Text="Ignore" IsVisible="{Binding !IsIgnored}" />
+                                                            <TextBlock Text="Unignore" IsVisible="{Binding IsIgnored}" />
+                                                        </Panel>
+                                                    </Button>
                                                 </StackPanel>
                                                 <TextBlock Text="{Binding SaveStatus}" FontSize="11"
                                                            Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
@@ -276,6 +287,19 @@
                                                                FontSize="12" Foreground="Gold" />
                                                     <Button Content="Reorganize all" Command="{Binding ReorganizeAuthorCommand}"
                                                             Margin="0,4,0,0" />
+                                                </StackPanel>
+
+                                                <!-- Folder bookinfo.json section -->
+                                                <StackPanel IsVisible="{Binding FolderPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                            Margin="0,12,0,0">
+                                                    <Separator Margin="0,0,0,8" />
+                                                    <TextBlock Text="Folder bookinfo.json" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,4" />
+                                                    <TextBlock Text="{Binding FolderBookinfoStatus}" FontSize="11"
+                                                               Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                                               TextWrapping="Wrap" />
+                                                    <Button Content="Save folder bookinfo.json" Command="{Binding SaveFolderBookinfoCommand}"
+                                                            Margin="0,4,0,0"
+                                                            ToolTip.Tip="Create/update bookinfo.json at author folder with author name" />
                                                 </StackPanel>
                                             </StackPanel>
                                             </ScrollViewer>
@@ -314,6 +338,19 @@
                                                     <TextBlock Text="{Binding PublishStatus}" FontSize="11"
                                                                Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
                                                                IsVisible="{Binding PublishStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                </StackPanel>
+
+                                                <!-- Folder bookinfo.json section -->
+                                                <StackPanel IsVisible="{Binding FolderPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                            Margin="0,12,0,0">
+                                                    <Separator Margin="0,0,0,8" />
+                                                    <TextBlock Text="Folder bookinfo.json" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,4" />
+                                                    <TextBlock Text="{Binding FolderBookinfoStatus}" FontSize="11"
+                                                               Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                                               TextWrapping="Wrap" />
+                                                    <Button Content="Save folder bookinfo.json" Command="{Binding SaveFolderBookinfoCommand}"
+                                                            Margin="0,4,0,0"
+                                                            ToolTip.Tip="Create/update bookinfo.json at series folder with series name" />
                                                 </StackPanel>
                                             </StackPanel>
                                             </ScrollViewer>

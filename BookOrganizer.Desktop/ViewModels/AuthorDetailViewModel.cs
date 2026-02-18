@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -40,6 +41,11 @@ public partial class AuthorDetailViewModel : ObservableObject
     [ObservableProperty] private int _unpublishedCount;
     [ObservableProperty] private string _publishStatus = "";
     [ObservableProperty] private bool _canPublish;
+    [ObservableProperty] private bool _isIgnored;
+
+    // Folder-level bookinfo.json
+    [ObservableProperty] private bool _hasFolderBookinfo;
+    [ObservableProperty] private string _folderBookinfoStatus = "";
 
     private readonly string _originalName;
 
@@ -65,6 +71,7 @@ public partial class AuthorDetailViewModel : ObservableObject
         _bookCount = CountBooks(authorNode);
         _seriesCount = authorNode.Children.OfType<SeriesNode>().Count();
         _booksNeedingReorganize = GetAllBooks(authorNode).Count(b => b.NeedsReorganize);
+        _isIgnored = authorNode.IsIgnored;
         _unpublishedCount = GetAllBooks(authorNode).Count(b => !b.IsPublished && !b.IsIgnored);
         _canPublish = _unpublishedCount > 0 && !string.IsNullOrWhiteSpace(settings.AbsLibraryFolder);
 
@@ -79,6 +86,27 @@ public partial class AuthorDetailViewModel : ObservableObject
                     CanPublish = UnpublishedCount > 0 && !string.IsNullOrWhiteSpace(_settings.AbsLibraryFolder);
                 }
             };
+        }
+
+        // Check folder-level bookinfo.json
+        if (!string.IsNullOrEmpty(authorNode.Path))
+            _ = LoadFolderBookinfoStatusAsync();
+    }
+
+    private async Task LoadFolderBookinfoStatusAsync()
+    {
+        try
+        {
+            var existing = await _metadataProcessor.LoadMetadataJsonAsync(_authorNode.Path);
+            HasFolderBookinfo = existing != null;
+            FolderBookinfoStatus = existing != null
+                ? $"bookinfo.json exists (author: {existing.Author ?? "not set"})"
+                : "No bookinfo.json at author folder level";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to check folder bookinfo.json at {Path}", _authorNode.Path);
+            FolderBookinfoStatus = "Error checking bookinfo.json";
         }
     }
 
@@ -127,6 +155,39 @@ public partial class AuthorDetailViewModel : ObservableObject
         AuthorName = _originalName;
         IsDirty = false;
         SaveStatus = "";
+    }
+
+    [RelayCommand]
+    private void ToggleIgnore()
+    {
+        var markerPath = Path.Combine(_authorNode.Path, ".ignore");
+        if (IsIgnored)
+        {
+            File.Delete(markerPath);
+            IsIgnored = false;
+            _authorNode.IsIgnored = false;
+
+            // Restore each book to its own .ignore state
+            foreach (var book in GetAllBooks(_authorNode))
+            {
+                book.IsIgnored = File.Exists(Path.Combine(book.Path, ".ignore"));
+            }
+        }
+        else
+        {
+            File.WriteAllText(markerPath, $"ignored_at: {DateTime.UtcNow:O}\n");
+            IsIgnored = true;
+            _authorNode.IsIgnored = true;
+
+            // Mark all child books as ignored
+            foreach (var book in GetAllBooks(_authorNode))
+            {
+                book.IsIgnored = true;
+            }
+        }
+
+        UnpublishedCount = GetAllBooks(_authorNode).Count(b => !b.IsPublished && !b.IsIgnored);
+        CanPublish = UnpublishedCount > 0 && !string.IsNullOrWhiteSpace(_settings.AbsLibraryFolder);
     }
 
     [RelayCommand]
@@ -231,6 +292,27 @@ public partial class AuthorDetailViewModel : ObservableObject
         _publishQueue.EnqueueRange(items, _settings.AbsLibraryFolder);
         CanPublish = false;
         PublishStatus = $"Queued {unpublished.Count} book(s) for publishing.";
+    }
+
+    [RelayCommand]
+    private async Task SaveFolderBookinfoAsync(CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(_authorNode.Path))
+            return;
+
+        try
+        {
+            FolderBookinfoStatus = "Saving...";
+            var metadata = new MetadataOverride { Author = AuthorName.Trim() };
+            await _metadataProcessor.SaveMetadataAsync(_authorNode.Path, metadata, ct);
+            HasFolderBookinfo = true;
+            FolderBookinfoStatus = $"Saved bookinfo.json (author: {AuthorName.Trim()})";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save folder bookinfo.json at {Path}", _authorNode.Path);
+            FolderBookinfoStatus = $"Error: {ex.Message}";
+        }
     }
 
     private static int CountBooks(AuthorNode author)

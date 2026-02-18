@@ -362,7 +362,14 @@ public partial class LibraryViewModel : ObservableObject
 
             foreach (var (author, books) in booksByAuthor.OrderBy(kv => kv.Key))
             {
-                var authorNode = new AuthorNode { Name = author, Path = "" };
+                // Derive author folder path from the first book's path
+                var firstBookPath = books[0].folder.Path;
+                var relativePath = System.IO.Path.GetRelativePath(LibraryPath, firstBookPath);
+                var firstComponent = relativePath.Split(System.IO.Path.DirectorySeparatorChar)[0];
+                var authorPath = System.IO.Path.Combine(LibraryPath, firstComponent);
+
+                var authorIgnored = File.Exists(System.IO.Path.Combine(authorPath, ".ignore"));
+                var authorNode = new AuthorNode { Name = author, Path = authorPath, IsIgnored = authorIgnored };
 
                 // Group by series
                 var withSeries = books.Where(b => !string.IsNullOrEmpty(b.meta.Series)).GroupBy(b => b.meta.Series!);
@@ -370,7 +377,11 @@ public partial class LibraryViewModel : ObservableObject
 
                 foreach (var seriesGroup in withSeries.OrderBy(g => g.Key))
                 {
-                    var seriesNode = new SeriesNode { Name = seriesGroup.Key, Path = "" };
+                    // Series folder is the parent of the first book in the series
+                    var firstSeriesBookPath = seriesGroup.First().folder.Path;
+                    var seriesPath = System.IO.Path.GetDirectoryName(firstSeriesBookPath) ?? "";
+
+                    var seriesNode = new SeriesNode { Name = seriesGroup.Key, Path = seriesPath };
                     foreach (var (meta, folder) in seriesGroup.OrderBy(b => b.meta.SeriesNumber))
                     {
                         seriesNode.Books.Add(CreateBookNodeFromMetadata(meta, folder));
@@ -381,6 +392,19 @@ public partial class LibraryViewModel : ObservableObject
                 foreach (var (meta, folder) in withoutSeries.OrderBy(b => b.meta.Title))
                 {
                     authorNode.Children.Add(CreateBookNodeFromMetadata(meta, folder));
+                }
+
+                // Propagate author-level ignore to all child books
+                if (authorIgnored)
+                {
+                    foreach (var child in authorNode.Children)
+                    {
+                        if (child is BookNode book)
+                            book.IsIgnored = true;
+                        else if (child is SeriesNode series)
+                            foreach (var b in series.Books)
+                                b.IsIgnored = true;
+                    }
                 }
 
                 authorNodes.Add(authorNode);
@@ -1036,7 +1060,11 @@ public partial class LibraryViewModel : ObservableObject
 
         foreach (var author in _allAuthors)
         {
-            var filteredAuthor = new AuthorNode { Name = author.Name, Path = author.Path };
+            // Skip entire author if ignored and filter is active
+            if (HideIgnored && author.IsIgnored)
+                continue;
+
+            var filteredAuthor = new AuthorNode { Name = author.Name, Path = author.Path, IsIgnored = author.IsIgnored };
 
             foreach (var child in author.Children)
             {
@@ -1094,6 +1122,7 @@ public class AuthorNode
 {
     public required string Name { get; init; }
     public required string Path { get; init; }
+    public bool IsIgnored { get; set; }
     public ObservableCollection<object> Children { get; } = [];
 }
 
