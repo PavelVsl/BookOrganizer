@@ -605,6 +605,137 @@ public partial class LibraryViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Queue books that are NOT in ABS (and not ignored) for publishing.
+    /// </summary>
+    [RelayCommand]
+    private void PublishMissingToAbs()
+    {
+        if (string.IsNullOrWhiteSpace(_settings.AbsLibraryFolder))
+        {
+            StatusText = "ABS library folder not configured. Set it in Tools > Audiobookshelf.";
+            return;
+        }
+
+        var missing = AbsCheckResults
+            .Where(r => !r.ExistsInAbs && !r.IsPublished)
+            .ToList();
+
+        if (missing.Count == 0)
+        {
+            StatusText = "No unpublished books missing from ABS.";
+            return;
+        }
+
+        var bookNodes = missing
+            .Select(r => _allBooksUnfiltered.FirstOrDefault(b => b.Path == r.Path))
+            .Where(b => b != null)
+            .Select(b => (b!, new BookMetadata
+            {
+                Title = b!.Title,
+                Author = b.Author,
+                Series = b.Series,
+                SeriesNumber = b.SeriesNumber,
+                Narrator = b.Narrator,
+                Year = b.Year,
+                DiscNumber = b.DiscNumber,
+                Genre = b.Genre,
+                Description = b.Description,
+                Language = b.Language,
+                Confidence = b.Confidence,
+                Source = "GUI"
+            }))
+            .ToList();
+
+        _publishQueue.EnqueueRange(bookNodes, _settings.AbsLibraryFolder);
+        StatusText = $"Queued {bookNodes.Count} missing book(s) for publishing.";
+    }
+
+    /// <summary>
+    /// Write .published marker for books that ARE in ABS but lack the local marker.
+    /// </summary>
+    [RelayCommand]
+    private async Task SyncPublishedMarkersAsync()
+    {
+        var needSync = AbsCheckResults
+            .Where(r => r.ExistsInAbs && !r.IsPublished)
+            .ToList();
+
+        if (needSync.Count == 0)
+        {
+            StatusText = "All books in ABS already have .published markers.";
+            return;
+        }
+
+        var synced = 0;
+        foreach (var item in needSync)
+        {
+            try
+            {
+                var markerPath = System.IO.Path.Combine(item.Path, ".published");
+                await File.WriteAllTextAsync(markerPath, "");
+                synced++;
+
+                // Update the BookNode state
+                var book = _allBooksUnfiltered.FirstOrDefault(b => b.Path == item.Path);
+                if (book != null)
+                    book.IsPublished = true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to write .published marker for {Path}", item.Path);
+            }
+        }
+
+        StatusText = $"Synced {synced} .published marker(s).";
+    }
+
+    /// <summary>
+    /// Re-queue books that are marked .published locally but missing from ABS.
+    /// </summary>
+    [RelayCommand]
+    private void RepublishStale()
+    {
+        if (string.IsNullOrWhiteSpace(_settings.AbsLibraryFolder))
+        {
+            StatusText = "ABS library folder not configured. Set it in Tools > Audiobookshelf.";
+            return;
+        }
+
+        var stale = AbsCheckResults
+            .Where(r => r.IsPublished && !r.ExistsInAbs)
+            .ToList();
+
+        if (stale.Count == 0)
+        {
+            StatusText = "No stale published books found.";
+            return;
+        }
+
+        var bookNodes = stale
+            .Select(r => _allBooksUnfiltered.FirstOrDefault(b => b.Path == r.Path))
+            .Where(b => b != null)
+            .Select(b => (b!, new BookMetadata
+            {
+                Title = b!.Title,
+                Author = b.Author,
+                Series = b.Series,
+                SeriesNumber = b.SeriesNumber,
+                Narrator = b.Narrator,
+                Year = b.Year,
+                DiscNumber = b.DiscNumber,
+                Genre = b.Genre,
+                Description = b.Description,
+                Language = b.Language,
+                Confidence = b.Confidence,
+                Source = "GUI"
+            }))
+            .ToList();
+
+        _publishQueue.EnqueueRange(bookNodes, _settings.AbsLibraryFolder);
+        StatusText = $"Re-queued {bookNodes.Count} stale book(s) for publishing.";
+    }
+
     [RelayCommand]
     private void CloseAbsCheck()
     {
