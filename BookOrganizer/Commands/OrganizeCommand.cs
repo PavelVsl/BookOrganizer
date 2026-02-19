@@ -139,7 +139,7 @@ public class OrganizeCommand : Command
             return await ExecuteAsync(
                 source, destination, operation, !noValidate, verbose, yes,
                 detectDuplicates, duplicateThreshold, preserveDiacritics,
-                checkAbs, absUrl, absToken, absLibrary, duplicateAction);
+                checkAbs, absUrl, absToken, absLibrary, duplicateAction, cancellationToken);
         });
     }
 
@@ -157,7 +157,8 @@ public class OrganizeCommand : Command
         string? absUrl = null,
         string? absToken = null,
         string? absLibrary = null,
-        string duplicateAction = "skip")
+        string duplicateAction = "skip",
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -208,7 +209,7 @@ public class OrganizeCommand : Command
                 var organizationOptions = new OrganizationOptions { PreserveDiacritics = preserveDiacritics };
                 var preview = await previewGenerator.GeneratePreviewAsync(
                     sourcePath, destinationPath, opType,
-                    cancellationToken: CancellationToken.None,
+                    cancellationToken: cancellationToken,
                     options: organizationOptions,
                     absCheckConfig: absCheckConfig);
 
@@ -343,7 +344,7 @@ public class OrganizeCommand : Command
                         detectDuplicates,
                         duplicateThreshold,
                         progress,
-                        CancellationToken.None,
+                        cancellationToken,
                         organizationOptions);
 
                     overallTask.StopTask();
