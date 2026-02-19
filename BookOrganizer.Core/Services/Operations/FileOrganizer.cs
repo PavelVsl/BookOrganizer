@@ -465,6 +465,10 @@ public class FileOrganizer : IFileOrganizer
                         result.ErrorMessage);
                 }
             }
+            catch (OperationCanceledException)
+            {
+                throw; // Stop immediately on cancellation
+            }
             catch (Exception ex)
             {
                 filesFailed++;
