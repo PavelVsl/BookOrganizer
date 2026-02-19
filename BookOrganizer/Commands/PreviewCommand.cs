@@ -187,7 +187,7 @@ public class PreviewCommand : Command
                 compactMode, noTreeMode, verboseMode,
                 detectDuplicates, duplicateThreshold, rebuildCache,
                 exportMetadata, metadataSource, interactive, preserveDiacritics,
-                checkAbs, absUrl, absToken, absLibrary);
+                checkAbs, absUrl, absToken, absLibrary, cancellationToken);
         });
     }
 
@@ -212,7 +212,8 @@ public class PreviewCommand : Command
         bool checkAbs = false,
         string? absUrl = null,
         string? absToken = null,
-        string? absLibrary = null)
+        string? absLibrary = null,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -286,7 +287,7 @@ public class PreviewCommand : Command
                         detectDuplicates,
                         duplicateThreshold,
                         rebuildCache,
-                        CancellationToken.None,
+                        cancellationToken,
                         organizationOptions,
                         absCheckConfig);
                 });
@@ -311,7 +312,7 @@ public class PreviewCommand : Command
                 AnsiConsole.MarkupLine("[yellow]Exporting preview...[/]");
 
                 var format = DetermineExportFormat(exportPath);
-                await previewGenerator.ExportPreviewAsync(preview, exportPath, format, CancellationToken.None);
+                await previewGenerator.ExportPreviewAsync(preview, exportPath, format, cancellationToken);
 
                 AnsiConsole.MarkupLine("[green]✓[/] Preview exported to: {0}", exportPath);
             }
@@ -320,7 +321,7 @@ public class PreviewCommand : Command
             if (exportMetadata)
             {
                 AnsiConsole.WriteLine();
-                await ExportMetadataAsync(sourcePath, metadataSource, verbose);
+                await ExportMetadataAsync(sourcePath, metadataSource, verbose, cancellationToken);
             }
 
             // Show summary
@@ -364,7 +365,8 @@ public class PreviewCommand : Command
                         validateIntegrity: true,
                         verbose,
                         detectDuplicates,
-                        duplicateThreshold);
+                        duplicateThreshold,
+                        cancellationToken);
 
                     return exitCode;
                 }
@@ -405,7 +407,7 @@ public class PreviewCommand : Command
     /// <summary>
     /// Exports metadata.json files to source audiobook folders.
     /// </summary>
-    private static async Task ExportMetadataAsync(string sourcePath, string metadataSource, bool verbose)
+    private static async Task ExportMetadataAsync(string sourcePath, string metadataSource, bool verbose, CancellationToken cancellationToken = default)
     {
         var scanner = Program.ServiceProvider.GetRequiredService<IDirectoryScanner>();
         var metadataExtractor = Program.ServiceProvider.GetRequiredService<IMetadataExtractor>();
@@ -430,7 +432,7 @@ public class PreviewCommand : Command
                     ctx.Status($"[yellow]Scanning:[/] {p.CurrentDirectory ?? "..."}");
                 });
 
-                return await scanner.ScanDirectoryAsync(sourcePath, progress, CancellationToken.None);
+                return await scanner.ScanDirectoryAsync(sourcePath, progress, cancellationToken);
             });
 
         if (folders.Count == 0)
@@ -496,7 +498,7 @@ public class PreviewCommand : Command
                         else
                         {
                             // Extract metadata from MP3 tags (default)
-                            var metadata = await metadataExtractor.ExtractMetadataAsync(folder, null, CancellationToken.None);
+                            var metadata = await metadataExtractor.ExtractMetadataAsync(folder, null, cancellationToken);
 
                             metadataOverride = new MetadataOverride
                             {
@@ -648,7 +650,8 @@ public class PreviewCommand : Command
         bool validateIntegrity,
         bool verbose,
         bool detectDuplicates,
-        double duplicateThreshold)
+        double duplicateThreshold,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -707,7 +710,7 @@ public class PreviewCommand : Command
                         detectDuplicates,
                         duplicateThreshold,
                         progress,
-                        CancellationToken.None);
+                        cancellationToken);
 
                     overallTask.StopTask();
                     currentTask.StopTask();

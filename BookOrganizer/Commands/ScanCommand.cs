@@ -38,11 +38,11 @@ public class ScanCommand : Command
                 return 1;
             }
 
-            return await ExecuteAsync(source, verbose);
+            return await ExecuteAsync(source, verbose, cancellationToken);
         });
     }
 
-    private static async Task<int> ExecuteAsync(string sourcePath, bool verbose)
+    private static async Task<int> ExecuteAsync(string sourcePath, bool verbose, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -81,7 +81,7 @@ public class ScanCommand : Command
                         }
                     });
 
-                    var result = await scanner.ScanDirectoryAsync(sourcePath, progress, CancellationToken.None);
+                    var result = await scanner.ScanDirectoryAsync(sourcePath, progress, cancellationToken);
 
                     task.StopTask();
                     return result;

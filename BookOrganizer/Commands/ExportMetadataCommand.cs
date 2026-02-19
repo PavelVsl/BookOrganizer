@@ -72,11 +72,11 @@ public class ExportMetadataCommand : Command
                 return 1;
             }
 
-            return await ExecuteAsync(source, format, metadataSource, force, verbose);
+            return await ExecuteAsync(source, format, metadataSource, force, verbose, cancellationToken);
         });
     }
 
-    private static async Task<int> ExecuteAsync(string sourcePath, MetadataFormat format, string metadataSource, bool force, bool verbose)
+    private static async Task<int> ExecuteAsync(string sourcePath, MetadataFormat format, string metadataSource, bool force, bool verbose, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -132,7 +132,7 @@ public class ExportMetadataCommand : Command
                         task.Description = $"[yellow]Scanning:[/] {p.CurrentDirectory ?? "..."}";
                     });
 
-                    var result = await scanner.ScanDirectoryAsync(sourcePath, progress, CancellationToken.None);
+                    var result = await scanner.ScanDirectoryAsync(sourcePath, progress, cancellationToken);
 
                     task.StopTask();
                     return result;
@@ -225,7 +225,7 @@ public class ExportMetadataCommand : Command
                             else
                             {
                                 // MP3 tag extraction (default)
-                                var metadata = await metadataExtractor.ExtractMetadataAsync(folder, null, CancellationToken.None);
+                                var metadata = await metadataExtractor.ExtractMetadataAsync(folder, null, cancellationToken);
 
                                 var folderExported = false;
                                 var folderSkipped = true;
@@ -351,7 +351,7 @@ public class ExportMetadataCommand : Command
                                 task.Description = $"[yellow]Processing:[/] {Path.GetFileName(folderPath)}";
 
                                 var result = await metadataGenerator.GenerateMetadataFromStructureAsync(
-                                    folderPath, sourcePath, format, force, CancellationToken.None);
+                                    folderPath, sourcePath, format, force, cancellationToken);
 
                                 if (result.Success)
                                 {

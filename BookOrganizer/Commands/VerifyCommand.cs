@@ -80,7 +80,7 @@ public class VerifyCommand : Command
             }
 
             return await ExecuteAsync(library, verbose, checkDuplicates, duplicateThreshold,
-                generateMetadata, metadataFormat, force);
+                generateMetadata, metadataFormat, force, cancellationToken);
         });
     }
 
@@ -91,7 +91,8 @@ public class VerifyCommand : Command
         double duplicateThreshold,
         bool generateMetadata,
         MetadataFormat metadataFormat,
-        bool force)
+        bool force,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -138,7 +139,7 @@ public class VerifyCommand : Command
                         ctx.Status($"[yellow]Scanning:[/] {p.CurrentDirectory ?? "..."}");
                     });
 
-                    return await scanner.ScanDirectoryAsync(libraryPath, progress, CancellationToken.None);
+                    return await scanner.ScanDirectoryAsync(libraryPath, progress, cancellationToken);
                 });
 
             totalBooks = folders.Count;
@@ -285,7 +286,7 @@ public class VerifyCommand : Command
                                         File.Delete(metadataJsonPath);
 
                                     var metadata = await metadataExtractor.ExtractMetadataAsync(
-                                        matchingFolder, null, CancellationToken.None);
+                                        matchingFolder, null, cancellationToken);
 
                                     var allSkipped = true;
                                     foreach (var formatter in effectiveFormatters)
@@ -295,8 +296,8 @@ public class VerifyCommand : Command
                                             continue;
 
                                         allSkipped = false;
-                                        var content = await formatter.FormatAsync(metadata, CancellationToken.None);
-                                        await File.WriteAllTextAsync(metadataFilePath, content, CancellationToken.None);
+                                        var content = await formatter.FormatAsync(metadata, cancellationToken);
+                                        await File.WriteAllTextAsync(metadataFilePath, content, cancellationToken);
 
                                         metadataGenerated++;
                                         if (verbose)
@@ -310,7 +311,7 @@ public class VerifyCommand : Command
                                 {
                                     // For non-audiobook folders (author/series), use folder structure
                                     var result = await metadataGenerator.GenerateMetadataFromStructureAsync(
-                                        folderPath, libraryPath, metadataFormat, force, CancellationToken.None);
+                                        folderPath, libraryPath, metadataFormat, force, cancellationToken);
 
                                     if (result.Success)
                                     {
@@ -391,7 +392,7 @@ public class VerifyCommand : Command
                             }
 
                             // Check 2: Verify metadata
-                            var metadata = await metadataExtractor.ExtractMetadataAsync(folder, null, CancellationToken.None);
+                            var metadata = await metadataExtractor.ExtractMetadataAsync(folder, null, cancellationToken);
 
                             if (string.IsNullOrWhiteSpace(metadata.Title))
                             {
@@ -477,7 +478,7 @@ public class VerifyCommand : Command
                         for (int i = 0; i < folders.Count; i++)
                         {
                             var folder = folders[i];
-                            var metadata = await metadataExtractor.ExtractMetadataAsync(folder, null, CancellationToken.None);
+                            var metadata = await metadataExtractor.ExtractMetadataAsync(folder, null, cancellationToken);
 
                             // Create a normalized key for duplicate detection
                             var normalizedAuthor = NormalizeForComparison(metadata.Author ?? "");
