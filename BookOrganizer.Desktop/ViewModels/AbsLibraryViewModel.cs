@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using BookOrganizer.Models;
@@ -65,10 +66,10 @@ public partial class AbsLibraryViewModel : ObservableObject
             {
                 var authorNode = new AbsAuthorNode { Name = group.Key };
 
-                // Group by series within author
+                // Group by series within author (strip "#N" suffix from seriesName)
                 var withSeries = group
                     .Where(i => !string.IsNullOrWhiteSpace(i.Media?.Metadata?.SeriesName))
-                    .GroupBy(i => i.Media!.Metadata!.SeriesName!);
+                    .GroupBy(i => ParseSeriesName(i.Media!.Metadata!.SeriesName!).Name);
 
                 var withoutSeries = group
                     .Where(i => string.IsNullOrWhiteSpace(i.Media?.Metadata?.SeriesName));
@@ -76,14 +77,16 @@ public partial class AbsLibraryViewModel : ObservableObject
                 foreach (var seriesGroup in withSeries.OrderBy(g => g.Key))
                 {
                     var seriesNode = new AbsSeriesNode { Name = seriesGroup.Key };
-                    foreach (var item in seriesGroup.OrderBy(i => i.Media?.Metadata?.Title))
+                    foreach (var item in seriesGroup.OrderBy(i => ParseSeriesName(i.Media?.Metadata?.SeriesName ?? "").Sequence))
                     {
+                        var parsed = ParseSeriesName(item.Media?.Metadata?.SeriesName ?? "");
                         seriesNode.Books.Add(new AbsBookNode
                         {
                             Id = item.Id,
                             Title = item.Media?.Metadata?.Title ?? "Unknown",
                             Author = item.Media?.Metadata?.AuthorName,
-                            Series = item.Media?.Metadata?.SeriesName
+                            Series = parsed.Name,
+                            SeriesSequence = parsed.Sequence
                         });
                     }
                     authorNode.Children.Add(seriesNode);
@@ -117,6 +120,17 @@ public partial class AbsLibraryViewModel : ObservableObject
         {
             IsLoading = false;
         }
+    }
+
+    /// <summary>
+    /// Parses ABS seriesName like "Bill Hodges #2" into name="Bill Hodges" and sequence="2".
+    /// </summary>
+    private static (string Name, string? Sequence) ParseSeriesName(string seriesName)
+    {
+        var match = Regex.Match(seriesName, @"^(.+?)\s*#(\d+(?:\.\d+)?)$");
+        return match.Success
+            ? (match.Groups[1].Value.Trim(), match.Groups[2].Value)
+            : (seriesName.Trim(), null);
     }
 
     [RelayCommand]
@@ -161,4 +175,5 @@ public class AbsBookNode
     public required string Title { get; init; }
     public string? Author { get; init; }
     public string? Series { get; init; }
+    public string? SeriesSequence { get; init; }
 }

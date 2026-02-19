@@ -7,5 +7,6 @@
 
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
-| #2969 | 9:04 PM | ⚖️ | Implementation plan created for enhanced library workflow | ~502 |
+| #2967 | 8:29 PM | ✅ | Auto-load library feature committed to repository | ~219 |
+| #2965 | 8:28 PM | 🟣 | Auto-load last opened library on app startup | ~304 |
 </claude-mem-context>

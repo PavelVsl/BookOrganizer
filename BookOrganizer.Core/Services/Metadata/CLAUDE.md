@@ -7,5 +7,7 @@
 
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
+| #2975 | 9:11 PM | 🔵 | Three metadata file formats documented for BookOrganizer | ~476 |
+| #2970 | 9:06 PM | ⚖️ | Metadata extraction prioritizes folder structure over MP3 tags | ~377 |
 | #2969 | 9:04 PM | ⚖️ | Implementation plan created for enhanced library workflow | ~502 |
 </claude-mem-context>

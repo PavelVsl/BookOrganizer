@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,6 +29,10 @@ public partial class SeriesDetailViewModel : ObservableObject
     [ObservableProperty] private int _unpublishedCount;
     [ObservableProperty] private string _publishStatus = "";
     [ObservableProperty] private bool _canPublish;
+
+    // Folder-level bookinfo.json
+    [ObservableProperty] private bool _hasFolderBookinfo;
+    [ObservableProperty] private string _folderBookinfoStatus = "";
 
     private readonly string _originalName;
 
@@ -60,6 +65,27 @@ public partial class SeriesDetailViewModel : ObservableObject
                     CanPublish = UnpublishedCount > 0 && !string.IsNullOrWhiteSpace(_settings.AbsLibraryFolder);
                 }
             };
+        }
+
+        // Check folder-level bookinfo.json
+        if (!string.IsNullOrEmpty(seriesNode.Path))
+            _ = LoadFolderBookinfoStatusAsync();
+    }
+
+    private async Task LoadFolderBookinfoStatusAsync()
+    {
+        try
+        {
+            var existing = await _metadataProcessor.LoadMetadataJsonAsync(_seriesNode.Path);
+            HasFolderBookinfo = existing != null;
+            FolderBookinfoStatus = existing != null
+                ? $"bookinfo.json exists (series: {existing.Series ?? "not set"})"
+                : "No bookinfo.json at series folder level";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to check folder bookinfo.json at {Path}", _seriesNode.Path);
+            FolderBookinfoStatus = "Error checking bookinfo.json";
         }
     }
 
@@ -101,6 +127,27 @@ public partial class SeriesDetailViewModel : ObservableObject
         SeriesName = _originalName;
         IsDirty = false;
         SaveStatus = "";
+    }
+
+    [RelayCommand]
+    private async Task SaveFolderBookinfoAsync(CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(_seriesNode.Path))
+            return;
+
+        try
+        {
+            FolderBookinfoStatus = "Saving...";
+            var metadata = new MetadataOverride { Series = SeriesName.Trim() };
+            await _metadataProcessor.SaveMetadataAsync(_seriesNode.Path, metadata, ct);
+            HasFolderBookinfo = true;
+            FolderBookinfoStatus = $"Saved bookinfo.json (series: {SeriesName.Trim()})";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save folder bookinfo.json at {Path}", _seriesNode.Path);
+            FolderBookinfoStatus = $"Error: {ex.Message}";
+        }
     }
 
     [RelayCommand]

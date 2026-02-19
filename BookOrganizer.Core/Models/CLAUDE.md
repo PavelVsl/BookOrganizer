@@ -7,5 +7,6 @@
 
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
+| #2975 | 9:11 PM | 🔵 | Three metadata file formats documented for BookOrganizer | ~476 |
 | #2969 | 9:04 PM | ⚖️ | Implementation plan created for enhanced library workflow | ~502 |
 </claude-mem-context>

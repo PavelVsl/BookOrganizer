@@ -41,6 +41,8 @@
                 <DataTemplate DataType="vm:AbsBookNode">
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <TextBlock Text="&#127911;" />
+                        <TextBlock Text="{Binding SeriesSequence, StringFormat='{}{0} - '}"
+                                   IsVisible="{Binding SeriesSequence, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                         <TextBlock Text="{Binding Title}" />
                     </StackPanel>
                 </DataTemplate>
