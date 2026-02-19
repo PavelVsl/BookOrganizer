@@ -251,6 +251,10 @@ public class FileOrganizer : IFileOrganizer
                     plan.TargetPath,
                     result.FilesProcessed);
             }
+            catch (OperationCanceledException)
+            {
+                throw; // Don't swallow cancellation — stop immediately, book is intact (atomic move)
+            }
             catch (Exception ex)
             {
                 _logger.LogError(
@@ -330,54 +334,24 @@ public class FileOrganizer : IFileOrganizer
             if (parentDir != null)
                 Directory.CreateDirectory(parentDir);
 
-            // If target already exists (e.g., merging discs), move files individually with conflict resolution
+            // If target already exists, use indexed folder to keep book atomic
+            // Never merge files into existing folders — a split book is worse than a duplicate
             if (Directory.Exists(targetPath))
             {
-                _logger.LogInformation("Target exists, merging files: {Source} -> {Target}", sourcePath, targetPath);
-                var fileCount = 0;
-                var duplicatesBasePath = plan.LibraryPath != null
-                    ? Path.Combine(plan.LibraryPath, ".duplicates")
-                    : null;
-
-                foreach (var file in Directory.EnumerateFiles(sourcePath, "*", SearchOption.AllDirectories))
+                var counter = 2;
+                string uniquePath;
+                do
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    var relativePath = Path.GetRelativePath(sourcePath, file);
-                    var destFile = Path.Combine(targetPath, relativePath);
-                    var destDir = Path.GetDirectoryName(destFile);
-                    if (destDir != null)
-                        Directory.CreateDirectory(destDir);
-
-                    if (!File.Exists(destFile))
-                    {
-                        // No conflict - just move
-                        File.Move(file, destFile);
-                    }
-                    else if (duplicatesBasePath != null)
-                    {
-                        // Conflict - compare content
-                        await ResolveFileConflictAsync(file, destFile, plan.LibraryPath!, duplicatesBasePath, cancellationToken);
-                    }
-                    else
-                    {
-                        // No library path (organize from source) - fall back to overwrite
-                        File.Move(file, destFile, overwrite: true);
-                    }
-                    fileCount++;
+                    uniquePath = $"{targetPath} ({counter})";
+                    counter++;
                 }
+                while (Directory.Exists(uniquePath) && counter < 100);
 
-                // Clean up source (now empty)
-                try { Directory.Delete(sourcePath, recursive: true); }
-                catch (Exception ex) { _logger.LogWarning(ex, "Failed to delete source after merge: {Path}", sourcePath); }
+                _logger.LogWarning(
+                    "Target folder already exists, using unique path to preserve book integrity: {Source} -> {Target}",
+                    sourcePath, uniquePath);
 
-                return new AudiobookOperationResult
-                {
-                    SourceFolder = plan.SourceFolder,
-                    Metadata = plan.Metadata,
-                    TargetPath = targetPath,
-                    Success = true,
-                    FilesProcessed = fileCount
-                };
+                targetPath = uniquePath;
             }
 
             // Simple atomic directory move
@@ -395,6 +369,10 @@ public class FileOrganizer : IFileOrganizer
                 Success = true,
                 FilesProcessed = filesProcessed
             };
+        }
+        catch (OperationCanceledException)
+        {
+            throw; // Don't swallow cancellation — let it propagate to stop the entire operation
         }
         catch (Exception ex)
         {
@@ -762,70 +740,6 @@ public class FileOrganizer : IFileOrganizer
                 Duration = stopwatch.Elapsed,
                 AudiobookResults = Array.Empty<AudiobookOperationResult>()
             };
-        }
-    }
-
-    /// <summary>
-    /// Resolves a file conflict during merge: same audio content goes to .duplicates, different content gets renamed.
-    /// </summary>
-    private async Task ResolveFileConflictAsync(
-        string sourceFile,
-        string destFile,
-        string libraryPath,
-        string duplicatesBasePath,
-        CancellationToken cancellationToken)
-    {
-        var sourceHash = await _checksumCalculator.CalculateAudioContentHashAsync(sourceFile, cancellationToken)
-            .ConfigureAwait(false);
-        var destHash = await _checksumCalculator.CalculateAudioContentHashAsync(destFile, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (string.Equals(sourceHash, destHash, StringComparison.OrdinalIgnoreCase))
-        {
-            // Same content - move source to .duplicates, preserving library-relative structure
-            var relativeToLibrary = Path.GetRelativePath(libraryPath, destFile);
-            var duplicatePath = Path.Combine(duplicatesBasePath, relativeToLibrary);
-            var duplicateDir = Path.GetDirectoryName(duplicatePath);
-            if (duplicateDir != null)
-                Directory.CreateDirectory(duplicateDir);
-
-            // If there's already a file with this name in .duplicates, just delete the source
-            if (File.Exists(duplicatePath))
-                File.Delete(sourceFile);
-            else
-                File.Move(sourceFile, duplicatePath);
-
-            _logger.LogInformation("Duplicate content moved to .duplicates: {Path}", duplicatePath);
-        }
-        else
-        {
-            // Different content - rename with (index) suffix
-            var relativeToLibrary = Path.GetRelativePath(libraryPath, destFile);
-            var duplicatesDir = Path.Combine(duplicatesBasePath, Path.GetDirectoryName(relativeToLibrary) ?? "");
-            var uniquePath = GetUniqueFilePath(destFile, duplicatesDir);
-
-            File.Move(sourceFile, uniquePath);
-            _logger.LogWarning("File conflict (different content), renamed: {Source} -> {Dest}", sourceFile, uniquePath);
-        }
-    }
-
-    /// <summary>
-    /// Finds a unique file path using (index) suffix, checking both target dir and .duplicates dir for collisions.
-    /// </summary>
-    private static string GetUniqueFilePath(string destFile, string duplicatesDir)
-    {
-        var dir = Path.GetDirectoryName(destFile)!;
-        var name = Path.GetFileNameWithoutExtension(destFile);
-        var ext = Path.GetExtension(destFile);
-
-        var index = 2;
-        while (true)
-        {
-            var candidate = Path.Combine(dir, $"{name} ({index}){ext}");
-            var dupCandidate = Path.Combine(duplicatesDir, $"{name} ({index}){ext}");
-            if (!File.Exists(candidate) && !File.Exists(dupCandidate))
-                return candidate;
-            index++;
         }
     }
 

@@ -63,7 +63,7 @@ public class ReorganizeCommand : Command
             }
 
             return await ExecuteAsync(
-                library, !noValidate, verbose, yes, preserveDiacritics);
+                library, !noValidate, verbose, yes, preserveDiacritics, cancellationToken);
         });
     }
 
@@ -72,7 +72,8 @@ public class ReorganizeCommand : Command
         bool validateIntegrity,
         bool verbose,
         bool autoConfirm,
-        bool preserveDiacritics)
+        bool preserveDiacritics,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -179,7 +180,7 @@ public class ReorganizeCommand : Command
                         libraryPath,
                         validateIntegrity,
                         progress,
-                        CancellationToken.None,
+                        cancellationToken,
                         organizationOptions);
 
                     overallTask.StopTask();
