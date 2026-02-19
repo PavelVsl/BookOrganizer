@@ -122,6 +122,9 @@ public partial class MainWindowViewModel : ObservableObject
             DataContext = settingsVm
         };
 
+        // Apply native menu so macOS menu bar persists while dialog is open
+        App.SetNativeMenu(settingsWindow);
+
         var result = await settingsWindow.ShowDialog<bool?>(desktop.MainWindow);
         if (result == true)
         {

@@ -1,7 +1,9 @@
 using System;
 using System.Text;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using BookOrganizer.Desktop.Services;
 using BookOrganizer.Desktop.ViewModels;
@@ -94,5 +96,70 @@ public partial class App : Application
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    /// <summary>
+    /// Builds the native menu bar and attaches it to a window.
+    /// Call this on any window that should show the macOS native menu.
+    /// </summary>
+    public static void SetNativeMenu(Window window)
+    {
+        MainWindowViewModel? GetVm() =>
+            (Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)
+                ?.MainWindow?.DataContext as MainWindowViewModel;
+
+        var fileMenu = new NativeMenu();
+        var openLib = new NativeMenuItem("Open Library...") { Gesture = new KeyGesture(Key.O, KeyModifiers.Meta) };
+        openLib.Click += (_, _) => GetVm()?.OpenLibraryCommand.Execute(null);
+        fileMenu.Items.Add(openLib);
+        var settings = new NativeMenuItem("Settings...") { Gesture = new KeyGesture(Key.OemComma, KeyModifiers.Meta) };
+        settings.Click += (_, _) => GetVm()?.OpenSettingsCommand.Execute(null);
+        fileMenu.Items.Add(settings);
+
+        var libraryMenu = new NativeMenu();
+        var refresh = new NativeMenuItem("Refresh") { Gesture = new KeyGesture(Key.R, KeyModifiers.Meta) };
+        refresh.Click += (_, _) => GetVm()?.Library.LoadLibraryCommand.Execute(null);
+        libraryMenu.Items.Add(refresh);
+        var scanMeta = new NativeMenuItem("Scan Metadata");
+        scanMeta.Click += (_, _) => GetVm()?.Library.ScanMetadataCommand.Execute(null);
+        libraryMenu.Items.Add(scanMeta);
+        var exportNfo = new NativeMenuItem("Export NFO");
+        exportNfo.Click += (_, _) => GetVm()?.Library.ExportNfoCommand.Execute(null);
+        libraryMenu.Items.Add(exportNfo);
+        libraryMenu.Items.Add(new NativeMenuItemSeparator());
+        var reorg = new NativeMenuItem("Reorganize");
+        reorg.Click += (_, _) => GetVm()?.Library.ReorganizeCommand.Execute(null);
+        libraryMenu.Items.Add(reorg);
+        var verify = new NativeMenuItem("Verify Library");
+        verify.Click += (_, _) => GetVm()?.Library.VerifyLibraryCommand.Execute(null);
+        libraryMenu.Items.Add(verify);
+        var synonyms = new NativeMenuItem("Detect Synonyms");
+        synonyms.Click += (_, _) => GetVm()?.Library.DetectSynonymsCommand.Execute(null);
+        libraryMenu.Items.Add(synonyms);
+
+        var absMenu = new NativeMenu();
+        var publishAll = new NativeMenuItem("Publish All");
+        publishAll.Click += (_, _) => GetVm()?.Library.PublishAllCommand.Execute(null);
+        absMenu.Items.Add(publishAll);
+        var checkDups = new NativeMenuItem("Check Duplicates");
+        checkDups.Click += (_, _) => GetVm()?.Library.CheckAbsDuplicatesCommand.Execute(null);
+        absMenu.Items.Add(checkDups);
+        absMenu.Items.Add(new NativeMenuItemSeparator());
+        var refreshAbs = new NativeMenuItem("Refresh ABS Library");
+        refreshAbs.Click += (_, _) => GetVm()?.Library.AbsLibraryVm.RefreshCommand.Execute(null);
+        absMenu.Items.Add(refreshAbs);
+
+        var helpMenu = new NativeMenu();
+        var about = new NativeMenuItem("About BookOrganizer");
+        about.Click += (_, _) => GetVm()?.ShowAboutCommand.Execute(null);
+        helpMenu.Items.Add(about);
+
+        var menu = new NativeMenu();
+        menu.Items.Add(new NativeMenuItem("File") { Menu = fileMenu });
+        menu.Items.Add(new NativeMenuItem("Library") { Menu = libraryMenu });
+        menu.Items.Add(new NativeMenuItem("Audiobookshelf") { Menu = absMenu });
+        menu.Items.Add(new NativeMenuItem("Help") { Menu = helpMenu });
+
+        NativeMenu.SetMenu(window, menu);
     }
 }

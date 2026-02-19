@@ -6,9 +6,10 @@
         mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="500"
         x:Class="BookOrganizer.Desktop.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
-        Title="Settings" Width="500" Height="500"
+        Title="Settings" Width="500" Height="620"
+        MinWidth="400" MinHeight="500"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        SizeToContent="Height">
 
     <ScrollViewer>
         <StackPanel Spacing="12" Margin="24" MaxWidth="440">

@@ -11,42 +11,6 @@
         Title="BookOrganizer" Width="1200" Height="700"
         MinWidth="800" MinHeight="500">
 
-    <!-- Native menu (macOS system menu bar) -->
-    <NativeMenu.Menu>
-        <NativeMenu>
-            <NativeMenuItem Header="File">
-                <NativeMenu>
-                    <NativeMenuItem Header="Open Library..." Click="OnOpenLibrary" Gesture="Cmd+O" />
-                    <NativeMenuItem Header="Settings..." Click="OnOpenSettings" Gesture="Cmd+," />
-                </NativeMenu>
-            </NativeMenuItem>
-            <NativeMenuItem Header="Library">
-                <NativeMenu>
-                    <NativeMenuItem Header="Refresh" Click="OnRefreshLibrary" Gesture="Cmd+R" />
-                    <NativeMenuItem Header="Scan Metadata" Click="OnScanMetadata" />
-                    <NativeMenuItem Header="Export NFO" Click="OnExportNfo" />
-                    <NativeMenuItemSeparator />
-                    <NativeMenuItem Header="Reorganize" Click="OnReorganize" />
-                    <NativeMenuItem Header="Verify Library" Click="OnVerifyLibrary" />
-                    <NativeMenuItem Header="Detect Synonyms" Click="OnDetectSynonyms" />
-                </NativeMenu>
-            </NativeMenuItem>
-            <NativeMenuItem Header="Audiobookshelf">
-                <NativeMenu>
-                    <NativeMenuItem Header="Publish All" Click="OnPublishAll" />
-                    <NativeMenuItem Header="Check Duplicates" Click="OnCheckAbsDuplicates" />
-                    <NativeMenuItemSeparator />
-                    <NativeMenuItem Header="Refresh ABS Library" Click="OnRefreshAbsLibrary" />
-                </NativeMenu>
-            </NativeMenuItem>
-            <NativeMenuItem Header="Help">
-                <NativeMenu>
-                    <NativeMenuItem Header="About BookOrganizer" Click="OnShowAbout" />
-                </NativeMenu>
-            </NativeMenuItem>
-        </NativeMenu>
-    </NativeMenu.Menu>
-
     <DockPanel>
         <!-- In-window menu bar (Windows/Linux only, hidden on macOS) -->
         <Menu DockPanel.Dock="Top" x:Name="InWindowMenu">
