@@ -18,6 +18,8 @@
     <string>BookOrganizer.Desktop</string>
     <key>LSMinimumSystemVersion</key>
     <string>10.15</string>
+    <key>CFBundleIconFile</key>
+    <string>icon</string>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSPrincipalClass</key>

@@ -46,8 +46,8 @@ public partial class App : Application
 
         // Register ViewModels
         services.AddTransient<LibraryViewModel>();
-        services.AddTransient<ToolsViewModel>();
         services.AddTransient<AbsLibraryViewModel>();
+        services.AddTransient<SettingsViewModel>();
         services.AddTransient<MainWindowViewModel>();
 
         Services = services.BuildServiceProvider();
@@ -55,9 +55,6 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var mainVm = Services.GetRequiredService<MainWindowViewModel>();
-
-            // Restore last nav selection (clamped to valid range)
-            mainVm.SelectedNavIndex = Math.Min(Settings.SelectedNavIndex, 2);
 
             var mainWindow = new MainWindow
             {
@@ -71,7 +68,6 @@ public partial class App : Application
             {
                 Settings.WindowWidth = mainWindow.Width;
                 Settings.WindowHeight = mainWindow.Height;
-                Settings.SelectedNavIndex = mainVm.SelectedNavIndex;
                 Settings.Save();
             };
 

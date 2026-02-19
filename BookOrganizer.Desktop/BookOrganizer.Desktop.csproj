@@ -7,7 +7,12 @@
         <LangVersion>14</LangVersion>
         <ApplicationManifest>app.manifest</ApplicationManifest>
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+        <ApplicationIcon>Assets/icon.ico</ApplicationIcon>
     </PropertyGroup>
+
+    <ItemGroup>
+        <AvaloniaResource Include="Assets\**" />
+    </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\BookOrganizer.Core\BookOrganizer.Core.csproj" />

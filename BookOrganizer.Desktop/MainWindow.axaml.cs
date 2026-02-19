@@ -1,7 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using BookOrganizer.Desktop.ViewModels;
-using CommunityToolkit.Mvvm.Input;
 
 namespace BookOrganizer.Desktop;
 
@@ -18,10 +18,9 @@ public partial class MainWindow : Window
         // Cmd+S / Ctrl+S: Save current detail in Library view
         if (e.Key == Key.S && (e.KeyModifiers.HasFlag(KeyModifiers.Meta) || e.KeyModifiers.HasFlag(KeyModifiers.Control)))
         {
-            if (DataContext is MainWindowViewModel mainVm &&
-                mainVm.CurrentView is LibraryViewModel libraryVm)
+            if (DataContext is MainWindowViewModel mainVm)
             {
-                switch (libraryVm.SelectedDetail)
+                switch (mainVm.Library.SelectedDetail)
                 {
                     case BookDetailViewModel { IsDirty: true } book:
                         book.SaveCommand.Execute(null);
@@ -38,5 +37,10 @@ public partial class MainWindow : Window
                 }
             }
         }
+    }
+
+    private void OnExitClick(object? sender, RoutedEventArgs e)
+    {
+        Close();
     }
 }

@@ -101,6 +101,14 @@ public partial class LibraryViewModel : ObservableObject
     [ObservableProperty]
     private bool _showAbsCheckPanel;
 
+    // Verify library
+    [ObservableProperty]
+    private bool _showVerifyPanel;
+
+    public ObservableCollection<VerifyIssueItem> VerifyResults { get; } = [];
+
+    public AbsLibraryViewModel AbsLibraryVm { get; }
+
     public LibraryViewModel(
         IMetadataJsonProcessor metadataProcessor,
         IDirectoryScanner directoryScanner,
@@ -110,6 +118,7 @@ public partial class LibraryViewModel : ObservableObject
         IPathGenerator pathGenerator,
         IAbsApiClient absApiClient,
         PublishQueueService publishQueue,
+        AbsLibraryViewModel absLibraryVm,
         ILogger<LibraryViewModel> logger,
         AppSettings settings)
     {
@@ -121,6 +130,7 @@ public partial class LibraryViewModel : ObservableObject
         _pathGenerator = pathGenerator;
         _absApiClient = absApiClient;
         _publishQueue = publishQueue;
+        AbsLibraryVm = absLibraryVm;
         _logger = logger;
         _settings = settings;
 
@@ -767,6 +777,91 @@ public partial class LibraryViewModel : ObservableObject
         AbsCheckResults.Clear();
     }
 
+    [RelayCommand(IncludeCancelCommand = true)]
+    private async Task VerifyLibraryAsync(CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(LibraryPath) || !Directory.Exists(LibraryPath))
+        {
+            StatusText = "Invalid library path.";
+            return;
+        }
+
+        IsLoading = true;
+        VerifyResults.Clear();
+        ShowVerifyPanel = true;
+        StatusText = "Verifying library...";
+
+        try
+        {
+            var folders = await _directoryScanner.ScanDirectoryAsync(LibraryPath, ct);
+            var issues = 0;
+
+            foreach (var folder in folders)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                var bookinfoPath = Path.Combine(folder.Path, "bookinfo.json");
+                if (!File.Exists(bookinfoPath))
+                {
+                    VerifyResults.Add(new VerifyIssueItem
+                    {
+                        Severity = "Warning",
+                        Path = Path.GetRelativePath(LibraryPath, folder.Path),
+                        Message = "Missing bookinfo.json"
+                    });
+                    issues++;
+                }
+
+                if (folder.AudioFiles.Count == 0)
+                {
+                    VerifyResults.Add(new VerifyIssueItem
+                    {
+                        Severity = "Error",
+                        Path = Path.GetRelativePath(LibraryPath, folder.Path),
+                        Message = "No audio files found"
+                    });
+                    issues++;
+                }
+
+                var nfoPath = Path.Combine(folder.Path, "metadata.nfo");
+                if (!File.Exists(nfoPath))
+                {
+                    VerifyResults.Add(new VerifyIssueItem
+                    {
+                        Severity = "Info",
+                        Path = Path.GetRelativePath(LibraryPath, folder.Path),
+                        Message = "Missing metadata.nfo"
+                    });
+                    issues++;
+                }
+            }
+
+            StatusText = issues == 0
+                ? $"Verified {folders.Count} audiobook(s) — no issues found."
+                : $"Verified {folders.Count} audiobook(s) — {issues} issue(s) found.";
+        }
+        catch (OperationCanceledException)
+        {
+            StatusText = "Verification cancelled.";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Verify failed");
+            StatusText = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    [RelayCommand]
+    private void CloseVerifyPanel()
+    {
+        ShowVerifyPanel = false;
+        VerifyResults.Clear();
+    }
+
     /// <summary>
     /// Reorganizes books into structured Author/[Series/]Title/ layout.
     /// Mode 0: In-place (move within library path)
@@ -1200,4 +1295,11 @@ public class AbsCheckItem
     public string? AbsTitle { get; init; }
     public string? AbsAuthor { get; init; }
     public bool IsPublished { get; init; }
+}
+
+public class VerifyIssueItem
+{
+    public required string Severity { get; init; }
+    public required string Path { get; init; }
+    public required string Message { get; init; }
 }

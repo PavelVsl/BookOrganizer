@@ -24,7 +24,6 @@ public class AppSettings
 
     public double WindowWidth { get; set; } = 1200;
     public double WindowHeight { get; set; } = 700;
-    public int SelectedNavIndex { get; set; }
 
     private static readonly string SettingsDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),

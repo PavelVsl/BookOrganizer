@@ -14,12 +14,30 @@ A CLI tool for organizing audiobook libraries for Audiobookshelf with intelligen
 - **Library Verification** - Validates library integrity and metadata consistency
 - **Metadata Editing** - Export metadata to JSON/NFO for manual editing
 
+## Desktop Application
+
+BookOrganizer also includes a cross-platform desktop GUI built with Avalonia UI.
+
+**Features:**
+- Library tree view with Author / Series / Book hierarchy
+- Inline metadata editing with bookinfo.json support
+- Cover art display from embedded MP3 tags
+- Audiobookshelf integration — publish books, check duplicates, browse ABS library
+- Library verification, synonym detection, and bulk reorganization
+- Keyboard shortcuts (Cmd+S to save, F5 to refresh)
+
+**Run the desktop app:**
+
+```bash
+dotnet run --project BookOrganizer.Desktop
+```
+
 ## Installation
 
 ### From Source
 
 ```bash
-git clone https://github.com/yourusername/BookOrganizer.git
+git clone https://github.com/PavelVsl/BookOrganizer.git
 cd BookOrganizer
 
 # Use the publish script (recommended)

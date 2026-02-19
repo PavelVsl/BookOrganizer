@@ -3,6 +3,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:BookOrganizer.Desktop.ViewModels"
+        xmlns:views="using:BookOrganizer.Desktop.Views"
         xmlns:svc="using:BookOrganizer.Desktop.Services"
         mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="700"
         x:Class="BookOrganizer.Desktop.MainWindow"
@@ -10,28 +11,62 @@
         Title="BookOrganizer" Width="1200" Height="700"
         MinWidth="800" MinHeight="500">
 
-    <Grid RowDefinitions="*,Auto,Auto">
-        <Grid Grid.Row="0" ColumnDefinitions="180,*">
-            <!-- Sidebar -->
-            <Border Grid.Column="0" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
-                    BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,1,0">
-                <StackPanel Margin="0,8">
-                    <TextBlock Text="BookOrganizer" FontSize="16" FontWeight="Bold"
-                               Margin="16,8,16,16" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}" />
-                    <ListBox SelectedIndex="{Binding SelectedNavIndex}" Margin="4,0">
-                        <ListBoxItem>Library</ListBoxItem>
-                        <ListBoxItem>Tools</ListBoxItem>
-                        <ListBoxItem>Audiobookshelf</ListBoxItem>
-                    </ListBox>
-                </StackPanel>
-            </Border>
+    <DockPanel>
+        <!-- Menu bar -->
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="_File">
+                <MenuItem Header="_Open Library..." Command="{Binding OpenLibraryCommand}"
+                          InputGesture="Ctrl+O" />
+                <MenuItem Header="_Settings..." Command="{Binding OpenSettingsCommand}"
+                          InputGesture="Ctrl+OemComma" />
+                <Separator />
+                <MenuItem Header="E_xit" Click="OnExitClick"
+                          InputGesture="Alt+F4" />
+            </MenuItem>
+            <MenuItem Header="_Library">
+                <MenuItem Header="_Refresh" Command="{Binding Library.LoadLibraryCommand}"
+                          InputGesture="F5" />
+                <MenuItem Header="Scan _Metadata" Command="{Binding Library.ScanMetadataCommand}" />
+                <MenuItem Header="Export _NFO" Command="{Binding Library.ExportNfoCommand}" />
+                <Separator />
+                <MenuItem Header="R_eorganize" Command="{Binding Library.ReorganizeCommand}" />
+                <MenuItem Header="_Verify Library" Command="{Binding Library.VerifyLibraryCommand}" />
+                <MenuItem Header="_Detect Synonyms" Command="{Binding Library.DetectSynonymsCommand}" />
+            </MenuItem>
+            <MenuItem Header="_Audiobookshelf">
+                <MenuItem Header="_Publish All" Command="{Binding Library.PublishAllCommand}" />
+                <MenuItem Header="_Check Duplicates" Command="{Binding Library.CheckAbsDuplicatesCommand}" />
+                <Separator />
+                <MenuItem Header="_Refresh ABS Library" Command="{Binding Library.AbsLibraryVm.RefreshCommand}" />
+            </MenuItem>
+            <MenuItem Header="_Help">
+                <MenuItem Header="_About BookOrganizer" Command="{Binding ShowAboutCommand}" />
+            </MenuItem>
+        </Menu>
 
-            <!-- Content area -->
-            <ContentControl Grid.Column="1" Content="{Binding CurrentView}" />
-        </Grid>
+        <!-- Status line at bottom -->
+        <Border DockPanel.Dock="Bottom"
+                Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="12,4">
+            <Grid ColumnDefinitions="*,Auto">
+                <!-- ABS server status -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                    <Panel Width="8" Height="8" VerticalAlignment="Center">
+                        <Ellipse Width="8" Height="8" Fill="LimeGreen" IsVisible="{Binding AbsConnected}" />
+                        <Ellipse Width="8" Height="8" Fill="Gray" IsVisible="{Binding !AbsConnected}" />
+                    </Panel>
+                    <TextBlock Text="{Binding AbsStatusText}"
+                               FontSize="11"
+                               Opacity="0.7"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+            </Grid>
+        </Border>
 
         <!-- Publish queue status bar -->
-        <Border Grid.Row="1"
+        <Border DockPanel.Dock="Bottom"
                 DataContext="{Binding PublishQueue}"
                 x:DataType="svc:PublishQueueService"
                 IsVisible="{Binding ShowStatus}"
@@ -63,26 +98,8 @@
             </Grid>
         </Border>
 
-        <!-- Status line -->
-        <Border Grid.Row="2"
-                Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
-                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
-                BorderThickness="0,1,0,0"
-                Padding="12,4">
-            <Grid ColumnDefinitions="*,Auto">
-                <!-- ABS server status -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
-                    <Panel Width="8" Height="8" VerticalAlignment="Center">
-                        <Ellipse Width="8" Height="8" Fill="LimeGreen" IsVisible="{Binding AbsConnected}" />
-                        <Ellipse Width="8" Height="8" Fill="Gray" IsVisible="{Binding !AbsConnected}" />
-                    </Panel>
-                    <TextBlock Text="{Binding AbsStatusText}"
-                               FontSize="11"
-                               Opacity="0.7"
-                               VerticalAlignment="Center" />
-                </StackPanel>
-            </Grid>
-        </Border>
-    </Grid>
+        <!-- Main content: Library view -->
+        <views:LibraryView DataContext="{Binding Library}" />
+    </DockPanel>
 
 </Window>

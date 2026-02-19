@@ -14,8 +14,8 @@
         <Authors>Pavel</Authors>
         <Description>CLI tool for organizing audiobook libraries for Audiobookshelf with metadata extraction, duplicate detection, and Czech language support</Description>
         <PackageTags>audiobook;audiobookshelf;organizer;metadata;mp3;cli;tool</PackageTags>
-        <PackageProjectUrl>https://github.com/yourusername/BookOrganizer</PackageProjectUrl>
-        <RepositoryUrl>https://github.com/yourusername/BookOrganizer</RepositoryUrl>
+        <PackageProjectUrl>https://github.com/PavelVsl/BookOrganizer</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/PavelVsl/BookOrganizer</RepositoryUrl>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageReadmeFile>README.md</PackageReadmeFile>
 

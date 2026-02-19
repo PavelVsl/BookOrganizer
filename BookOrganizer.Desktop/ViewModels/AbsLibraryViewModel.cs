@@ -20,7 +20,7 @@ public partial class AbsLibraryViewModel : ObservableObject
     [ObservableProperty] private ObservableCollection<AbsAuthorNode> _authors = [];
     [ObservableProperty] private object? _selectedItem;
     [ObservableProperty] private bool _isLoading;
-    [ObservableProperty] private string _statusText = "Configure Audiobookshelf in Tools > Audiobookshelf to get started.";
+    [ObservableProperty] private string _statusText = "Configure Audiobookshelf in Settings to get started.";
     [ObservableProperty] private int _itemCount;
 
     public AbsLibraryViewModel(
@@ -40,7 +40,7 @@ public partial class AbsLibraryViewModel : ObservableObject
             string.IsNullOrWhiteSpace(_settings.AbsApiKey) ||
             string.IsNullOrWhiteSpace(_settings.AbsLibraryId))
         {
-            StatusText = "ABS not configured. Go to Tools > Audiobookshelf to set up.";
+            StatusText = "ABS not configured. Go to Settings to set up.";
             return;
         }
 
