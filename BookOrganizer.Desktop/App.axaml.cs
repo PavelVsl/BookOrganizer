@@ -16,6 +16,16 @@ public partial class App : Application
     public static IServiceProvider Services { get; private set; } = null!;
     public static AppSettings Settings { get; private set; } = null!;
 
+    private MainWindowViewModel? MainVm =>
+        (ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)
+            ?.MainWindow?.DataContext as MainWindowViewModel;
+
+    private void OnAboutClick(object? sender, EventArgs e) =>
+        MainVm?.ShowAboutCommand.Execute(null);
+
+    private void OnSettingsClick(object? sender, EventArgs e) =>
+        MainVm?.OpenSettingsCommand.Execute(null);
+
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);

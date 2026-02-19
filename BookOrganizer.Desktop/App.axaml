@@ -2,7 +2,15 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="using:BookOrganizer.Desktop"
              x:Class="BookOrganizer.Desktop.App"
-             RequestedThemeVariant="Default">
+             RequestedThemeVariant="Default"
+             Name="BookOrganizer">
+
+    <NativeMenu.Menu>
+        <NativeMenu>
+            <NativeMenuItem Header="About BookOrganizer" Click="OnAboutClick" />
+            <NativeMenuItem Header="Settings..." Click="OnSettingsClick" />
+        </NativeMenu>
+    </NativeMenu.Menu>
 
     <Application.DataTemplates>
         <local:ViewLocator />
