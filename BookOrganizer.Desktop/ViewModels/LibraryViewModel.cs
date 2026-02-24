@@ -107,6 +107,13 @@ public partial class LibraryViewModel : ObservableObject
 
     public ObservableCollection<VerifyIssueItem> VerifyResults { get; } = [];
 
+    // Physical view toggle
+    [ObservableProperty]
+    private bool _isPhysicalView;
+
+    [ObservableProperty]
+    private ObservableCollection<FolderNode> _folderNodes = [];
+
     public AbsLibraryViewModel AbsLibraryVm { get; }
 
     public LibraryViewModel(
@@ -159,6 +166,58 @@ public partial class LibraryViewModel : ObservableObject
     partial void OnReorganizeModeIndexChanged(int value)
     {
         _settings.ReorganizeModeIndex = value;
+    }
+
+    partial void OnIsPhysicalViewChanged(bool value)
+    {
+        if (value && FolderNodes.Count == 0 && !string.IsNullOrWhiteSpace(LibraryPath) && Directory.Exists(LibraryPath))
+        {
+            BuildFolderTree();
+        }
+        SelectedItem = null;
+        SelectedDetail = null;
+    }
+
+    private void BuildFolderTree()
+    {
+        FolderNodes = new ObservableCollection<FolderNode>(BuildFolderChildren(LibraryPath));
+    }
+
+    private static readonly string[] AudioExtensions = [".mp3", ".m4a", ".m4b", ".flac", ".aac", ".ogg", ".opus", ".wma"];
+
+    private static List<FolderNode> BuildFolderChildren(string parentPath)
+    {
+        var result = new List<FolderNode>();
+        try
+        {
+            foreach (var dir in Directory.GetDirectories(parentPath).OrderBy(d => d))
+            {
+                var name = System.IO.Path.GetFileName(dir);
+                if (name.StartsWith('.')) continue;
+
+                var hasAudio = AudioExtensions.Any(ext =>
+                    Directory.EnumerateFiles(dir, $"*{ext}", SearchOption.TopDirectoryOnly).Any());
+
+                var children = BuildFolderChildren(dir);
+                var node = new FolderNode
+                {
+                    Name = name,
+                    Path = dir,
+                    HasBookinfo = File.Exists(System.IO.Path.Combine(dir, "bookinfo.json")),
+                    HasAudioFiles = hasAudio,
+                    ChildFolderCount = children.Count
+                };
+                foreach (var child in children)
+                    node.Children.Add(child);
+
+                result.Add(node);
+            }
+        }
+        catch (Exception)
+        {
+            // Permission errors, etc.
+        }
+        return result;
     }
 
     [RelayCommand]
@@ -216,6 +275,9 @@ public partial class LibraryViewModel : ObservableObject
             case VolumeDetailViewModel { IsDirty: true } vm:
                 vm.SaveCommand.Execute(null);
                 break;
+            case FolderDetailViewModel { IsDirty: true } vm:
+                vm.SaveCommand.Execute(null);
+                break;
         }
 
         SelectedDetail = value switch
@@ -224,6 +286,7 @@ public partial class LibraryViewModel : ObservableObject
             AuthorNode author => new AuthorDetailViewModel(author, LibraryPath, _metadataProcessor, _fileOrganizer, _pathGenerator, _publishQueue, _settings, ReloadAndReselectAsync, _logger),
             SeriesNode series => new SeriesDetailViewModel(series, LibraryPath, _metadataProcessor, _publishQueue, _settings, _logger),
             VolumeNode volume => new VolumeDetailViewModel(volume, _metadataProcessor, _logger),
+            FolderNode folder => new FolderDetailViewModel(folder, _metadataProcessor, _logger),
             _ => null
         };
     }
@@ -320,6 +383,7 @@ public partial class LibraryViewModel : ObservableObject
         StatusText = cacheOnly ? "Loading library..." : "Scanning folders...";
         Authors.Clear();
         AllBooks.Clear();
+        FolderNodes.Clear();
 
         try
         {
@@ -1270,6 +1334,16 @@ public class VolumeNode
     public required string Name { get; init; }
     public required string Path { get; init; }
     public int FileCount { get; init; }
+}
+
+public partial class FolderNode : ObservableObject
+{
+    public required string Name { get; init; }
+    public required string Path { get; init; }
+    [ObservableProperty] private bool _hasBookinfo;
+    [ObservableProperty] private bool _hasAudioFiles;
+    public int ChildFolderCount { get; set; }
+    public ObservableCollection<FolderNode> Children { get; } = [];
 }
 
 // Synonym detection models
