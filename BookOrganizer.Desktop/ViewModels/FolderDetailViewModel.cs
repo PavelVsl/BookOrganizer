@@ -19,6 +19,7 @@ public partial class FolderDetailViewModel : ObservableObject
     private readonly FolderNode _folderNode;
     private readonly IMetadataJsonProcessor _metadataProcessor;
     private readonly ILogger _logger;
+    private readonly string _libraryPath;
 
     [ObservableProperty] private string _folderPath;
     [ObservableProperty] private string _folderName;
@@ -43,9 +44,10 @@ public partial class FolderDetailViewModel : ObservableObject
 
     public ObservableCollection<FolderFileInfo> Files { get; } = [];
 
-    public FolderDetailViewModel(FolderNode folderNode, IMetadataJsonProcessor metadataProcessor, ILogger logger)
+    public FolderDetailViewModel(FolderNode folderNode, string libraryPath, IMetadataJsonProcessor metadataProcessor, ILogger logger)
     {
         _folderNode = folderNode;
+        _libraryPath = libraryPath;
         _metadataProcessor = metadataProcessor;
         _logger = logger;
         _folderPath = folderNode.Path;
@@ -98,9 +100,44 @@ public partial class FolderDetailViewModel : ObservableObject
         {
             SaveStatus = "no bookinfo.json";
             BookinfoContent = "Not found";
+            PrefillFromFolderStructure();
         }
 
         IsDirty = false;
+    }
+
+    /// <summary>
+    /// Pre-fills author/series/title based on folder position in the library hierarchy.
+    /// Convention: library/Author/[Series/]Book/
+    /// </summary>
+    private void PrefillFromFolderStructure()
+    {
+        if (string.IsNullOrWhiteSpace(_libraryPath)) return;
+
+        var relative = Path.GetRelativePath(_libraryPath, _folderNode.Path);
+        var parts = relative.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
+
+        // Depth 1: Author folder
+        // Depth 2: Could be Series (has subfolders) or Book (has audio)
+        // Depth 3+: Author/Series/Book
+        switch (parts.Length)
+        {
+            case 1:
+                Author = parts[0];
+                break;
+            case 2:
+                Author = parts[0];
+                if (_folderNode.HasAudioFiles)
+                    Title = parts[1];
+                else
+                    Series = parts[1];
+                break;
+            case >= 3:
+                Author = parts[0];
+                Series = parts[1];
+                Title = parts[^1];
+                break;
+        }
     }
 
     partial void OnAuthorChanged(string value) => IsDirty = true;

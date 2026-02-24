@@ -286,7 +286,7 @@ public partial class LibraryViewModel : ObservableObject
             AuthorNode author => new AuthorDetailViewModel(author, LibraryPath, _metadataProcessor, _fileOrganizer, _pathGenerator, _publishQueue, _settings, ReloadAndReselectAsync, _logger),
             SeriesNode series => new SeriesDetailViewModel(series, LibraryPath, _metadataProcessor, _publishQueue, _settings, _logger),
             VolumeNode volume => new VolumeDetailViewModel(volume, _metadataProcessor, _logger),
-            FolderNode folder => new FolderDetailViewModel(folder, _metadataProcessor, _logger),
+            FolderNode folder => new FolderDetailViewModel(folder, LibraryPath, _metadataProcessor, _logger),
             _ => null
         };
     }
