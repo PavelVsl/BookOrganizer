@@ -197,8 +197,9 @@ public class PreviewGenerator : IPreviewGenerator
 
             // Check if this plan should be merged with another
             var targetPath = plan.TargetPath;
+            if (targetPath == null) continue;
             var isMerged = mergeMap.TryGetValue(plan.SourceFolder.Path, out var mergedPath);
-            if (isMerged)
+            if (isMerged && mergedPath != null)
             {
                 targetPath = mergedPath;
                 _logger.LogDebug(
@@ -209,7 +210,7 @@ public class PreviewGenerator : IPreviewGenerator
 
             // Check for path uniqueness and generate unique path if needed
             // Skip uniqueness check for merged paths - we WANT duplicates to share the same path
-            if (!isMerged && existingPaths.Contains(targetPath))
+            if (!isMerged && existingPaths.Contains(targetPath!))
             {
                 targetPath = _pathGenerator.EnsureUniquePath(
                     plan.Metadata,
@@ -219,7 +220,7 @@ public class PreviewGenerator : IPreviewGenerator
             existingPaths.Add(targetPath);
 
             // Detect issues for this operation
-            var issues = await DetectIssuesAsync(plan, targetPath, cancellationToken)
+            var issues = await DetectIssuesAsync(plan, targetPath!, cancellationToken)
                 .ConfigureAwait(false);
 
             // Apply issue severity filter
