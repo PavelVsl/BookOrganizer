@@ -32,9 +32,18 @@ BookOrganizer also includes a cross-platform desktop GUI built with Avalonia UI.
 dotnet run --project BookOrganizer.Desktop
 ```
 
+**Build macOS .app bundle:**
+
+```bash
+./publish-desktop.sh
+open publish/BookOrganizer.app
+```
+
+Produces a self-contained `BookOrganizer.app` for Apple Silicon (`osx-arm64`). Drag to `/Applications` to install.
+
 ## Installation
 
-### From Source
+### CLI Tool (From Source)
 
 ```bash
 git clone https://github.com/PavelVsl/BookOrganizer.git
@@ -47,6 +56,12 @@ cd BookOrganizer
 cd BookOrganizer
 dotnet pack -c Release -o ../nupkg
 dotnet tool install -g BookOrganizer --add-source ../nupkg
+```
+
+### Desktop App (macOS)
+
+```bash
+./publish-desktop.sh      # Builds publish/BookOrganizer.app
 ```
 
 ## Quick Start

@@ -256,6 +256,19 @@ When uncertain about implementation details:
 - Check if it's truly necessary for initial version
 - Review if it aligns with "avoid over-engineering" principle
 
+## Publishing
+
+### CLI Tool
+```bash
+./publish.sh    # Builds NuGet package and installs as dotnet global tool
+```
+
+### Desktop App (macOS)
+```bash
+./publish-desktop.sh    # Builds BookOrganizer.app in publish/
+```
+Produces a self-contained `.app` bundle for `osx-arm64` with generated `.icns` icon. No code signing (personal use). Output: `publish/BookOrganizer.app`.
+
 ## Resources
 
 - [System.CommandLine Docs](https://learn.microsoft.com/dotnet/standard/commandline/)
