@@ -1,0 +1,254 @@
+using System;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+using BookOrganizer.Models;
+using BookOrganizer.Services.Metadata;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
+
+namespace BookOrganizer.Desktop.ViewModels;
+
+public partial class FolderDetailViewModel : ObservableObject
+{
+    private readonly FolderNode _folderNode;
+    private readonly IMetadataJsonProcessor _metadataProcessor;
+    private readonly ILogger _logger;
+    private readonly string _libraryPath;
+
+    [ObservableProperty] private string _folderPath;
+    [ObservableProperty] private string _folderName;
+    [ObservableProperty] private int _subfolderCount;
+
+    // Editable bookinfo.json fields
+    [ObservableProperty] private string _author = "";
+    [ObservableProperty] private string _title = "";
+    [ObservableProperty] private string? _series;
+    [ObservableProperty] private string? _seriesNumber;
+    [ObservableProperty] private string? _narrator;
+    [ObservableProperty] private string? _year;
+    [ObservableProperty] private string? _genre;
+    [ObservableProperty] private string? _publisher;
+    [ObservableProperty] private string? _description;
+    [ObservableProperty] private string? _language;
+
+    [ObservableProperty] private bool _isDirty;
+    [ObservableProperty] private string _saveStatus = "";
+    [ObservableProperty] private string _bookinfoContent = "";
+    [ObservableProperty] private bool _hasBookinfo;
+
+    public ObservableCollection<FolderFileInfo> Files { get; } = [];
+
+    public FolderDetailViewModel(FolderNode folderNode, string libraryPath, IMetadataJsonProcessor metadataProcessor, ILogger logger)
+    {
+        _folderNode = folderNode;
+        _libraryPath = libraryPath;
+        _metadataProcessor = metadataProcessor;
+        _logger = logger;
+        _folderPath = folderNode.Path;
+        _folderName = folderNode.Name;
+        _subfolderCount = folderNode.ChildFolderCount;
+
+        LoadBookinfo();
+        LoadFiles();
+    }
+
+    private void LoadBookinfo()
+    {
+        var bookinfoPath = Path.Combine(_folderNode.Path, "bookinfo.json");
+        if (File.Exists(bookinfoPath))
+        {
+            HasBookinfo = true;
+            try
+            {
+                var json = File.ReadAllText(bookinfoPath);
+                BookinfoContent = json;
+
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    AllowTrailingCommas = true,
+                    ReadCommentHandling = JsonCommentHandling.Skip
+                };
+                var meta = JsonSerializer.Deserialize<MetadataOverride>(json, options);
+                if (meta != null)
+                {
+                    Author = meta.Author ?? "";
+                    Title = meta.Title ?? "";
+                    Series = meta.Series;
+                    SeriesNumber = meta.SeriesNumber;
+                    Narrator = meta.Narrator;
+                    Year = meta.Year?.ToString();
+                    Genre = meta.Genre;
+                    Publisher = meta.Publisher;
+                    Description = meta.Description;
+                    Language = meta.Language;
+                    SaveStatus = meta.Source == "manual" ? "source: manual" : "has bookinfo.json";
+                }
+            }
+            catch (Exception ex)
+            {
+                BookinfoContent = $"Error reading: {ex.Message}";
+            }
+        }
+        else
+        {
+            SaveStatus = "no bookinfo.json";
+            BookinfoContent = "Not found";
+            PrefillFromFolderStructure();
+        }
+
+        IsDirty = false;
+    }
+
+    /// <summary>
+    /// Pre-fills author/series/title based on folder position in the library hierarchy.
+    /// Convention: library/Author/[Series/]Book/
+    /// </summary>
+    private void PrefillFromFolderStructure()
+    {
+        if (string.IsNullOrWhiteSpace(_libraryPath)) return;
+
+        var relative = Path.GetRelativePath(_libraryPath, _folderNode.Path);
+        var parts = relative.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
+
+        // Depth 1: Author folder
+        // Depth 2: Could be Series (has subfolders) or Book (has audio)
+        // Depth 3+: Author/Series/Book
+        switch (parts.Length)
+        {
+            case 1:
+                Author = parts[0];
+                break;
+            case 2:
+                Author = parts[0];
+                if (_folderNode.HasAudioFiles)
+                    Title = parts[1];
+                else
+                    Series = parts[1];
+                break;
+            case >= 3:
+                Author = parts[0];
+                Series = parts[1];
+                Title = parts[^1];
+                break;
+        }
+    }
+
+    partial void OnAuthorChanged(string value) => IsDirty = true;
+    partial void OnTitleChanged(string value) => IsDirty = true;
+    partial void OnSeriesChanged(string? value) => IsDirty = true;
+    partial void OnSeriesNumberChanged(string? value) => IsDirty = true;
+    partial void OnNarratorChanged(string? value) => IsDirty = true;
+    partial void OnYearChanged(string? value) => IsDirty = true;
+    partial void OnGenreChanged(string? value) => IsDirty = true;
+    partial void OnPublisherChanged(string? value) => IsDirty = true;
+    partial void OnDescriptionChanged(string? value) => IsDirty = true;
+    partial void OnLanguageChanged(string? value) => IsDirty = true;
+
+    [RelayCommand]
+    private async Task SaveAsync(CancellationToken ct)
+    {
+        try
+        {
+            int? yearInt = null;
+            if (!string.IsNullOrWhiteSpace(Year) && int.TryParse(Year, out var parsed))
+                yearInt = parsed;
+
+            var metadata = new MetadataOverride
+            {
+                Author = NullIfEmpty(Author),
+                Title = NullIfEmpty(Title),
+                Series = NullIfEmpty(Series),
+                SeriesNumber = NullIfEmpty(SeriesNumber),
+                Narrator = NullIfEmpty(Narrator),
+                Year = yearInt,
+                Genre = NullIfEmpty(Genre),
+                Publisher = NullIfEmpty(Publisher),
+                Description = NullIfEmpty(Description),
+                Language = NullIfEmpty(Language)
+            };
+
+            await _metadataProcessor.SaveMetadataAsync(_folderNode.Path, metadata, ct);
+
+            IsDirty = false;
+            HasBookinfo = true;
+            _folderNode.HasBookinfo = true;
+            SaveStatus = "Saved (source: manual)";
+
+            // Reload bookinfo display
+            var bookinfoPath = Path.Combine(_folderNode.Path, "bookinfo.json");
+            if (File.Exists(bookinfoPath))
+            {
+                BookinfoContent = await File.ReadAllTextAsync(bookinfoPath, ct);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save metadata for {Path}", _folderNode.Path);
+            SaveStatus = $"Error: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private void Revert()
+    {
+        LoadBookinfo();
+    }
+
+    [RelayCommand]
+    private void OpenInFinder()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = _folderNode.Path,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to open folder {Path}", _folderNode.Path);
+        }
+    }
+
+    private void LoadFiles()
+    {
+        try
+        {
+            var entries = new DirectoryInfo(_folderNode.Path)
+                .EnumerateFiles()
+                .OrderBy(f => f.Name)
+                .Select(f => new FolderFileInfo
+                {
+                    Name = f.Name,
+                    Size = FormatFileSize(f.Length),
+                    Extension = f.Extension.ToLowerInvariant()
+                });
+
+            foreach (var entry in entries)
+                Files.Add(entry);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Failed to enumerate files in {Path}", _folderNode.Path);
+        }
+    }
+
+    private static string FormatFileSize(long bytes) => bytes switch
+    {
+        < 1024 => $"{bytes} B",
+        < 1024 * 1024 => $"{bytes / 1024.0:F0} KB",
+        < 1024 * 1024 * 1024 => $"{bytes / (1024.0 * 1024):F1} MB",
+        _ => $"{bytes / (1024.0 * 1024 * 1024):F2} GB"
+    };
+
+    private static string? NullIfEmpty(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+}

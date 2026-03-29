@@ -24,6 +24,9 @@ node_modules/
 *.njsproj
 *.sln
 *.sw?
+# Publish output
+/publish/
+
 # OS specific
 .DS_Store
 
