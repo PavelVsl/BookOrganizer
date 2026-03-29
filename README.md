@@ -1,4 +1,4 @@
-# BookOrganizer
+# Book Organizer
 
 A CLI tool for organizing audiobook libraries for Audiobookshelf with intelligent metadata extraction, duplicate detection, and Czech language support.
 
