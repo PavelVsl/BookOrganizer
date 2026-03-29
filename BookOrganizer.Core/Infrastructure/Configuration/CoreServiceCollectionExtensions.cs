@@ -9,7 +9,7 @@ using BookOrganizer.Services.Preview;
 using BookOrganizer.Services.Scanning;
 using BookOrganizer.Services.Text;
 using Microsoft.Extensions.DependencyInjection;
-
+// test
 namespace BookOrganizer.Infrastructure.Configuration;
 
 /// <summary>

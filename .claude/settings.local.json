@@ -15,7 +15,8 @@
       "WebFetch(domain:developers.google.com)",
       "WebFetch(domain:xinyustudio.wordpress.com)",
       "WebFetch(domain:www.googleapis.com)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(wc -l /Users/pavel/RiderProjects/BookOrganizer/BookOrganizer.Core/Services/*/*.cs)"
     ]
   },
   "enableAllProjectMcpServers": true,

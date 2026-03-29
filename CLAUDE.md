@@ -1,7 +1,7 @@
-no# BookOrganizer - Claude Code Instructions
+# BookOrganizer - Claude Code Instructions
 
 ## Project Overview
-AudioBook Organizer is a .NET 10 console application for organizing and structuring a personal audiobook library. The tool analyzes unorganized audiobook folders, extracts metadata, and reorganizes them into a clean, consistent structure.
+AudioBook Organizer is a .NET 10 solution for organizing and managing a personal audiobook library. It consists of a CLI tool, a shared core library, and a cross-platform desktop GUI (Avalonia UI). The tool analyzes unorganized audiobook folders, extracts metadata, and reorganizes them into a clean, consistent structure with Audiobookshelf integration.
 
 **Primary Use Case**: Managing a Czech audiobook library with hundreds of books in various states of organization.
 
@@ -22,15 +22,17 @@ AudioBook Organizer is a .NET 10 console application for organizing and structur
 ## Technology Stack
 
 ### Core Technologies
-- **.NET 10** with C# 14
-- **Console Application** (cross-platform: Windows, macOS, Linux)
+- **.NET 10** with C# 14 (implicit usings, nullable reference types enabled)
 - **System.CommandLine** for CLI argument parsing
-- **TagLib-Sharp** for MP3 metadata reading/writing
-- **Spectre.Console** for enhanced CLI UI (progress bars, tables, prompts)
+- **Spectre.Console 0.54** for enhanced CLI UI (progress bars, tables, prompts)
+- **Avalonia UI 11.3** for cross-platform desktop GUI (macOS, Windows, Linux)
+- **CommunityToolkit.MVVM 8.4** for MVVM pattern in desktop app
+- **TagLib-Sharp 2.3** for MP3 metadata reading/writing
+- **Microsoft.Data.Sqlite 10.0** for metadata caching
 - **Microsoft.Extensions.DependencyInjection** for IoC container
 - **Microsoft.Extensions.Logging** for structured logging
-- **SQLite** for metadata caching
 - **System.Text.Json** for configuration files
+- **Nerdbank.GitVersioning** for version management (CLI project)
 
 ### Modern C# Features
 - File-scoped namespaces
@@ -40,38 +42,90 @@ AudioBook Organizer is a .NET 10 console application for organizing and structur
 - Required members
 - Primary constructors where appropriate
 
+## Solution Structure
+
+Three projects in `BookOrganizer.sln`:
+
+```
+BookOrganizer/                  # CLI Console Application (.NET Global Tool)
+├── Commands/                   # 6 CLI command implementations
+├── Infrastructure/Configuration/
+├── Rendering/                  # PreviewRenderer, DeduplicationResolver
+└── Program.cs
+
+BookOrganizer.Core/             # Shared Class Library (all business logic)
+├── Infrastructure/
+│   ├── Configuration/          # DI extensions (CoreServiceCollectionExtensions)
+│   ├── Database/               # SQLite metadata caching
+│   └── Exceptions/             # Custom exception hierarchy
+├── Models/                     # 19 domain models (records)
+└── Services/
+    ├── Audiobookshelf/         # ABS API client, publishing, dedup
+    ├── Deduplication/          # Duplicate detection & content analysis
+    ├── Library/                # Library tree structure
+    ├── Metadata/               # Extraction, consolidation, formatting
+    ├── Operations/             # File operations (Strategy Pattern)
+    ├── Preview/                # Preview generation
+    ├── Scanning/               # Directory scanning & file detection
+    └── Text/                   # Czech text normalization
+
+BookOrganizer.Desktop/          # Avalonia UI Desktop Application
+├── Views/                      # XAML views (MainWindow, LibraryView, etc.)
+├── ViewModels/                 # MVVM view models (10 total)
+├── Services/                   # PublishQueueService
+└── Assets/
+```
+
 ## Architecture Guidelines
 
 ### Design Patterns
-- **Strategy Pattern**: File operations (copy vs move)
-- **Repository Pattern**: Metadata caching
-- **Plugin Architecture**: Metadata providers
+- **Strategy Pattern**: File operations (copy, move, hardlink, symlink)
+- **Repository Pattern**: Metadata caching (SQLite)
+- **Plugin Architecture**: Metadata formatters (BookOrganizer, Audiobookshelf, NFO)
 - **Dependency Injection**: All services and dependencies
-- **CQRS**: Separation of read/write operations where it improves clarity
-
-### Project Structure
-```
-BookOrganizer/
-├── Commands/           # CLI command implementations
-├── Services/           # Core business logic
-│   ├── Scanning/      # Directory scanning and file detection
-│   ├── Metadata/      # Metadata extraction and consolidation
-│   ├── Operations/    # File copy/move operations
-│   └── Providers/     # Metadata provider plugins
-├── Models/            # Domain models and DTOs
-├── Infrastructure/    # Cross-cutting concerns
-│   ├── Logging/
-│   ├── Configuration/
-│   └── Caching/
-└── Tests/             # Integration and unit tests
-```
+- **MVVM**: Desktop application with CommunityToolkit.MVVM
+- **CQRS**: Separation of read operations (scanning, metadata) vs write operations (file organization)
 
 ### Separation of Concerns
 - Keep CLI commands thin - delegate to services
+- All business logic lives in **BookOrganizer.Core**, shared by CLI and Desktop
 - Services should have single, clear responsibilities
-- Avoid service classes with too many dependencies
 - Use composition over inheritance
 - Keep classes simple - no over-engineering
+
+## CLI Commands
+
+```bash
+bookorganizer scan <source-path> [options]              # Quick folder discovery
+bookorganizer preview <source-path> <dest-path> [options]  # Full analysis with metadata
+bookorganizer organize <source-path> <dest-path> [options] # Execute file operations
+bookorganizer reorganize <library-path> [options]       # Reorganize existing library
+bookorganizer export-metadata <path> [options]          # Export metadata (bookinfo/abs/nfo)
+bookorganizer verify <library-path> [options]           # Validate library integrity
+```
+
+### Key CLI Options
+- Operations: `copy`, `move`, `hardlink`, `symlink`
+- Duplicate handling: `skip`, `rename`, `move`, `delete`
+- Metadata sources: MP3 ID3 tags or folder structure
+- Export formats: `bookorganizer` (bookinfo.json), `audiobookshelf` (metadata.json), `nfo` (XML), `all`
+- Filtering: `--author`, `--series`, `--max-items`
+- Output: `--quiet`, `--verbose`, `--json`, `--tree`
+
+## Desktop Application (Avalonia UI)
+
+### Key Features
+- Native macOS menu bar (in-window menu on Windows/Linux)
+- Library tree navigation: Author -> Series -> Book -> Volume
+- Inline metadata editing with keyboard shortcuts (Cmd+S to save)
+- Audiobookshelf integration: publish, duplicate checking, library browsing
+- Background publishing queue with progress tracking
+- Auto-load last opened library on startup
+- Settings dialog for library paths and ABS credentials
+
+### MVVM Architecture
+- **ViewModels**: MainWindowViewModel, LibraryViewModel, BookDetailViewModel, AbsLibraryViewModel, SettingsViewModel, AuthorDetailViewModel, SeriesDetailViewModel, VolumeDetailViewModel
+- **Views**: MainWindow, LibraryView, LibraryGridView, AbsLibraryView, SettingsWindow
 
 ## Coding Conventions
 
@@ -89,9 +143,10 @@ BookOrganizer/
 - Leverage **pattern matching** for readability
 - Use **async/await** properly (don't block, use ConfigureAwait(false) in libraries)
 - Handle **nullable reference types** correctly - no null-forgiving operators without justification
+- All services support **CancellationToken** for graceful interruption
 
 ### Czech Language Handling
-- Always use **UTF-8** encoding
+- Always use **UTF-8** encoding (Windows-1250 for legacy support via System.Text.Encoding.CodePages)
 - Test with Czech diacritics: ě, š, č, ř, ž, ý, á, í, é, ú, ů, ď, ť, ň
 - Normalize strings using proper culture-aware comparisons
 - Use `StringComparison.CurrentCultureIgnoreCase` for Czech text matching
@@ -104,15 +159,6 @@ BookOrganizer/
 - Create **test fixtures** with sample audiobook folder structures
 - Test with **real MP3 files** and metadata
 
-### Test Organization
-```
-Tests/
-├── Fixtures/          # Sample audiobook folders, MP3 files
-├── Integration/       # End-to-end workflow tests
-├── Services/          # Service-level tests with real dependencies
-└── TestHelpers/       # Shared test utilities
-```
-
 ### Key Test Scenarios
 - Czech character handling in filenames and metadata
 - Edge cases: very long paths, special characters, Unicode
@@ -124,108 +170,35 @@ Tests/
 ## Error Handling
 
 ### Approach
-- Use **exceptions** for exceptional conditions only
-- Return **Result types** for expected failures (consider creating Result<T> type)
+- Use **exceptions** for exceptional conditions only (custom hierarchy: BookOrganizerException, DirectoryScanningException, FileOrganizationException, MetadataExtractionException)
+- Return **Result<T>** type for expected failures
 - Log errors with appropriate context
 - Provide **helpful error messages** with suggested fixes
 - Never swallow exceptions silently
 
-### User-Facing Errors
-- Clear, actionable error messages
-- Suggest next steps or fixes
-- Include relevant file paths and context
-- Distinguish between user errors and system errors
+## Key Implementation Details
 
-## CLI Design Principles
+- **MP3 Tag Caching**: Smart staleness checking using lastModifiedUtc + fileSizeBytes (no expensive hashing)
+- **Metadata Consolidation**: Multi-source extraction with confidence scoring
+- **Hierarchical Metadata**: Cascading bookinfo.json from author -> series -> book level
+- **Atomic Moves**: Never merges into existing folders; creates conflict-free paths
+- **File Integrity**: SHA256 checksums validate copy operations
+- **ABS Deduplication**: Checks source audiobooks against Audiobookshelf server before organizing
+- **Background Publishing**: Queue-based publishing to Audiobookshelf with progress tracking and cancellation
 
-### Commands
-```bash
-bookorganizer scan <source-path> [options]
-bookorganizer preview <source-path> <dest-path> [options]
-bookorganizer organize <source-path> <dest-path> [options]
-bookorganizer verify <library-path> [options]
-bookorganizer config [set|get|list] [options]
-```
-
-### Output Guidelines
-- Use **Spectre.Console** for rich terminal output
-- Show **progress bars** for long operations
-- Use **tables** for structured data display
-- Colorize output appropriately (errors=red, success=green, warnings=yellow)
-- Respect `--quiet` and `--verbose` flags
-- Support `--json` output for scripting
-
-### Progressive Disclosure
-- Don't overwhelm users with options upfront
-- Provide sensible defaults
-- Use interactive prompts for missing required information
-- Allow non-interactive mode with `--yes` flag
-
-## Key Considerations
-
-### Data Safety
+## Data Safety
 - **Never lose data** - verify operations before execution
 - Implement **checksum validation** after file operations
 - Support **dry-run/preview** mode for all destructive operations
-- Create **operation manifests** for rollback capability
 - Log all changes for audit trail
 
-### Performance
-- Target: Scan 1000 audiobook folders in under 30 seconds
-- Show progress updates every 2 seconds for long operations
-- Cache metadata extraction results
-- Use parallel processing where safe (file scanning)
-- Optimize hot paths identified through profiling
-
-### Extensibility
-- Plugin architecture for metadata providers
-- Configurable folder naming templates
-- Prepared for future network support (SMB/SSH)
-- Clean separation allows future GUI/web interface
-
-## Common Patterns
-
-### Dependency Injection
-```csharp
-// Register services
-services.AddSingleton<IMetadataExtractor, MetadataExtractor>();
-services.AddScoped<IFileOperationService, FileOperationService>();
-services.AddTransient<IScanningService, ScanningService>();
-```
-
-### Result Type Pattern
-```csharp
-public record Result<T>(bool IsSuccess, T? Value, string? Error);
-
-public Result<BookMetadata> ExtractMetadata(string path)
-{
-    try
-    {
-        var metadata = /* extraction logic */;
-        return new Result<BookMetadata>(true, metadata, null);
-    }
-    catch (Exception ex)
-    {
-        return new Result<BookMetadata>(false, null, ex.Message);
-    }
-}
-```
-
-### Configuration
-```csharp
-// appsettings.json structure
-{
-  "Library": {
-    "DefaultSourcePath": "~/audiobooks",
-    "DefaultDestinationPath": "~/library",
-    "NamingTemplate": "{author}/{series}/{number} - {title}"
-  },
-  "MetadataProviders": {
-    "CacheEnabled": true,
-    "Providers": []
-  }
-}
-```
+## Environment Variables
+- `BOOKORGANIZER_SOURCE` / `BOOKORGANIZER_LIBRARY` - Default paths
+- `BOOKORGANIZER_OPERATION` - Default file operation type
+- `BOOKORGANIZER_PRESERVE_DIACRITICS` - Diacritics handling
+- `BOOKORGANIZER_METADATA_SOURCE` / `BOOKORGANIZER_EXPORT_FORMAT`
+- `BOOKORGANIZER_LOG_LEVEL`
+- `AUDIOBOOKSHELF_URL` / `AUDIOBOOKSHELF_TOKEN` / `AUDIOBOOKSHELF_LIBRARY` - ABS connection
 
 ## Development Workflow
 
@@ -261,5 +234,6 @@ When uncertain about implementation details:
 - [System.CommandLine Docs](https://learn.microsoft.com/dotnet/standard/commandline/)
 - [TagLib-Sharp GitHub](https://github.com/mono/taglib-sharp)
 - [Spectre.Console Docs](https://spectreconsole.net/)
+- [Avalonia UI Docs](https://docs.avaloniaui.net/)
 - [.NET 10 What's New](https://learn.microsoft.com/dotnet/core/whats-new/dotnet-10)
 - source @/Users/pavel/Documents/audiobooks destination @/Users/pavel/Documents/library
